@@ -4,8 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const screenshotImage = document.getElementById('screenshotImage');
     const screenshotContainer = document.getElementById('screenshotContainer');
     const editPanel = document.getElementById('editPanel');
-    const flowNameDisplay = document.getElementById('flowNameDisplay');
-
+    const flowNameInTitleSpan = document.getElementById('flowNameInTitle');
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
     const pageIndicator = document.getElementById('pageIndicator');
@@ -18,8 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Guard against missing critical elements ---
     if (!fileInput || !saveChangesBtn || !screenshotImage || !screenshotContainer || !editPanel ||
-        !flowNameDisplay || !prevPageBtn || !nextPageBtn || !pageIndicator) {
-        console.error("LQA Viewer: One or more critical UI elements are missing from the DOM. Aborting initialization.");
+        !flowNameInTitleSpan || !prevPageBtn || !nextPageBtn || !pageIndicator) { // Added flowNameInTitleSpan
+        console.error("LQA Viewer: One or more critical UI elements are missing. Aborting initialization.");
+        if (!flowNameInTitleSpan) console.error("Specifically, #flowNameInTitle is missing.");
         return;
     }
 
@@ -72,6 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Loading file:", file.name);
         resetViewerPartialState(); // Reset parts of state before loading new file
 
+        // --- UPDATE H1 WITH FILENAME (or placeholder during load) ---
+        // Use the actual filename from the selected file initially
+        flowNameInTitleSpan.textContent = file.name.endsWith('.lqaboss')
+            ? file.name.slice(0, -'.lqaboss'.length) // Show name without extension
+            : file.name;
+        flowNameInTitleSpan.title = file.name; // Full filename on hover
+
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
@@ -89,6 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     resetViewer(); return;
                 }
 
+                // --- UPDATE H1 WITH FLOW NAME FROM METADATA ---
+                flowNameInTitleSpan.textContent = flowData.flowName || file.name.replace(/\.lqaboss$/i, '') || 'Unnamed Flow';
+                if (flowData.flowName) flowNameInTitleSpan.title = `Flow: ${flowData.flowName} (File: ${file.name})`;
+
                 originalSegmentTexts = {}; // Initialize for the new file
                 flowData.pages.forEach((page) => {
                     if (page.segments && Array.isArray(page.segments)) {
@@ -101,8 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         page.segments = []; // Ensure segments is an array for safety
                     }
                 });
-
-                flowNameDisplay.textContent = `Flow: ${flowData.flowName || 'Unnamed Flow'}`;
                 currentPageIndex = 0;
                 activeSegmentIndex = -1; // Reset before displaying first page
                 await displayCurrentPage(); // This will render and attempt to focus first segment
@@ -522,7 +531,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetViewer() { // Full reset
         resetViewerPartialState(); // Call the partial reset
-        if (flowNameDisplay) flowNameDisplay.textContent = '';
+        // --- RESET H1 TITLE SPAN ---
+        if (flowNameInTitleSpan) flowNameInTitleSpan.textContent = 'No flow loaded';
+        if (flowNameInTitleSpan) flowNameInTitleSpan.title = '';
         if (pageIndicator) pageIndicator.textContent = 'Page X of Y';
         if (prevPageBtn) prevPageBtn.disabled = true;
         if (nextPageBtn) nextPageBtn.disabled = true;

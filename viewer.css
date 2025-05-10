@@ -3,25 +3,29 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     margin: 0;
     padding: 0;
-    background-color: #f0f2f5; /* Slightly softer background */
-    color: #1d2129; /* Darker text for better contrast */
-    display: flex;
-    flex-direction: column;
+    background-color: #f0f2f5;
+    color: #1d2129;
+    display: flex; /* Make body a flex container */
+    flex-direction: column; /* Stack header and content-area vertically */
     min-height: 100vh;
-    font-size: 14px; /* Base font size */
+    font-size: 14px;
 }
 
 .container {
-    width: 95%;
-    max-width: 1800px; /* Allow wider for large screens */
-    margin: 20px auto;
+    /* --- MAKE CONTAINER FULL WIDTH --- */
+    width: 100%;         /* Take full viewport width */
+    max-width: none;     /* Remove any previous max-width */
+    margin: 0;           /* Remove side margins */
+    padding: 20px;       /* Keep padding for content */
+    box-sizing: border-box; /* Include padding in width calculation */
+
     background-color: #ffffff;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1); /* Softer shadow */
-    border-radius: 8px;
-    flex-grow: 1;
+    /* box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1); */ /* Optional shadow for full width */
+    /* border-radius: 8px; */ /* Optional radius for full width */
+
+    flex-grow: 1; /* Allow container to grow and fill vertical space */
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Stack header and content-area */
 }
 
 /* Header Styling */
@@ -31,28 +35,63 @@ header {
     margin-bottom: 20px;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 20px;
+    flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 header h1 {
     margin: 0;
-    font-size: 1.6em; /* Slightly larger H1 */
-    color: #007bff; /* Brand color */
+    font-size: 1.5em;
+    color: #007bff;
     flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#fileInput {
-    padding: 8px 12px;
-    border: 1px solid #ccd0d5;
+#flowNameInTitle {
+    font-weight: normal; /* Make flow name part less bold than main title */
+    color: #333; /* Or a different color for distinction */
+}
+
+/* File Input Styling - Hide actual input, style the label */
+.file-input-container {
+    /* No specific styles needed unless for positioning within flex */
+    flex-shrink: 0; /* Prevent this container from shrinking */
+}
+
+input[type="file"]#fileInput {
+    /* --- HIDE THE DEFAULT FILE INPUT --- */
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.file-input-label.button-like {
+    display: inline-block; /* Or block, depending on desired layout */
+    padding: 10px 18px;
+    background-color: #28a745; /* Green for load button, for example */
+    color: white;
+    border: none;
     border-radius: 6px;
+    cursor: pointer;
     font-size: 0.95em;
+    font-weight: 600;
+    transition: background-color 0.2s ease-in-out;
+    text-align: center;
+    white-space: nowrap;
 }
 
-#flowNameDisplay {
-    font-style: italic;
-    margin-left: 20px;
-    color: #606770; /* Softer color for secondary text */
-    font-size: 0.9em;
+.file-input-label.button-like:hover {
+    background-color: #218838; /* Darker green on hover */
+}
+
+button#saveChangesBtn {
+    /* Styles remain similar, ensure flex-shrink: 0 if needed */
+    flex-shrink: 0;
 }
 
 button {
@@ -79,31 +118,34 @@ button:hover:not(:disabled) {
 
 /* Main Content Area Layout */
 .content-area {
-    display: flex;
+    /* --- USE CSS GRID INSTEAD OF FLEX --- */
+    display: grid;
+    grid-template-columns: auto minmax(350px, 1fr); /* Screenshot column, Edit panel column */
+    /*
+        'auto': screenshot column will be as wide as its content.
+        'minmax(350px, 1fr)': edit panel column will be at least 350px,
+                               and will take 1 fraction of remaining space.
+    */
     gap: 20px;
-    flex-grow: 1;
-    overflow: hidden; /* Prevent child overflow from breaking layout */
+    flex-grow: 1; /* Still needed for vertical fill if .container is flex column */
+    overflow: hidden; /* Important for grid children with overflow */
 }
 
-/* Screenshot Section Styling - CRITICAL FOR SIZING AND SCROLLING */
+/* Screenshot Section Styling */
 #screenshot-section {
-    flex: 3;
+    /* No flex properties needed here if parent is grid */
     display: flex;
     flex-direction: column;
     border: 1px solid #dddfe2;
     border-radius: 6px;
     padding: 15px;
     background-color: #f7f8fa;
-    overflow: auto; /* For scrolling the container if CSS-set image size is too big */
+    overflow: auto; /* For scrolling its own content (image) */
+    min-width: 0; /* Important for grid items to allow them to shrink properly if content is too wide */
 }
 
 .screenshot-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px; /* More space */
-    padding-bottom: 10px; /* Space below nav */
-    border-bottom: 1px solid #e4e6eb;
+    flex-shrink: 0;
 }
 .screenshot-nav button {
     padding: 6px 12px; /* Smaller nav buttons */
@@ -116,20 +158,15 @@ button:hover:not(:disabled) {
 
 #screenshotContainer {
     position: relative;
-    /* width: min-content; /* Remove if image width is set by JS */
-    /* height: min-content; /* Remove if image height is set by JS */
-    /* Instead, let it be a block that can be sized by its content or parent */
-    display: block; /* Or inline-block if you prefer for centering with text-align */
-    margin: 0 auto; /* If screenshot-section is wider */
+    width: min-content;
+    height: min-content;
+    margin: 0 auto;
     background-color: #e0e0e0;
-    overflow: hidden; /* Important if image CSS size is larger than this container, though unlikely with this approach */
 }
 
 #screenshotImage {
     display: block;
     border: 1px solid #bdc1c5;
-    /* Width and height will be set dynamically by JavaScript */
-    /* Remove any fixed width/height/max-width/max-height from here */
 }
 
 /* Highlight Box Styling */
@@ -153,12 +190,21 @@ button:hover:not(:disabled) {
 
 /* Edit Panel Styling */
 #edit-panel-section {
-    flex: 1; /* Or fixed width: flex: 0 0 400px; */
+    /* No flex properties needed here if parent is grid, grid-template-columns handles it */
+    /* min-width: 350px; /* This is now handled by minmax in grid-template-columns */
+
     overflow-y: auto;
     border: 1px solid #dddfe2;
     border-radius: 6px;
     padding: 15px;
     background-color: #f7f8fa;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Important for grid items */
+}
+
+#editPanel {
+    flex-grow: 1;
 }
 
 #editPanel .edit-item {
