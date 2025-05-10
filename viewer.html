@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#007bff"/> <!-- Match your brand -->
+    <title>LQA Boss PWA Viewer</title>
+
+    <link rel="stylesheet" href="viewer.css">
+    <link rel="manifest" href="manifest.webmanifest"> <!-- Link to PWA Manifest -->
+
+    <!-- Add to home screen for Safari on iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LQA Viewer">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png"> <!-- Or a specific Apple touch icon -->
+
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>LQA Boss File Viewer</h1>
+            <input type="file" id="fileInput" accept=".lqaboss" aria-label="Load .lqaboss file">
+            <span id="flowNameDisplay"></span>
+            <button id="saveChangesBtn" disabled>Save Changes</button>
+        </header>
+
+        <main class="content-area">
+            <section id="screenshot-section">
+                <div class="screenshot-nav">
+                    <button id="prevPageBtn" disabled>< Prev Page</button>
+                    <span id="pageIndicator">Page X of Y</span>
+                    <button id="nextPageBtn" disabled>Next Page ></button>
+                </div>
+                <div id="screenshotContainer">
+                    <img id="screenshotImage" alt="Load a .lqaboss file">
+                </div>
+            </section>
+
+            <aside id="edit-panel-section">
+                <h2>Editable Text Segments</h2>
+                <div id="editPanel">
+                    <p>Load a <code>.lqaboss</code> file to view and edit.</p>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="libs/jszip.min.js"></script>
+    <script src="viewer.js"></script>
+    <script>
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/lqa-boss/sw.js', { scope: '/lqa-boss/' }) // Adjust scope if needed
+                .then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+</html>

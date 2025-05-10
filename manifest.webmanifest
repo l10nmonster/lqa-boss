@@ -1,0 +1,26 @@
+{
+    "name": "LQA Boss Viewer",
+    "short_name": "LQA Boss",
+    "description": "View and edit LQA Boss (.lqaboss) files.",
+    "start_url": "/lqa-boss/viewer.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#007bff",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "/lqa-boss/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "file_handlers": [
+        {
+            "action": "/lqa-boss/viewer.html",
+            "accept": {
+                "application/vnd.lqaboss-flow": [".lqaboss"]
+            },
+            "launch_type": "single-client"
+        }
+    ]
+}

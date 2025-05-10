@@ -1,0 +1,232 @@
+/* General Body and Container Styling */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    margin: 0;
+    padding: 0;
+    background-color: #f0f2f5; /* Slightly softer background */
+    color: #1d2129; /* Darker text for better contrast */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    font-size: 14px; /* Base font size */
+}
+
+.container {
+    width: 95%;
+    max-width: 1800px; /* Allow wider for large screens */
+    margin: 20px auto;
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1); /* Softer shadow */
+    border-radius: 8px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header Styling */
+header {
+    border-bottom: 1px solid #dddfe2;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.6em; /* Slightly larger H1 */
+    color: #007bff; /* Brand color */
+    flex-grow: 1;
+}
+
+#fileInput {
+    padding: 8px 12px;
+    border: 1px solid #ccd0d5;
+    border-radius: 6px;
+    font-size: 0.95em;
+}
+
+#flowNameDisplay {
+    font-style: italic;
+    margin-left: 20px;
+    color: #606770; /* Softer color for secondary text */
+    font-size: 0.9em;
+}
+
+button {
+    padding: 10px 18px; /* More padding */
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-weight: 600;
+    transition: background-color 0.2s ease-in-out;
+}
+
+button:disabled {
+    background-color: #e4e6eb; /* Lighter disabled color */
+    color: #bcc0c4;
+    cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+    background-color: #0056b3; /* Darker on hover */
+}
+
+/* Main Content Area Layout */
+.content-area {
+    display: flex;
+    gap: 20px;
+    flex-grow: 1;
+    overflow: hidden; /* Prevent child overflow from breaking layout */
+}
+
+/* Screenshot Section Styling - CRITICAL FOR SIZING AND SCROLLING */
+#screenshot-section {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #dddfe2;
+    border-radius: 6px;
+    padding: 15px;
+    background-color: #f7f8fa;
+    overflow: auto; /* For scrolling the container if CSS-set image size is too big */
+}
+
+.screenshot-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px; /* More space */
+    padding-bottom: 10px; /* Space below nav */
+    border-bottom: 1px solid #e4e6eb;
+}
+.screenshot-nav button {
+    padding: 6px 12px; /* Smaller nav buttons */
+    font-size: 0.9em;
+}
+#pageIndicator {
+    font-weight: 600; /* Bolder indicator */
+    color: #333;
+}
+
+#screenshotContainer {
+    position: relative;
+    /* width: min-content; /* Remove if image width is set by JS */
+    /* height: min-content; /* Remove if image height is set by JS */
+    /* Instead, let it be a block that can be sized by its content or parent */
+    display: block; /* Or inline-block if you prefer for centering with text-align */
+    margin: 0 auto; /* If screenshot-section is wider */
+    background-color: #e0e0e0;
+    overflow: hidden; /* Important if image CSS size is larger than this container, though unlikely with this approach */
+}
+
+#screenshotImage {
+    display: block;
+    border: 1px solid #bdc1c5;
+    /* Width and height will be set dynamically by JavaScript */
+    /* Remove any fixed width/height/max-width/max-height from here */
+}
+
+/* Highlight Box Styling */
+.highlight-box {
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: none;
+    border: 2px dotted rgba(220, 53, 69, 0.7); /* Reddish dotted line */
+    transition: transform 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+    border-radius: 3px; /* Slightly rounded corners for highlights */
+}
+
+.highlight-box.active {
+    border-style: solid;
+    border-color: rgba(0, 100, 255, 0.9); /* Brighter blue for active */
+    border-width: 3px; /* Slightly thicker active border */
+    transform: scale(1.02); /* Smaller, more subtle zoom */
+    z-index: 10;
+    box-shadow: 0 0 12px rgba(0, 100, 255, 0.4);
+}
+
+/* Edit Panel Styling */
+#edit-panel-section {
+    flex: 1; /* Or fixed width: flex: 0 0 400px; */
+    overflow-y: auto;
+    border: 1px solid #dddfe2;
+    border-radius: 6px;
+    padding: 15px;
+    background-color: #f7f8fa;
+}
+
+#editPanel .edit-item {
+    margin-bottom: 12px;
+    padding: 12px;
+    background-color: #ffffff; /* White background for items */
+    border-radius: 6px;
+    border: 1px solid #e4e6eb; /* Softer border */
+    border-left-width: 4px; /* For the color indicator */
+    transition: border-left-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    position: relative;
+}
+#editPanel .edit-item.modified {
+    border-left-color: #dc3545; /* Red for modified */
+}
+#editPanel .edit-item.unmodified {
+    border-left-color: #28a745; /* Green for unmodified */
+}
+#editPanel .edit-item.active-segment-editor {
+    border-left-color: #007bff; /* Blue for active */
+    box-shadow: 0 0 0 2px rgba(0,123,255,.25); /* Focus ring effect */
+}
+
+#editPanel .edit-item label { /* Not used in current JS, but good to have if you add them */
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    color: #4b4f56;
+}
+
+#editPanel .edit-item textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccd0d5;
+    border-radius: 6px;
+    box-sizing: border-box;
+    min-height: 50px;
+    font-size: 0.95em;
+    line-height: 1.4;
+    resize: vertical;
+}
+#editPanel .edit-item textarea:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,.25); /* Matching focus ring */
+    outline: none; /* Remove default browser outline */
+}
+
+.undo-btn {
+    position: absolute;
+    top: 8px; /* Adjust positioning */
+    right: 8px;
+    background: none;
+    border: none;
+    font-size: 1.2em; /* Slightly larger undo icon */
+    cursor: pointer;
+    color: #606770;
+    padding: 4px;
+    line-height: 1; /* Ensure icon aligns well */
+}
+.undo-btn:hover {
+    color: #1d2129; /* Darker on hover */
+}
+
+/* Helper if no content */
+#editPanel p:only-child {
+    color: #606770;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
