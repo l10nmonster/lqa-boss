@@ -1,34 +1,3 @@
-if ('launchQueue' in window && window.launchQueue) { // Check window.launchQueue too
-    console.log("PWA Launch Queue API is available.");
-    window.launchQueue.setConsumer(async (launchParams) => {
-        if (launchParams.files && launchParams.files.length > 0) {
-            console.log("PWA launched with file(s):", launchParams.files);
-            const fileHandle = launchParams.files[0]; // Handle the first file
-            try {
-                const file = await fileHandle.getFile();
-                console.log("Processing launched file:", file.name);
-
-                // Simulate a file input event to reuse existing handleFileLoad logic
-                // This is a common pattern to avoid duplicating file processing logic.
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-
-                // Create a mock event object if your handleFileLoad expects it
-                const mockEvent = { target: { files: dataTransfer.files } };
-                handleFileLoad(mockEvent);
-
-            } catch (err) {
-                console.error('Error processing launched file:', err);
-                alert('Could not open the launched LQA Data file: ' + err.message);
-            }
-        } else {
-            console.log("PWA launched without files or files array empty.");
-        }
-    });
-} else {
-    console.log('PWA Launch Queue API not available. Relying on manual file input.');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
     const saveChangesBtn = document.getElementById('saveChangesBtn');
@@ -62,6 +31,37 @@ document.addEventListener('DOMContentLoaded', () => {
     editPanel.addEventListener('keydown', handleEditPanelKeyDown);
     // No auto-open file dialog as per browser restrictions
 
+    if ('launchQueue' in window && window.launchQueue) { // Check window.launchQueue too
+        console.log("PWA Launch Queue API is available.");
+        window.launchQueue.setConsumer(async (launchParams) => {
+            if (launchParams.files && launchParams.files.length > 0) {
+                console.log("PWA launched with file(s):", launchParams.files);
+                const fileHandle = launchParams.files[0]; // Handle the first file
+                try {
+                    const file = await fileHandle.getFile();
+                    console.log("Processing launched file:", file.name);
+    
+                    // Simulate a file input event to reuse existing handleFileLoad logic
+                    // This is a common pattern to avoid duplicating file processing logic.
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+    
+                    // Create a mock event object if your handleFileLoad expects it
+                    const mockEvent = { target: { files: dataTransfer.files } };
+                    handleFileLoad(mockEvent);
+    
+                } catch (err) {
+                    console.error('Error processing launched file:', err);
+                    alert('Could not open the launched LQA Data file: ' + err.message);
+                }
+            } else {
+                console.log("PWA launched without files or files array empty.");
+            }
+        });
+    } else {
+        console.log('PWA Launch Queue API not available. Relying on manual file input.');
+    }
+    
     // --- Main Functions ---
     async function handleFileLoad(event) {
         const file = event.target.files[0];
