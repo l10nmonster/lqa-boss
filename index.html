@@ -8,8 +8,6 @@
         <link rel="stylesheet" href="viewer.css">
         <link rel="manifest" href="manifest.webmanifest">
         <meta name="mobile-web-app-capable" content="yes">
-        <link rel="apple-touch-icon" href="icons/icon-192x192.png"> <!-- Or a specific Apple touch icon size -->
- 
     </head>
 <body>
     <div class="container">
@@ -26,11 +24,11 @@
             <section id="screenshot-section">
                 <div class="screenshot-nav">
                     <button id="prevPageBtn" disabled>< Prev Page</button>
-                    <span id="pageIndicator">Page X of Y</span>
+                    <span id="pageIndicator"> Page X of Y </span>
                     <button id="nextPageBtn" disabled>Next Page ></button>
                 </div>
                 <div id="screenshotContainer">
-                    <img id="screenshotImage" alt="Load a .lqaboss file">
+                    <img id="screenshotImage">
                 </div>
             </section>
 
@@ -44,11 +42,11 @@
     </div>
 
     <script src="libs/jszip.min.js"></script>
-    <script src="viewer.js"></script>
+    <script type="module" src="js/main.js"></script>
     <script>
         // Service Worker Registration
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/lqa-boss/sw.js', { scope: '/lqa-boss/' }) // Adjust scope if needed
+            navigator.serviceWorker.register('sw.js', { scope: '.' }) // Adjust scope if needed
                 .then(registration => {
                     console.log('Service Worker registered with scope:', registration.scope);
                 })

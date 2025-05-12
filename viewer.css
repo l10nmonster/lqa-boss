@@ -118,34 +118,36 @@ button:hover:not(:disabled) {
 
 /* Main Content Area Layout */
 .content-area {
-    /* --- USE CSS GRID INSTEAD OF FLEX --- */
-    display: grid;
-    grid-template-columns: auto minmax(350px, 1fr); /* Screenshot column, Edit panel column */
-    /*
-        'auto': screenshot column will be as wide as its content.
-        'minmax(350px, 1fr)': edit panel column will be at least 350px,
-                               and will take 1 fraction of remaining space.
-    */
+    display: flex; /* Row layout for screenshot and edit panel */
     gap: 20px;
-    flex-grow: 1; /* Still needed for vertical fill if .container is flex column */
-    overflow: hidden; /* Important for grid children with overflow */
+    flex-grow: 1; /* Takes up remaining vertical space in .container */
+    overflow: hidden; /* Important for containing children */
+    /* --- Align items to the start vertically by default --- */
+    align-items: flex-start;
 }
 
 /* Screenshot Section Styling */
 #screenshot-section {
-    /* No flex properties needed here if parent is grid */
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Stack nav and screenshotContainer */
+    flex-basis: auto;   /* Initial size based on content */
+    flex-shrink: 0;   /* Don't shrink this section */
+    flex-grow: 0;     /* Don't grow beyond content */
+    /* Its width is driven by screenshotContainer's min-content */
+    /* Its height will be driven by its content (nav + screenshotContainer) */
+
     border: 1px solid #dddfe2;
     border-radius: 6px;
     padding: 15px;
     background-color: #f7f8fa;
-    overflow: auto; /* For scrolling its own content (image) */
-    min-width: 0; /* Important for grid items to allow them to shrink properly if content is too wide */
+    overflow: auto; /* Handles both vertical and horizontal scrolling for its content */
+    /* --- Add a max-height to prevent it from becoming overly tall if window is huge --- */
+    /* max-height: calc(100vh - 150px); /* Example: viewport height minus header/padding */
+                                     /* Adjust 150px as needed based on your header/margins */
 }
 
 .screenshot-nav {
-    flex-shrink: 0;
+    flex-shrink: 0; /* Prevent nav from shrinking */
 }
 .screenshot-nav button {
     padding: 6px 12px; /* Smaller nav buttons */
@@ -159,52 +161,77 @@ button:hover:not(:disabled) {
 #screenshotContainer {
     position: relative;
     width: min-content;
-    height: min-content;
+    height: min-content; /* Becomes as tall as the image */
     margin: 0 auto;
     background-color: #e0e0e0;
+    display: flex; /* Helps if screenshotImage needs centering, though block usually suffices */
+    align-items: center; /* Vertically center image if container is taller (unlikely here) */
+    justify-content: center; /* Horizontally center image */
 }
 
 #screenshotImage {
     display: block;
     border: 1px solid #bdc1c5;
+    /* width and height set by JS */
 }
 
 /* Highlight Box Styling */
 .highlight-box {
     position: absolute;
     box-sizing: border-box;
-    pointer-events: none;
-    border: 2px dotted rgba(220, 53, 69, 0.7); /* Reddish dotted line */
+    cursor: pointer;
+    border: 3px dashed rgba(220, 53, 69, 0.7);
     transition: transform 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
     border-radius: 3px; /* Slightly rounded corners for highlights */
+}
+
+.highlight-box:hover {
+    background-color: rgba(0, 123, 255, 0.1); /* Light blue semi-transparent hover */
 }
 
 .highlight-box.active {
     border-style: solid;
     border-color: rgba(0, 100, 255, 0.9); /* Brighter blue for active */
-    border-width: 3px; /* Slightly thicker active border */
-    transform: scale(1.02); /* Smaller, more subtle zoom */
+    background-color: rgba(0, 123, 255, 0.15); /* Slightly darker for active */
+    border-width: 4px; /* Slightly thicker active border */
+    transform: scale(1.2); /* Smaller, more subtle zoom */
     z-index: 10;
     box-shadow: 0 0 12px rgba(0, 100, 255, 0.4);
 }
 
 /* Edit Panel Styling */
 #edit-panel-section {
-    /* No flex properties needed here if parent is grid, grid-template-columns handles it */
-    /* min-width: 350px; /* This is now handled by minmax in grid-template-columns */
+    flex-grow: 1;    /* It will try to take remaining horizontal space */
+    flex-shrink: 1;
+    flex-basis: 0;   /* Start from 0 and grow horizontally */
+    min-width: 350px; /* Your established minimum width */
 
-    overflow-y: auto;
+    display: flex;   /* Make it a flex container for its child #editPanel */
+    flex-direction: column; /* Stack content vertically within this panel */
+
+    /* --- HEIGHT CONTROL --- */
+    /* We want it to try and match screenshot-section's height but not exceed it
+       IF edit-panel-section has reached its own useful min-height.
+       This is hard with pure CSS if screenshot-section's height is dynamic.
+       Let's start by giving it a min-height and allowing its content to scroll.
+       The "not taller than screenshot" part is the tricky CSS bit.
+    */
+    min-height: 400px; /* A minimum useful height for the editor itself */
+                      /* Adjust this value based on your UI needs */
+    max-height: 100%;  /* Try to not exceed the height of its flex parent (.content-area) */
+                      /* This works if .content-area has a defined height or uses align-items: stretch */
+
+
     border: 1px solid #dddfe2;
     border-radius: 6px;
     padding: 15px;
     background-color: #f7f8fa;
-    display: flex;
-    flex-direction: column;
-    min-width: 0; /* Important for grid items */
+    overflow: hidden; /* Parent controls scroll, child #editPanel scrolls its own content */
 }
 
 #editPanel {
-    flex-grow: 1;
+    flex-grow: 1; /* Allows the list of textareas to grow and fill #edit-panel-section */
+    overflow-y: auto; /* This is where the textareas will scroll */
 }
 
 #editPanel .edit-item {

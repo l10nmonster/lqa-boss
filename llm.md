@@ -17,7 +17,7 @@ The viewer allows users to navigate through the pages of a flow, view the screen
 
 ## File Structure (Key Files)
 
-*   `viewer.html`: The main HTML structure of the application.
+*   `index.html`: The main HTML structure of the application.
 *   `viewer.css`: All styles for the application.
 *   `viewer.js`: The core JavaScript logic for all application functionality.
 *   `manifest.webmanifest`: The PWA manifest file defining app properties, icons, and `file_handlers`.
