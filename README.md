@@ -7,6 +7,10 @@ A modern, glassmorphic viewer and editor for LQA Boss (.lqaboss) files, built wi
 - **Modern Tech Stack**: Built with React 19, TypeScript, Chakra UI, and Lexical editor
 - **Glassmorphic Design**: Beautiful, modern UI with glass-like effects and smooth animations
 - **Rich Text Editing**: Powered by Meta's Lexical editor framework
+- **Original Size Screenshots**: Images display at their native resolution for better readability and accurate overlay positioning
+- **Resizable Split View**: Drag to adjust the space between screenshot and text editor
+- **Integrated Navigation**: Page navigation controls overlaid on the screenshot viewer to save space
+- **Full-Screen Interface**: Uses entire screen width for maximum workspace
 - **Keyboard Navigation**: Navigate between segments and pages using Tab/Shift+Tab and Ctrl+Arrow keys
 - **Visual Feedback**: Color-coded segments (green for unmodified, red for modified, blue for active)
 - **PWA Support**: Works as a Progressive Web App with file association support
@@ -48,11 +52,20 @@ npm run preview
 ## Usage
 
 1. Click "Load .lqaboss File" to select a file
-2. Navigate between pages using the arrow buttons or Ctrl+Left/Right
-3. Click on highlighted segments in the screenshot to jump to that text
-4. Edit text in the Lexical editor on the right
-5. Use Tab/Shift+Tab to navigate between segments
-6. Click "Save Changes" to download a JSON file with all modifications
+2. Navigate between pages using the arrow buttons overlaid on the screenshot or Ctrl+Left/Right
+3. Drag the vertical divider between screenshot and editor to adjust the split
+4. Click on highlighted segments in the screenshot to jump to that text
+5. Edit text in the Lexical editor on the right
+6. Use Tab/Shift+Tab to navigate between segments
+7. Click "Save Changes" to download a JSON file with all modifications
+
+## UI Layout
+
+The app features a modern, space-efficient layout:
+- **Full-width interface**: Uses the entire screen width for maximum workspace
+- **Resizable panes**: Drag the divider between screenshot and editor to customize your view
+- **Integrated controls**: Navigation buttons are overlaid on the screenshot to save vertical space
+- **Smart scrolling**: Screenshots display at their native resolution with automatic scrollbars when needed
 
 ## Keyboard Shortcuts
 

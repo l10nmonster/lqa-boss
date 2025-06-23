@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Box, Image } from '@chakra-ui/react'
+import { Box, Image, IconButton, Text, Stack } from '@chakra-ui/react'
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 import JSZip from 'jszip'
 import { Page } from '../types'
 
@@ -8,6 +9,9 @@ interface ScreenshotViewerProps {
   zipFile: JSZip
   activeSegmentIndex: number
   onSegmentClick: (index: number) => void
+  currentPageIndex: number
+  totalPages: number
+  onNavigatePage: (direction: number) => void
 }
 
 const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
@@ -15,9 +19,13 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   zipFile,
   activeSegmentIndex,
   onSegmentClick,
+  currentPageIndex,
+  totalPages,
+  onNavigatePage,
 }) => {
   const [imageUrl, setImageUrl] = useState<string>('')
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [displayDimensions, setDisplayDimensions] = useState({ width: 0, height: 0 })
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -40,73 +48,148 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   }, [page.imageFile, zipFile])
 
   const handleImageLoad = () => {
-    setImageLoaded(true)
+    if (imageRef.current) {
+      const naturalWidth = imageRef.current.naturalWidth
+      const naturalHeight = imageRef.current.naturalHeight
+      
+      // Assume images might be captured at device pixel ratio
+      // If on a retina display, the image is likely 2x the logical size
+      const dpr = window.devicePixelRatio || 1
+      
+      // Display at logical pixel size (natural size / dpr)
+      setDisplayDimensions({
+        width: naturalWidth / dpr,
+        height: naturalHeight / dpr
+      })
+      setImageLoaded(true)
+      
+      console.log('Image loaded:', {
+        natural: { width: naturalWidth, height: naturalHeight },
+        dpr,
+        display: { width: naturalWidth / dpr, height: naturalHeight / dpr }
+      })
+    }
   }
 
   const calculateHighlightPosition = (segment: any) => {
-    if (!imageRef.current || !imageLoaded) return null
+    if (!imageLoaded) return null
 
-    const dpr = window.devicePixelRatio || 1
-    const displayedWidth = imageRef.current.offsetWidth
-    const displayedHeight = imageRef.current.offsetHeight
-    const naturalWidth = imageRef.current.naturalWidth
-    const naturalHeight = imageRef.current.naturalHeight
-
-    if (displayedWidth === 0 || naturalWidth === 0) return null
-
-    const intendedLogicalWidth = naturalWidth / dpr
-    const intendedLogicalHeight = naturalHeight / dpr
-    const scaleX = displayedWidth / intendedLogicalWidth
-    const scaleY = displayedHeight / intendedLogicalHeight
-
+    // Segments coordinates are in logical pixels, matching our display size
     return {
-      left: segment.x * scaleX,
-      top: segment.y * scaleY,
-      width: segment.width * scaleX,
-      height: segment.height * scaleY,
+      left: segment.x,
+      top: segment.y,
+      width: segment.width,
+      height: segment.height,
     }
   }
 
   return (
-    <Box position="relative" ref={containerRef}>
-      <Image
-        ref={imageRef}
-        src={imageUrl}
-        onLoad={handleImageLoad}
-        border="1px solid"
-        borderColor="whiteAlpha.300"
-        borderRadius="lg"
-        maxW="100%"
-        height="auto"
-      />
-      
-      {imageLoaded && page.segments.map((segment, index) => {
-        const position = calculateHighlightPosition(segment)
-        if (!position) return null
+    <Box position="relative" height="100%" display="flex" flexDirection="column" p={6}>
+      {/* Navigation Controls */}
+      <Stack 
+        direction="row" 
+        position="absolute" 
+        top={10} 
+        left="50%" 
+        transform="translateX(-50%)" 
+        zIndex={10}
+        bg="blackAlpha.700"
+        borderRadius="full"
+        px={3}
+        py={1}
+        gap={2}
+        align="center"
+      >
+        <IconButton
+          aria-label="Previous page"
+          onClick={() => onNavigatePage(-1)}
+          disabled={currentPageIndex === 0}
+          variant="ghost"
+          size="sm"
+          color="white"
+          _hover={{ bg: 'whiteAlpha.200' }}
+        >
+          <FiChevronLeft />
+        </IconButton>
+        <Text color="white" fontSize="sm" fontWeight="semibold" minW="80px" textAlign="center">
+          Page {currentPageIndex + 1} of {totalPages}
+        </Text>
+        <IconButton
+          aria-label="Next page"
+          onClick={() => onNavigatePage(1)}
+          disabled={currentPageIndex === totalPages - 1}
+          variant="ghost"
+          size="sm"
+          color="white"
+          _hover={{ bg: 'whiteAlpha.200' }}
+        >
+          <FiChevronRight />
+        </IconButton>
+      </Stack>
 
-        return (
-          <Box
-            key={index}
-            position="absolute"
-            left={`${position.left}px`}
-            top={`${position.top}px`}
-            width={`${position.width}px`}
-            height={`${position.height}px`}
-            border="3px dashed"
-            borderColor={index === activeSegmentIndex ? 'blue.400' : 'red.400'}
-            borderRadius="md"
-            cursor="pointer"
-            transition="all 0.2s"
-            _hover={{
-              bg: 'whiteAlpha.200',
-              transform: 'scale(1.05)',
-            }}
-            bg={index === activeSegmentIndex ? 'blue.200' : 'transparent'}
-            opacity={index === activeSegmentIndex ? 0.3 : 0.7}
-            onClick={() => onSegmentClick(index)}
+      {/* Image Container */}
+      <Box 
+        ref={containerRef}
+        width="100%"
+        flex="1"
+        overflow="auto"
+        position="relative"
+        minHeight={0}
+        p={0}
+      >
+        <Box 
+          position="relative" 
+          width={displayDimensions.width ? `${displayDimensions.width}px` : 'auto'}
+          height={displayDimensions.height ? `${displayDimensions.height}px` : 'auto'}
+          m={0}
+          p={0}
+          boxShadow="0 0 0 1px rgba(255, 255, 255, 0.3)"
+          borderRadius="lg"
+        >
+          <Image
+            ref={imageRef}
+            src={imageUrl}
+            onLoad={handleImageLoad}
+            display="block"
+            m={0}
+            p={0}
+            borderRadius="lg"
+            // Display at logical size
+            width={displayDimensions.width ? `${displayDimensions.width}px` : 'auto'}
+            height={displayDimensions.height ? `${displayDimensions.height}px` : 'auto'}
+            maxW="none"
+            maxH="none"
           />
-        )
-      })}
+          
+          {imageLoaded && page.segments.map((segment, index) => {
+            const position = calculateHighlightPosition(segment)
+            if (!position) return null
+
+            return (
+              <Box
+                key={index}
+                position="absolute"
+                left={`${position.left}px`}
+                top={`${position.top}px`}
+                width={`${position.width}px`}
+                height={`${position.height}px`}
+                border="3px dashed"
+                borderColor={index === activeSegmentIndex ? 'blue.400' : 'red.400'}
+                borderRadius="md"
+                cursor="pointer"
+                transition="all 0.2s"
+                _hover={{
+                  bg: 'whiteAlpha.200',
+                  transform: 'scale(1.05)',
+                }}
+                bg={index === activeSegmentIndex ? 'blue.200' : 'transparent'}
+                opacity={index === activeSegmentIndex ? 0.3 : 0.7}
+                onClick={() => onSegmentClick(index)}
+              />
+            )
+          })}
+        </Box>
+      </Box>
     </Box>
   )
 }

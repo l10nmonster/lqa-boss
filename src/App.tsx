@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   Box,
-  Container,
   Flex,
   Heading,
   Button,
@@ -15,6 +14,7 @@ import JSZip from 'jszip'
 import ScreenshotViewer from './components/ScreenshotViewer'
 import TextSegmentEditor from './components/TextSegmentEditor'
 import GlassBox from './components/GlassBox'
+import ResizablePane from './components/ResizablePane'
 import { FlowData, Page } from './types'
 import { saveChangedSegments } from './utils/saveHandler'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
@@ -143,9 +143,8 @@ function App() {
   }, [currentPageIndex])
 
   return (
-    <Box minH="100vh" background={bgGradient} py={8}>
-      <Container maxW="container.2xl">
-        <Stack direction="column" gap={6} align="stretch">
+    <Box minH="100vh" background={bgGradient} p={4}>
+      <Stack direction="column" gap={4} align="stretch" h="100vh">
           {/* Header */}
           <Flex
             as={GlassBox}
@@ -182,74 +181,57 @@ function App() {
             </Stack>
           </Flex>
 
-          {/* Navigation */}
-          {flowData && (
-            <GlassBox p={4}>
-              <Stack direction="row" justify="center" gap={4}>
-                <IconButton
-                  aria-label="Previous page"
-                  onClick={() => navigatePage(-1)}
-                  disabled={currentPageIndex === 0}
-                  variant="outline"
-                >
-                  <FiChevronLeft />
-                </IconButton>
-                <Text color="white" fontWeight="semibold">
-                  Page {currentPageIndex + 1} of {flowData.pages.length}
-                </Text>
-                <IconButton
-                  aria-label="Next page"
-                  onClick={() => navigatePage(1)}
-                  disabled={currentPageIndex === flowData.pages.length - 1}
-                  variant="outline"
-                >
-                  <FiChevronRight />
-                </IconButton>
-              </Stack>
-            </GlassBox>
-          )}
-
           {/* Main Content */}
-          <Flex gap={6} direction={{ base: 'column', lg: 'row' }}>
-            {/* Screenshot Section */}
-            <GlassBox flex="1" p={6} overflow="auto" maxH="80vh">
-              {currentPage && zipFile ? (
-                <ScreenshotViewer
-                  page={currentPage}
-                  zipFile={zipFile}
-                  activeSegmentIndex={activeSegmentIndex}
-                  onSegmentClick={setActiveSegmentIndex}
-                />
-              ) : (
-                <Text color="white" textAlign="center" py={20}>
-                  Load a .lqaboss file to view screenshots
-                </Text>
-              )}
-            </GlassBox>
+          <Box flex="1" overflow="hidden">
+            <ResizablePane>
+              {/* Screenshot Section */}
+              <GlassBox 
+                p={0} 
+                height="100%"
+                position="relative"
+                display="flex"
+                flexDirection="column"
+              >
+                {currentPage && zipFile && flowData ? (
+                  <ScreenshotViewer
+                    page={currentPage}
+                    zipFile={zipFile}
+                    activeSegmentIndex={activeSegmentIndex}
+                    onSegmentClick={setActiveSegmentIndex}
+                    currentPageIndex={currentPageIndex}
+                    totalPages={flowData.pages.length}
+                    onNavigatePage={navigatePage}
+                  />
+                ) : (
+                  <Text color="white" textAlign="center" py={20}>
+                    Load a .lqaboss file to view screenshots
+                  </Text>
+                )}
+              </GlassBox>
 
-            {/* Editor Section */}
-            <GlassBox flex="1" p={6} maxH="80vh" overflow="hidden">
-              <Heading size="md" mb={4} color="white">
-                Editable Text Segments
-              </Heading>
-              {currentPage ? (
-                <TextSegmentEditor
-                  page={currentPage}
-                  pageIndex={currentPageIndex}
-                  originalTexts={originalTexts}
-                  activeSegmentIndex={activeSegmentIndex}
-                  onSegmentFocus={setActiveSegmentIndex}
-                  onTextChange={updateSegmentText}
-                />
-              ) : (
-                <Text color="white" textAlign="center" py={20}>
-                  Load a .lqaboss file to view and edit
-                </Text>
-              )}
-            </GlassBox>
-          </Flex>
+              {/* Editor Section */}
+              <GlassBox p={6} height="100%" overflow="hidden">
+                <Heading size="md" mb={4} color="white">
+                  Editable Text Segments
+                </Heading>
+                {currentPage ? (
+                  <TextSegmentEditor
+                    page={currentPage}
+                    pageIndex={currentPageIndex}
+                    originalTexts={originalTexts}
+                    activeSegmentIndex={activeSegmentIndex}
+                    onSegmentFocus={setActiveSegmentIndex}
+                    onTextChange={updateSegmentText}
+                  />
+                ) : (
+                  <Text color="white" textAlign="center" py={20}>
+                    Load a .lqaboss file to view and edit
+                  </Text>
+                )}
+              </GlassBox>
+            </ResizablePane>
+          </Box>
         </Stack>
-      </Container>
     </Box>
   )
 }
