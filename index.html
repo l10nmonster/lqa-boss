@@ -5,55 +5,12 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="theme-color" content="#007bff"/>
         <title>LQA Boss</title>
-        <link rel="stylesheet" href="viewer.css">
-        <link rel="manifest" href="manifest.webmanifest">
+        <link rel="manifest" href="./manifest.webmanifest">
         <meta name="mobile-web-app-capable" content="yes">
+        <link rel="icon" type="image/png" href="./icons/icon-512x512.png" />
     </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>LQA Boss: <span id="flowNameInTitle"><i>(no flow loaded)</i></span></h1>
-            <div class="file-input-container">
-                <label for="fileInput" class="file-input-label button-like">↯ Load .lqaboss File ↯</label>
-                <input type="file" id="fileInput" accept=".lqaboss" aria-label="Load .lqaboss file">
-            </div>
-            <button id="saveChangesBtn" disabled>Save Changes</button>
-        </header>
-
-        <main class="content-area">
-            <section id="screenshot-section">
-                <div class="screenshot-nav">
-                    <button id="prevPageBtn" disabled>< Prev Page</button>
-                    <span id="pageIndicator"> Page X of Y </span>
-                    <button id="nextPageBtn" disabled>Next Page ></button>
-                </div>
-                <div id="screenshotContainer">
-                    <img id="screenshotImage">
-                </div>
-            </section>
-
-            <aside id="edit-panel-section">
-                <h2>Editable Text Segments</h2>
-                <div id="editPanel">
-                    <p>Load a <code>.lqaboss</code> file to view and edit.</p>
-                </div>
-            </aside>
-        </main>
-    </div>
-
-    <script src="libs/jszip.min.js"></script>
-    <script type="module" src="js/main.js"></script>
-    <script>
-        // Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js', { scope: '.' }) // Adjust scope if needed
-                .then(registration => {
-                    console.log('Service Worker registered with scope:', registration.scope);
-                })
-                .catch(error => {
-                    console.error('Service Worker registration failed:', error);
-                });
-        }
-    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

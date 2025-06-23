@@ -1,0 +1,31 @@
+{
+  "name": "lqa-boss-react",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@chakra-ui/react": "^3.0.0",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "@lexical/react": "^0.32.1",
+    "framer-motion": "^12.0.0",
+    "jszip": "^3.10.1",
+    "lexical": "^0.32.1",
+    "react": "^19.0.0-rc",
+    "react-dom": "^19.0.0-rc",
+    "react-icons": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0-rc",
+    "@types/react-dom": "^19.0.0-rc",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.4.2",
+    "vite": "^6.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && cp sw.js dist/ && cp .nojekyll dist/",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  }
+}

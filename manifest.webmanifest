@@ -2,7 +2,7 @@
     "name": "LQA Boss Viewer",
     "short_name": "LQA Boss",
     "description": "View and edit LQA Boss (.lqaboss) files.",
-    "start_url": "index.html",
+    "start_url": "/lqa-boss/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#007bff",
@@ -16,7 +16,7 @@
     ],
     "file_handlers": [
         {
-            "action": "index.html",
+            "action": "/lqa-boss/",
             "accept": {
                 "application/vnd.lqaboss-flow": [".lqaboss"]
             },
