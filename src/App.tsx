@@ -15,12 +15,14 @@ import ScreenshotViewer from './components/ScreenshotViewer'
 import TextSegmentEditor from './components/TextSegmentEditor'
 import GlassBox from './components/GlassBox'
 import ResizablePane from './components/ResizablePane'
-import { FlowData, Page } from './types'
-import { saveChangedSegments } from './utils/saveHandler'
+import { FlowData, Page, JobData, TranslationUnit } from './types'
+import { saveChangedTus } from './utils/saveHandler'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
 
 function App() {
   const [flowData, setFlowData] = useState<FlowData | null>(null)
+  const [jobData, setJobData] = useState<JobData | null>(null)
+  const [originalJobData, setOriginalJobData] = useState<JobData | null>(null)
   const [zipFile, setZipFile] = useState<JSZip | null>(null)
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
@@ -33,7 +35,7 @@ function App() {
     console.log('React version:', React.version)
   }, [])
 
-  const bgGradient = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+  const bgGradient = 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 25%, #bae6fd 50%, #e0f2fe 75%, #f0f9ff 100%)'
 
   useEffect(() => {
     // PWA File Handling
@@ -69,6 +71,13 @@ function App() {
       const metadataContent = await metadataFile.async("string")
       const parsedFlowData: FlowData = JSON.parse(metadataContent)
 
+      const jobFile = zip.file("job.json");
+      if (!jobFile) {
+        throw new Error('Invalid .lqaboss file: "job.json" not found.')
+      }
+      const jobContent = await jobFile.async("string");
+      const parsedJobData: JobData = JSON.parse(jobContent);
+
       if (!parsedFlowData.pages || parsedFlowData.pages.length === 0) {
         throw new Error('Invalid .lqaboss file: No valid pages data found.')
       }
@@ -83,6 +92,8 @@ function App() {
 
       setZipFile(zip)
       setFlowData(parsedFlowData)
+      setJobData(parsedJobData)
+      setOriginalJobData(JSON.parse(JSON.stringify(parsedJobData)))
       setOriginalTexts(originals)
       setFileName(file.name)
       setCurrentPageIndex(0)
@@ -103,8 +114,8 @@ function App() {
   }
 
   const handleSaveChanges = () => {
-    if (!flowData) return
-    saveChangedSegments(flowData, originalTexts)
+    if (!jobData || !originalJobData || !fileName) return
+    saveChangedTus(jobData, originalJobData, fileName)
   }
 
   const navigatePage = (direction: number) => {
@@ -121,6 +132,12 @@ function App() {
     const newFlowData = { ...flowData }
     newFlowData.pages[pageIndex].segments[segmentIndex].text = newText
     setFlowData(newFlowData)
+  }
+
+  const updateTranslationUnit = (tu: TranslationUnit) => {
+    if (!jobData) return
+    const newTus = jobData.tus.map(t => t.guid === tu.guid ? tu : t)
+    setJobData({ ...jobData, tus: newTus })
   }
 
   const currentPage = flowData?.pages[currentPageIndex]
@@ -152,7 +169,7 @@ function App() {
             align="center"
             justify="space-between"
           >
-            <Heading size="lg" color="white">
+            <Heading size="lg" color="gray.700">
               LQA Boss: {flowData?.flowName || '(no flow loaded)'}
             </Heading>
             <Stack direction="row" gap={4}>
@@ -165,6 +182,7 @@ function App() {
               />
               <Button
                 variant="outline"
+                colorScheme="blue"
                 onClick={() => fileInputRef.current?.click()}
                 size="md"
               >
@@ -172,6 +190,7 @@ function App() {
               </Button>
               <Button
                 variant="solid"
+                colorScheme="blue"
                 onClick={handleSaveChanges}
                 disabled={!flowData}
                 size="md"
@@ -203,7 +222,7 @@ function App() {
                     onNavigatePage={navigatePage}
                   />
                 ) : (
-                  <Text color="white" textAlign="center" py={20}>
+                  <Text color="gray.600" textAlign="center" py={20}>
                     Load a .lqaboss file to view screenshots
                   </Text>
                 )}
@@ -211,20 +230,20 @@ function App() {
 
               {/* Editor Section */}
               <GlassBox p={6} height="100%" overflow="hidden">
-                <Heading size="md" mb={4} color="white">
+                <Heading size="md" mb={4} color="gray.700">
                   Editable Text Segments
                 </Heading>
-                {currentPage ? (
+                {currentPage && jobData && originalJobData ? (
                   <TextSegmentEditor
                     page={currentPage}
-                    pageIndex={currentPageIndex}
-                    originalTexts={originalTexts}
+                    jobData={jobData}
+                    originalJobData={originalJobData}
+                    onTranslationUnitChange={updateTranslationUnit}
                     activeSegmentIndex={activeSegmentIndex}
                     onSegmentFocus={setActiveSegmentIndex}
-                    onTextChange={updateSegmentText}
                   />
                 ) : (
-                  <Text color="white" textAlign="center" py={20}>
+                  <Text color="gray.600" textAlign="center" py={20}>
                     Load a .lqaboss file to view and edit
                   </Text>
                 )}

@@ -1,68 +1,54 @@
-import { FlowData, ChangedSegmentsData } from '../types'
+import { JobData, TranslationUnit } from '../types';
+import { isEqual } from 'lodash';
 
-export function saveChangedSegments(
-  flowData: FlowData,
-  originalTexts: Record<string, string>
-): void {
-  const changedSegmentsData: ChangedSegmentsData = {
-    flowName: flowData.flowName,
-    savedAt: new Date().toISOString(),
-    pages: []
-  }
-
-  let hasChanges = false
-
-  flowData.pages.forEach((page) => {
-    const pageChanges = {
-      pageId: page.pageId,
-      originalUrl: page.originalUrl,
-      imageFile: page.imageFile,
-      changedSegments: [] as any[]
-    }
-
-    let pageHasChanges = false
-
-    page.segments.forEach((segment, index) => {
-      const originalText = originalTexts[`${page.pageId}_${index}`]
-      const currentText = segment.text
-
-      if (originalText !== currentText) {
-        pageHasChanges = true
-        hasChanges = true
-
-        const { x, y, width, height, text, ...otherMetadata } = segment
-        pageChanges.changedSegments.push({
-          segmentIndex: index,
-          originalText,
-          currentText,
-          ...otherMetadata
-        })
-      }
-    })
-
-    if (pageHasChanges) {
-      changedSegmentsData.pages.push(pageChanges)
-    }
-  })
-
-  if (!hasChanges) {
-    alert('No changes were made.')
-    return
-  }
-
-  // Create and download the JSON file
-  const jsonString = JSON.stringify(changedSegmentsData, null, 2)
-  const filename = `${(flowData.flowName || 'flow').replace(/[^a-z0-9_.-]/gi, '_')}_edited_segments.json`
-  const blob = new Blob([jsonString], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
+/**
+ * Finds and saves only the translation units that have been modified.
+ * @param jobData - The current job data with potential changes.
+ * @param originalJobData - The original, unmodified job data.
+ * @param fileName - The base name for the output file.
+ */
+export const saveChangedTus = (
+  jobData: JobData,
+  originalJobData: JobData,
+  fileName: string
+) => {
+  const originalTus = new Map(originalJobData.tus.map(tu => [tu.guid, tu]));
   
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  const changedTus = jobData.tus.filter(currentTu => {
+    const originalTu = originalTus.get(currentTu.guid);
+    if (!originalTu) {
+      // TU was added, should not happen in this context but good to handle
+      return true;
+    }
+    return !isEqual(currentTu.ntgt, originalTu.ntgt);
+  });
 
-  console.log('Edited segments JSON download initiated.')
-} 
+  if (changedTus.length === 0) {
+    alert('No changes to save.');
+    return;
+  }
+
+  const outputData: JobData = {
+    ...jobData,
+    tus: changedTus,
+  };
+
+  const jsonString = JSON.stringify(outputData, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  
+  const baseName = fileName.endsWith('.lqaboss') 
+    ? fileName.slice(0, -'.lqaboss'.length) 
+    : fileName;
+  link.download = `${baseName}.job.json`;
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  alert(`${changedTus.length} changed segment(s) saved.`);
+}; 

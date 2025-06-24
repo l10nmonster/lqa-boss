@@ -23,7 +23,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   totalPages,
   onNavigatePage,
 }) => {
-  const [imageUrl, setImageUrl] = useState<string>('')
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [displayDimensions, setDisplayDimensions] = useState({ width: 0, height: 0 })
   const imageRef = useRef<HTMLImageElement>(null)
@@ -93,12 +93,16 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
         left="50%" 
         transform="translateX(-50%)" 
         zIndex={10}
-        bg="blackAlpha.700"
+        bg="rgba(255, 255, 255, 0.3)"
         borderRadius="full"
         px={3}
         py={1}
         gap={2}
         align="center"
+        border="1px solid"
+        borderColor="rgba(255, 255, 255, 0.4)"
+        backdropFilter="blur(20px)"
+        boxShadow="0 4px 16px 0 rgba(59, 130, 246, 0.1)"
       >
         <IconButton
           aria-label="Previous page"
@@ -106,12 +110,12 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
           disabled={currentPageIndex === 0}
           variant="ghost"
           size="sm"
-          color="white"
-          _hover={{ bg: 'whiteAlpha.200' }}
+          color="gray.700"
+          _hover={{ bg: 'gray.100' }}
         >
           <FiChevronLeft />
         </IconButton>
-        <Text color="white" fontSize="sm" fontWeight="semibold" minW="80px" textAlign="center">
+        <Text color="gray.700" fontSize="sm" fontWeight="semibold" minW="80px" textAlign="center">
           Page {currentPageIndex + 1} of {totalPages}
         </Text>
         <IconButton
@@ -120,8 +124,8 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
           disabled={currentPageIndex === totalPages - 1}
           variant="ghost"
           size="sm"
-          color="white"
-          _hover={{ bg: 'whiteAlpha.200' }}
+          color="gray.700"
+          _hover={{ bg: 'gray.100' }}
         >
           <FiChevronRight />
         </IconButton>
@@ -143,23 +147,25 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
           height={displayDimensions.height ? `${displayDimensions.height}px` : 'auto'}
           m={0}
           p={0}
-          boxShadow="0 0 0 1px rgba(255, 255, 255, 0.3)"
+          boxShadow="0 0 0 1px rgba(203, 213, 225, 0.5)"
           borderRadius="lg"
         >
-          <Image
-            ref={imageRef}
-            src={imageUrl}
-            onLoad={handleImageLoad}
-            display="block"
-            m={0}
-            p={0}
-            borderRadius="lg"
-            // Display at logical size
-            width={displayDimensions.width ? `${displayDimensions.width}px` : 'auto'}
-            height={displayDimensions.height ? `${displayDimensions.height}px` : 'auto'}
-            maxW="none"
-            maxH="none"
-          />
+          {imageUrl && (
+            <Image
+              ref={imageRef}
+              src={imageUrl}
+              onLoad={handleImageLoad}
+              display="block"
+              m={0}
+              p={0}
+              borderRadius="lg"
+              // Display at logical size
+              width={displayDimensions.width ? `${displayDimensions.width}px` : 'auto'}
+              height={displayDimensions.height ? `${displayDimensions.height}px` : 'auto'}
+              maxW="none"
+              maxH="none"
+            />
+          )}
           
           {imageLoaded && page.segments.map((segment, index) => {
             const position = calculateHighlightPosition(segment)
@@ -174,16 +180,16 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
                 width={`${position.width}px`}
                 height={`${position.height}px`}
                 border="3px dashed"
-                borderColor={index === activeSegmentIndex ? 'blue.400' : 'red.400'}
+                borderColor={index === activeSegmentIndex ? 'blue.500' : 'orange.500'}
                 borderRadius="md"
                 cursor="pointer"
                 transition="all 0.2s"
                 _hover={{
-                  bg: 'whiteAlpha.200',
+                  bg: index === activeSegmentIndex ? 'blue.100' : 'orange.100',
                   transform: 'scale(1.05)',
                 }}
-                bg={index === activeSegmentIndex ? 'blue.200' : 'transparent'}
-                opacity={index === activeSegmentIndex ? 0.3 : 0.7}
+                bg={index === activeSegmentIndex ? 'blue.100' : 'transparent'}
+                opacity={index === activeSegmentIndex ? 0.4 : 0.6}
                 onClick={() => onSegmentClick(index)}
               />
             )
