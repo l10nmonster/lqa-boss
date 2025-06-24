@@ -1,5 +1,5 @@
 // sw.js - Service Worker for LQA Boss PWA
-const CACHE_NAME = 'lqa-boss-v2';
+const CACHE_NAME = 'lqa-boss-v3';
 const BASE_PATH = '/lqa-boss/';
 
 // Core files to cache on install
@@ -7,7 +7,8 @@ const urlsToCache = [
     BASE_PATH,
     BASE_PATH + 'index.html',
     BASE_PATH + 'manifest.webmanifest',
-    BASE_PATH + 'icons/icon-512x512.png'
+    BASE_PATH + 'icons/icon-512x512.png',
+    BASE_PATH + 'libs/jszip.min.js'
 ];
 
 self.addEventListener('install', event => {

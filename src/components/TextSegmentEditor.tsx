@@ -59,7 +59,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
       direction="column"
       gap={4}
       align="stretch"
-      maxH="70vh"
+      height="100%"
       overflowY="auto"
       css={{
         '&::-webkit-scrollbar': {
@@ -81,7 +81,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
       {page.segments.map((segment, index) => (
         <Box
           key={index}
-          ref={(el) => {
+          ref={(el: HTMLDivElement | null) => {
             if (el) editorRefs.current[index] = el
           }}
           p={4}
