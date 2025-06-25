@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useState, useRef } from 'react'
 import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getSelection, $isRangeSelection, $getNodeByKey } from 'lexical'
 import { 
   $createHeadingNode,
@@ -92,6 +92,11 @@ export class PlaceholderNode extends DecoratorNode<React.ReactNode> {
       display = t === 'bx' ? `<${tagName}>` : `</${tagName}>`
     }
     
+    // Ensure display is always a string
+    if (typeof display === 'object') {
+      display = JSON.stringify(display)
+    }
+    
     return (
       <span 
         draggable
@@ -135,6 +140,21 @@ function $createPlaceholderNode(placeholder: NormalizedPlaceholder): Placeholder
   return new PlaceholderNode(placeholder)
 }
 
+// Helper function to compare normalized content arrays
+const arraysEqual = (a: NormalizedItem[], b: NormalizedItem[]): boolean => {
+  if (a.length !== b.length) return false
+  return a.every((item, index) => {
+    const bItem = b[index]
+    if (typeof item === 'string' && typeof bItem === 'string') {
+      return item === bItem
+    }
+    if (typeof item === 'object' && typeof bItem === 'object') {
+      return JSON.stringify(item) === JSON.stringify(bItem)
+    }
+    return false
+  })
+}
+
 // Plugin to initialize editor with normalized content
 interface InitializePluginProps {
   normalizedContent: NormalizedItem[]
@@ -142,25 +162,66 @@ interface InitializePluginProps {
 
 function InitializePlugin({ normalizedContent }: InitializePluginProps): null {
   const [editor] = useLexicalComposerContext()
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [lastExternalContent, setLastExternalContent] = useState<NormalizedItem[]>([])
+
+  // Helper function to get current editor content as normalized items
+  const getCurrentContent = (): NormalizedItem[] => {
+    const root = $getRoot()
+    const firstChild = root.getFirstChild()
+    
+    if (!$isElementNode(firstChild)) {
+      return []
+    }
+
+    const items: NormalizedItem[] = []
+    firstChild.getChildren().forEach((node: LexicalNode) => {
+      if (node instanceof TextNode) {
+        const text = node.getTextContent()
+        if (text) items.push(text)
+      } else if (node instanceof PlaceholderNode) {
+        items.push(node.__placeholder)
+      }
+    })
+    
+    return items
+  }
 
   useEffect(() => {
-    editor.update(() => {
-      const root = $getRoot()
-      root.clear()
+    // Only update if:
+    // 1. This is the first initialization, OR
+    // 2. The new content is different from what we last set externally AND different from current editor content
+    
+    editor.getEditorState().read(() => {
+      const currentContent = getCurrentContent()
       
-      const paragraph = $createParagraphNode()
+      // Check if this is genuinely new external content
+      const isNewExternalContent = !arraysEqual(normalizedContent, lastExternalContent)
+      const isDifferentFromCurrent = !arraysEqual(normalizedContent, currentContent)
       
-      normalizedContent.forEach(item => {
-        if (typeof item === 'string') {
-          paragraph.append($createTextNode(item))
-        } else {
-          paragraph.append($createPlaceholderNode(item))
-        }
-      })
-      
-      root.append(paragraph)
-    }, { tag: 'content-update' })
-  }, [editor, normalizedContent])
+      if (!isInitialized || (isNewExternalContent && isDifferentFromCurrent)) {
+        editor.update(() => {
+          const root = $getRoot()
+          root.clear()
+          
+          const paragraph = $createParagraphNode()
+          
+          normalizedContent.forEach(item => {
+            if (typeof item === 'string') {
+              paragraph.append($createTextNode(item))
+            } else {
+              paragraph.append($createPlaceholderNode(item))
+            }
+          })
+          
+          root.append(paragraph)
+          
+          setLastExternalContent([...normalizedContent])
+          setIsInitialized(true)
+        }, { tag: 'content-update' })
+      }
+    })
+  }, [editor, normalizedContent, isInitialized, lastExternalContent])
 
   return null
 }
@@ -170,13 +231,64 @@ function DragDropPlugin(): null {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
+    let dragIndicator: HTMLElement | null = null
+
+    const createDragIndicator = () => {
+      const indicator = document.createElement('div')
+      indicator.style.position = 'absolute'
+      indicator.style.width = '2px'
+      indicator.style.height = '20px'
+      indicator.style.backgroundColor = '#3b82f6'
+      indicator.style.borderRadius = '1px'
+      indicator.style.pointerEvents = 'none'
+      indicator.style.zIndex = '1000'
+      indicator.style.opacity = '0'
+      indicator.style.transition = 'opacity 0.15s ease-in-out'
+      return indicator
+    }
+
+    const showDragIndicator = (x: number, y: number) => {
+      if (!dragIndicator) {
+        dragIndicator = createDragIndicator()
+        document.body.appendChild(dragIndicator)
+      }
+      dragIndicator.style.left = `${x}px`
+      dragIndicator.style.top = `${y - 10}px`
+      dragIndicator.style.opacity = '1'
+    }
+
+    const hideDragIndicator = () => {
+      if (dragIndicator) {
+        dragIndicator.style.opacity = '0'
+      }
+    }
+
+    const removeDragIndicator = () => {
+      if (dragIndicator) {
+        document.body.removeChild(dragIndicator)
+        dragIndicator = null
+      }
+    }
+
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault()
       e.dataTransfer!.dropEffect = 'move'
+      
+      // Show caret indicator at drop position
+      showDragIndicator(e.clientX, e.clientY)
+    }
+
+    const handleDragLeave = (e: DragEvent) => {
+      // Only hide if we're actually leaving the editor
+      const editorElement = editor.getRootElement()
+      if (editorElement && !editorElement.contains(e.relatedTarget as Node)) {
+        hideDragIndicator()
+      }
     }
 
     const handleDrop = (e: DragEvent) => {
       e.preventDefault()
+      hideDragIndicator()
       
       const placeholderData = e.dataTransfer?.getData('text/placeholder')
       const nodeKey = e.dataTransfer?.getData('text/node-key')
@@ -290,11 +402,42 @@ function DragDropPlugin(): null {
     const editorElement = editor.getRootElement()
     if (editorElement) {
       editorElement.addEventListener('dragover', handleDragOver)
+      editorElement.addEventListener('dragleave', handleDragLeave)
       editorElement.addEventListener('drop', handleDrop)
       
       return () => {
         editorElement.removeEventListener('dragover', handleDragOver)
+        editorElement.removeEventListener('dragleave', handleDragLeave)
         editorElement.removeEventListener('drop', handleDrop)
+        removeDragIndicator()
+      }
+    }
+  }, [editor])
+
+  return null
+}
+
+// Plugin to handle focus and cursor positioning
+function FocusPlugin(): null {
+  const [editor] = useLexicalComposerContext()
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      // Don't interfere with placeholder clicks
+      if ((e.target as HTMLElement).closest('[data-lexical-decorator="true"]')) {
+        return
+      }
+      
+      // Focus the editor to ensure proper cursor behavior
+      editor.focus()
+    }
+
+    const editorElement = editor.getRootElement()
+    if (editorElement) {
+      editorElement.addEventListener('click', handleClick)
+      
+      return () => {
+        editorElement.removeEventListener('click', handleClick)
       }
     }
   }, [editor])
@@ -315,6 +458,8 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
   onFocus,
   isActive
 }) => {
+  const lastEmittedContentRef = useRef<NormalizedItem[]>([])
+
   const initialConfig = {
     namespace: 'NormalizedTextEditor',
     theme: {
@@ -349,7 +494,11 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
       const firstChild = root.getFirstChild()
 
       if (!$isElementNode(firstChild)) {
-        onChange([])
+        const emptyContent: NormalizedItem[] = []
+        if (!arraysEqual(emptyContent, lastEmittedContentRef.current)) {
+          lastEmittedContentRef.current = emptyContent
+          onChange(emptyContent)
+        }
         return
       }
 
@@ -363,7 +512,11 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
         }
       })
       
-      onChange(newNormalized)
+      // Only emit onChange if content has actually changed
+      if (!arraysEqual(newNormalized, lastEmittedContentRef.current)) {
+        lastEmittedContentRef.current = [...newNormalized]
+        onChange(newNormalized)
+      }
     })
   }, [onChange])
 
@@ -392,6 +545,7 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
                 fontSize: '16px',
                 fontWeight: '500',
                 lineHeight: '1.6',
+                cursor: 'text',
               }}
             />
           }
@@ -400,6 +554,7 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
         />
         <OnChangePlugin onChange={handleChange} />
         <HistoryPlugin />
+        <FocusPlugin />
         <InitializePlugin normalizedContent={normalizedContent} />
         <DragDropPlugin />
       </Box>

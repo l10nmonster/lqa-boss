@@ -23,11 +23,6 @@ export const saveChangedTus = (
     return !isEqual(currentTu.ntgt, originalTu.ntgt);
   });
 
-  if (changedTus.length === 0) {
-    alert('No changes to save.');
-    return;
-  }
-
   const outputData: JobData = {
     ...jobData,
     tus: changedTus,
@@ -43,7 +38,7 @@ export const saveChangedTus = (
   const baseName = fileName.endsWith('.lqaboss') 
     ? fileName.slice(0, -'.lqaboss'.length) 
     : fileName;
-  link.download = `${baseName}.job.json`;
+  link.download = `${baseName}.json`;
   
   document.body.appendChild(link);
   link.click();

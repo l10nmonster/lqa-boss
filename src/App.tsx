@@ -63,13 +63,19 @@ function App() {
       const arrayBuffer = await file.arrayBuffer()
       const zip = await JSZip.loadAsync(arrayBuffer)
       
+      // Try to load flow_metadata.json, but don't fail if it's missing
       const metadataFile = zip.file("flow_metadata.json")
-      if (!metadataFile) {
-        throw new Error('Invalid .lqaboss file: "flow_metadata.json" not found.')
-      }
-
-      const metadataContent = await metadataFile.async("string")
-      const parsedFlowData: FlowData = JSON.parse(metadataContent)
+      let parsedFlowData: FlowData | null = null
+      
+             if (metadataFile) {
+         const metadataContent = await metadataFile.async("string")
+         parsedFlowData = JSON.parse(metadataContent)
+         
+         if (!parsedFlowData?.pages || parsedFlowData?.pages.length === 0) {
+           console.warn('Warning: No valid pages data found in flow_metadata.json')
+           parsedFlowData = null
+         }
+       }
 
       const jobFile = zip.file("job.json");
       if (!jobFile) {
@@ -78,17 +84,25 @@ function App() {
       const jobContent = await jobFile.async("string");
       const parsedJobData: JobData = JSON.parse(jobContent);
 
-      if (!parsedFlowData.pages || parsedFlowData.pages.length === 0) {
-        throw new Error('Invalid .lqaboss file: No valid pages data found.')
-      }
-
-      // Initialize original texts
-      const originals: Record<string, string> = {}
-      parsedFlowData.pages.forEach((page) => {
-        page.segments?.forEach((segment, index) => {
-          originals[`${page.pageId}_${index}`] = segment.text
-        })
+      // Populate missing ntgt with nsrc content
+      parsedJobData.tus = parsedJobData.tus.map(tu => {
+        if (!tu.ntgt || (Array.isArray(tu.ntgt) && tu.ntgt.length === 0)) {
+          // Create a deep copy of nsrc to avoid reference issues
+          const nsrcCopy = tu.nsrc ? JSON.parse(JSON.stringify(tu.nsrc)) : []
+          return { ...tu, ntgt: nsrcCopy }
+        }
+        return tu
       })
+
+      // Initialize original texts only if we have flow data
+      const originals: Record<string, string> = {}
+      if (parsedFlowData) {
+        parsedFlowData.pages.forEach((page) => {
+          page.segments?.forEach((segment, index) => {
+            originals[`${page.pageId}_${index}`] = segment.text
+          })
+        })
+      }
 
       setZipFile(zip)
       setFlowData(parsedFlowData)
@@ -99,7 +113,7 @@ function App() {
       setCurrentPageIndex(0)
       setActiveSegmentIndex(-1)
 
-      console.log('Successfully loaded:', file.name)
+      console.log('Successfully loaded:', file.name, parsedFlowData ? 'with flow metadata' : 'without flow metadata')
     } catch (error: any) {
       console.error('Error loading file:', error)
       alert(error.message || 'Failed to load file')
@@ -147,17 +161,18 @@ function App() {
     currentPageIndex,
     totalPages: flowData?.pages.length || 0,
     activeSegmentIndex,
-    totalSegments: currentPage?.segments.length || 0,
+    totalSegments: flowData ? (currentPage?.segments.length || 0) : (jobData?.tus.length || 0),
     navigatePage,
     setActiveSegmentIndex,
   })
 
-  // When navigating to a new page, focus on the first segment
+  // When navigating to a new page or when jobData loads without flowData, focus on the first segment
   useEffect(() => {
-    if (currentPage?.segments.length && activeSegmentIndex === -1) {
+    const hasSegments = flowData ? (currentPage?.segments.length || 0) > 0 : (jobData?.tus.length || 0) > 0
+    if (hasSegments && activeSegmentIndex === -1) {
       setActiveSegmentIndex(0)
     }
-  }, [currentPageIndex])
+  }, [currentPageIndex, flowData, jobData])
 
   return (
     <Box minH="100vh" background={bgGradient} p={4}>
@@ -170,7 +185,7 @@ function App() {
             justify="space-between"
           >
             <Heading size="lg" color="gray.700">
-              LQA Boss: {flowData?.flowName || '(no flow loaded)'}
+              LQA Boss: {flowData?.flowName || (jobData ? '(out of context)' : '(no flow loaded)')}
             </Heading>
             <Stack direction="row" gap={4}>
               <Input
@@ -192,7 +207,7 @@ function App() {
                 variant="solid"
                 colorScheme="blue"
                 onClick={handleSaveChanges}
-                disabled={!flowData}
+                disabled={!jobData}
                 size="md"
               >
                 <FiSave /> Save Changes
@@ -202,40 +217,64 @@ function App() {
 
           {/* Main Content */}
           <Box flex="1" overflow="hidden">
-            <ResizablePane>
-              {/* Screenshot Section */}
-              <GlassBox 
-                p={0} 
-                height="100%"
-                position="relative"
-                display="flex"
-                flexDirection="column"
-              >
-                {currentPage && zipFile && flowData ? (
-                  <ScreenshotViewer
-                    page={currentPage}
-                    zipFile={zipFile}
-                    activeSegmentIndex={activeSegmentIndex}
-                    onSegmentClick={setActiveSegmentIndex}
-                    currentPageIndex={currentPageIndex}
-                    totalPages={flowData.pages.length}
-                    onNavigatePage={navigatePage}
-                  />
-                ) : (
-                  <Text color="gray.600" textAlign="center" py={20}>
-                    Load a .lqaboss file to view screenshots
-                  </Text>
-                )}
-              </GlassBox>
+            {flowData ? (
+              // Two-pane layout when flowData exists
+              <ResizablePane>
+                {/* Screenshot Section */}
+                <GlassBox 
+                  p={0} 
+                  height="100%"
+                  position="relative"
+                  display="flex"
+                  flexDirection="column"
+                >
+                  {currentPage && zipFile ? (
+                    <ScreenshotViewer
+                      page={currentPage}
+                      zipFile={zipFile}
+                      activeSegmentIndex={activeSegmentIndex}
+                      onSegmentClick={setActiveSegmentIndex}
+                      currentPageIndex={currentPageIndex}
+                      totalPages={flowData.pages.length}
+                      onNavigatePage={navigatePage}
+                    />
+                  ) : (
+                    <Text color="gray.600" textAlign="center" py={20}>
+                      Load a .lqaboss file to view screenshots
+                    </Text>
+                  )}
+                </GlassBox>
 
-              {/* Editor Section */}
+                {/* Editor Section */}
+                <GlassBox p={6} height="100%" overflow="hidden">
+                  <Heading size="md" mb={4} color="gray.700">
+                    Editable Text Segments
+                  </Heading>
+                  {currentPage && jobData && originalJobData ? (
+                    <TextSegmentEditor
+                      page={currentPage}
+                      jobData={jobData}
+                      originalJobData={originalJobData}
+                      onTranslationUnitChange={updateTranslationUnit}
+                      activeSegmentIndex={activeSegmentIndex}
+                      onSegmentFocus={setActiveSegmentIndex}
+                    />
+                  ) : (
+                    <Text color="gray.600" textAlign="center" py={20}>
+                      Load a .lqaboss file to view and edit
+                    </Text>
+                  )}
+                </GlassBox>
+              </ResizablePane>
+            ) : (
+              // Single-pane layout when no flowData (screenshot-less mode)
               <GlassBox p={6} height="100%" overflow="hidden">
                 <Heading size="md" mb={4} color="gray.700">
-                  Editable Text Segments
+                  Editable Translation Units
                 </Heading>
-                {currentPage && jobData && originalJobData ? (
+                {jobData && originalJobData ? (
                   <TextSegmentEditor
-                    page={currentPage}
+                    page={null}
                     jobData={jobData}
                     originalJobData={originalJobData}
                     onTranslationUnitChange={updateTranslationUnit}
@@ -248,7 +287,7 @@ function App() {
                   </Text>
                 )}
               </GlassBox>
-            </ResizablePane>
+            )}
           </Box>
         </Stack>
     </Box>

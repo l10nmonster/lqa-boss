@@ -59,7 +59,7 @@ export interface TranslationUnit {
   ntgt: NormalizedItem[]  // normalized target
   q: number
   ts: number
-  notes?: string     // optional notes
+  notes?: { desc?: string } | string     // optional notes - can be object with desc or legacy string
 }
 
 export interface JobData {

@@ -4,6 +4,8 @@ import { NormalizedItem, NormalizedPlaceholder } from '../types'
  * Converts a normalized array to a user-friendly display string
  */
 export function normalizedToString(items: NormalizedItem[]): string {
+  if (!items || !Array.isArray(items)) return ''
+  
   return items.map(item => {
     if (typeof item === 'string') {
       return item
@@ -33,6 +35,8 @@ export function normalizedToString(items: NormalizedItem[]): string {
  * Extracts only the editable text portions from a normalized array
  */
 export function extractEditableText(items: NormalizedItem[]): string[] {
+  if (!items || !Array.isArray(items)) return []
+  
   return items
     .filter(item => typeof item === 'string')
     .map(item => item as string)
@@ -42,6 +46,8 @@ export function extractEditableText(items: NormalizedItem[]): string[] {
  * Creates a display-friendly representation showing placeholders distinctly
  */
 export function normalizedToDisplayString(items: NormalizedItem[]): string {
+  if (!items || !Array.isArray(items)) return ''
+  
   return items.map(item => {
     if (typeof item === 'string') {
       return item
@@ -71,6 +77,8 @@ export function normalizedToDisplayString(items: NormalizedItem[]): string {
  * Creates a display-friendly representation for target text, without brackets on placeholders.
  */
 export function normalizedToDisplayStringForTarget(items: NormalizedItem[]): string {
+  if (!items || !Array.isArray(items)) return ''
+  
   return items.map(item => {
     if (typeof item === 'string') {
       return item

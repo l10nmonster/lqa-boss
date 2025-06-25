@@ -7,7 +7,7 @@ import { normalizedToDisplayString, normalizedToDisplayStringForTarget } from '.
 import { isEqual } from 'lodash'
 
 interface TextSegmentEditorProps {
-  page: Page
+  page: Page | null
   jobData: JobData
   originalJobData: JobData
   onTranslationUnitChange: (tu: TranslationUnit) => void
@@ -26,6 +26,13 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   const editorRefs = useRef<{ [key: string]: HTMLDivElement }>({})
   const tusByGuid = new Map(jobData.tus.map(tu => [tu.guid, tu]))
   const originalTusByGuid = new Map(originalJobData.tus.map(tu => [tu.guid, tu]))
+
+  // Get translation units to display
+  // If we have page data, use segments to determine which TUs to show
+  // If no page data, show all translation units
+  const translationUnitsToShow = page 
+    ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
+    : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
 
   useEffect(() => {
     // Scroll active segment into view
@@ -58,10 +65,18 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     return !isEqual(currentTu.ntgt, originalTu.ntgt)
   }
 
-  if (!page.segments || page.segments.length === 0) {
+  if (page && (!page.segments || page.segments.length === 0)) {
     return (
       <Text color="gray.600" textAlign="center" py={10}>
         No text segments on this page.
+      </Text>
+    )
+  }
+
+  if (!page && translationUnitsToShow.length === 0) {
+    return (
+      <Text color="gray.600" textAlign="center" py={10}>
+        No translation units to display.
       </Text>
     )
   }
@@ -90,16 +105,32 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         },
       }}
     >
-      {page.segments.map((segment, index) => {
-        const tu = tusByGuid.get(segment.g)
+      {translationUnitsToShow.map((item, index) => {
+        const { tu, segmentIndex } = item
         const isActive = activeSegmentIndex === index
 
         if (!tu) {
           return (
             <Box key={index} p={4} bg="rgba(239, 68, 68, 0.1)" backdropFilter="blur(10px)" borderRadius="lg" border="1px solid" borderColor="rgba(239, 68, 68, 0.3)">
-              <Text color="red.600">Error: No translation unit found for segment with guid: {segment.g}</Text>
+              <Text color="red.600">Error: No translation unit found for segment with guid: {item.segment?.g}</Text>
             </Box>
           )
+        }
+
+        // Add defensive checks for tu properties
+        const safeRid = tu.rid !== undefined ? (typeof tu.rid === 'object' ? JSON.stringify(tu.rid) : String(tu.rid)) : 'unknown'
+        const safeSid = tu.sid !== undefined ? (typeof tu.sid === 'object' ? JSON.stringify(tu.sid) : String(tu.sid)) : 'unknown'
+        const safeGuid = tu.guid || 'unknown'
+        
+        // Handle notes - check if it's an object with desc property
+        let notesDesc: string | null = null
+        if (tu.notes) {
+          if (typeof tu.notes === 'object' && 'desc' in tu.notes && tu.notes.desc) {
+            notesDesc = tu.notes.desc
+          } else if (typeof tu.notes === 'string') {
+            // Legacy string notes - don't show in the info line anymore
+            notesDesc = tu.notes
+          }
         }
 
         const isModified = isTuModified(tu.guid)
@@ -134,7 +165,9 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
               <VStack align="stretch" gap={3}>
                 <HStack justify="space-between">
                   <HStack>
-                    <Text fontFamily="mono" fontSize="xs" color="gray.500" fontWeight="medium">{normalizedToDisplayString(tu.nsrc)}</Text>
+                    <Text fontFamily="mono" fontSize="xs" color="gray.500" fontWeight="medium">
+                      {tu.nsrc ? normalizedToDisplayString(tu.nsrc) : '(no source text)'}
+                    </Text>
                   </HStack>
                   <Button
                     aria-label="Undo changes"
@@ -152,19 +185,35 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                 </HStack>
                 <NormalizedTextEditor
                   key={tu.guid}
-                  normalizedContent={tu.ntgt}
+                  normalizedContent={tu.ntgt || []}
                   onChange={(newNtgt) => handleNormalizedChange(tu.guid, newNtgt)}
                   isActive={isActive}
                 />
+                {notesDesc && (
+                  <Box
+                    p={3}
+                    bg="rgba(255, 193, 7, 0.1)"
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor="rgba(255, 193, 7, 0.3)"
+                  >
+                    <Text fontSize="sm" color="gray.700" fontWeight="medium" mb={1}>
+                      Notes:
+                    </Text>
+                    <Text fontSize="sm" color="gray.600">
+                      {notesDesc}
+                    </Text>
+                  </Box>
+                )}
                 <HStack gap={4} justify="flex-end" color="gray.500" fontSize="xs">
-                  <Text>rid: {tu.rid}</Text>
-                  <Text>sid: {tu.sid}</Text>
-                  {tu.notes && <Text>Notes: {tu.notes}</Text>}
+                  <Text>rid: {safeRid}</Text>
+                  <Text>sid: {safeSid}</Text>
+                  <Text>guid: {safeGuid}</Text>
                 </HStack>
               </VStack>
             ) : (
               <Text color="gray.600" fontSize="sm" lineHeight="1.4">
-                {normalizedToDisplayStringForTarget(tu.ntgt)}
+                {tu.ntgt ? normalizedToDisplayStringForTarget(tu.ntgt) : '(no target text)'}
               </Text>
             )}
           </Box>
