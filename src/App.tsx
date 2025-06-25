@@ -9,12 +9,13 @@ import {
   Stack,
   IconButton,
 } from '@chakra-ui/react'
-import { FiUpload, FiSave, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
+import { FiUpload, FiSave, FiChevronLeft, FiChevronRight, FiInfo } from 'react-icons/fi'
 import JSZip from 'jszip'
 import ScreenshotViewer from './components/ScreenshotViewer'
 import TextSegmentEditor from './components/TextSegmentEditor'
 import GlassBox from './components/GlassBox'
 import ResizablePane from './components/ResizablePane'
+import InstructionsModal from './components/InstructionsModal'
 import { FlowData, Page, JobData, TranslationUnit } from './types'
 import { saveChangedTus } from './utils/saveHandler'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
@@ -28,6 +29,7 @@ function App() {
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
   const [originalTexts, setOriginalTexts] = useState<Record<string, string>>({})
   const [fileName, setFileName] = useState<string>('')
+  const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Log React version
@@ -112,6 +114,11 @@ function App() {
       setFileName(file.name)
       setCurrentPageIndex(0)
       setActiveSegmentIndex(-1)
+
+      // Show instructions modal if instructions are present
+      if (parsedJobData.instructions) {
+        setIsInstructionsModalOpen(true)
+      }
 
       console.log('Successfully loaded:', file.name, parsedFlowData ? 'with flow metadata' : 'without flow metadata')
     } catch (error: any) {
@@ -203,6 +210,17 @@ function App() {
               >
                 <FiUpload /> Load .lqaboss File
               </Button>
+              {jobData?.instructions && (
+                <Button
+                  variant="outline"
+                  colorScheme="blue"
+                  onClick={() => setIsInstructionsModalOpen(true)}
+                  size="md"
+                  px={3}
+                >
+                  <FiInfo />
+                </Button>
+              )}
               <Button
                 variant="solid"
                 colorScheme="blue"
@@ -290,6 +308,15 @@ function App() {
             )}
           </Box>
         </Stack>
+
+        {/* Instructions Modal */}
+        {jobData?.instructions && (
+          <InstructionsModal
+            isOpen={isInstructionsModalOpen}
+            onClose={() => setIsInstructionsModalOpen(false)}
+            instructions={jobData.instructions}
+          />
+        )}
     </Box>
   )
 }
