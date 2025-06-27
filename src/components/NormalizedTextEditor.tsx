@@ -1,8 +1,6 @@
 import React, { useEffect, useCallback, useState, useRef } from 'react'
-import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getSelection, $isRangeSelection, $getNodeByKey } from 'lexical'
+import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getNodeByKey } from 'lexical'
 import { 
-  $createHeadingNode,
-  $createQuoteNode,
   HeadingNode,
   QuoteNode 
 } from '@lexical/rich-text'
@@ -57,7 +55,7 @@ export class PlaceholderNode extends DecoratorNode<React.ReactNode> {
       span.style.cursor = 'grabbing'
     })
     
-    span.addEventListener('dragend', (e) => {
+    span.addEventListener('dragend', () => {
       span.style.opacity = '1'
       span.style.cursor = 'grab'
     })
@@ -484,7 +482,7 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
     ]
   }
 
-  const handleChange = useCallback((editorState: EditorState, editor: Editor, tags: Set<string>) => {
+  const handleChange = useCallback((editorState: EditorState, _editor: Editor, tags: Set<string>) => {
     if (tags.has('initial-load') || tags.has('content-update')) {
       return
     }

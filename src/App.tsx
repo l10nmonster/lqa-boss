@@ -7,16 +7,15 @@ import {
   Input,
   Text,
   Stack,
-  IconButton,
 } from '@chakra-ui/react'
-import { FiUpload, FiSave, FiChevronLeft, FiChevronRight, FiInfo } from 'react-icons/fi'
+import { FiUpload, FiSave, FiInfo } from 'react-icons/fi'
 import JSZip from 'jszip'
 import ScreenshotViewer from './components/ScreenshotViewer'
 import TextSegmentEditor from './components/TextSegmentEditor'
 import GlassBox from './components/GlassBox'
 import ResizablePane from './components/ResizablePane'
 import InstructionsModal from './components/InstructionsModal'
-import { FlowData, Page, JobData, TranslationUnit } from './types'
+import { FlowData, JobData, TranslationUnit } from './types'
 import { saveChangedTus } from './utils/saveHandler'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
 
@@ -27,7 +26,6 @@ function App() {
   const [zipFile, setZipFile] = useState<JSZip | null>(null)
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
-  const [originalTexts, setOriginalTexts] = useState<Record<string, string>>({})
   const [fileName, setFileName] = useState<string>('')
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -96,21 +94,10 @@ function App() {
         return tu
       })
 
-      // Initialize original texts only if we have flow data
-      const originals: Record<string, string> = {}
-      if (parsedFlowData) {
-        parsedFlowData.pages.forEach((page) => {
-          page.segments?.forEach((segment, index) => {
-            originals[`${page.pageId}_${index}`] = segment.text
-          })
-        })
-      }
-
       setZipFile(zip)
       setFlowData(parsedFlowData)
       setJobData(parsedJobData)
       setOriginalJobData(JSON.parse(JSON.stringify(parsedJobData)))
-      setOriginalTexts(originals)
       setFileName(file.name)
       setCurrentPageIndex(0)
       setActiveSegmentIndex(-1)
@@ -146,13 +133,6 @@ function App() {
       setCurrentPageIndex(newIndex)
       setActiveSegmentIndex(-1)
     }
-  }
-
-  const updateSegmentText = (pageIndex: number, segmentIndex: number, newText: string) => {
-    if (!flowData) return
-    const newFlowData = { ...flowData }
-    newFlowData.pages[pageIndex].segments[segmentIndex].text = newText
-    setFlowData(newFlowData)
   }
 
   const updateTranslationUnit = (tu: TranslationUnit) => {

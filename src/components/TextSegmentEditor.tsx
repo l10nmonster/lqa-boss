@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Box, Stack, Text, VStack, HStack, Button } from '@chakra-ui/react'
-import { FiRotateCcw } from 'react-icons/fi'
+import { Box, Stack, Text, VStack, HStack, Button, Flex } from '@chakra-ui/react'
 import { Page, JobData, TranslationUnit, NormalizedItem } from '../types'
 import NormalizedTextEditor from './NormalizedTextEditor'
 import { normalizedToDisplayString, normalizedToDisplayStringForTarget } from '../utils/normalizedText'
@@ -106,7 +105,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
       }}
     >
       {translationUnitsToShow.map((item, index) => {
-        const { tu, segmentIndex } = item
+        const { tu } = item
         const isActive = activeSegmentIndex === index
 
         if (!tu) {
@@ -205,11 +204,11 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                     </Text>
                   </Box>
                 )}
-                <HStack gap={4} justify="flex-end" color="gray.500" fontSize="xs">
-                  <Text>rid: {safeRid}</Text>
-                  <Text>sid: {safeSid}</Text>
-                  <Text>guid: {safeGuid}</Text>
-                </HStack>
+                <Flex gap={2} justify="flex-end" align="center" color="gray.500" fontSize="xs" wrap="wrap" rowGap={1}>
+                  <Text><Text as="span" fontWeight="bold">rid:</Text> {safeRid}</Text>
+                  <Text><Text as="span" fontWeight="bold">sid:</Text> {safeSid}</Text>
+                  <Text><Text as="span" fontWeight="bold">guid:</Text> {safeGuid}</Text>
+                </Flex>
               </VStack>
             ) : (
               <Text color="gray.600" fontSize="sm" lineHeight="1.4">

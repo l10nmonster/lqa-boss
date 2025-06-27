@@ -1,4 +1,4 @@
-import { JobData, TranslationUnit } from '../types';
+import { JobData } from '../types';
 import { isEqual } from 'lodash';
 
 /**
