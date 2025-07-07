@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/l10nmonster/lqa-boss/compare/v1.0.2...v1.0.3) (2025-07-07)
+
+
+### Bug Fixes
+
+* circumvent popup blocker ([af6007d](https://github.com/l10nmonster/lqa-boss/commit/af6007db057b0ba0af9c8945bff5d80591773fd6))
+
 ## [1.0.2](https://github.com/l10nmonster/lqa-boss/compare/v1.0.1...v1.0.2) (2025-07-07)
 
 
