@@ -11,11 +11,26 @@ npm run dev          # Start development server (http://localhost:3000)
 npm run build        # Production build
 npm run preview      # Preview production build
 npm run lint         # TypeScript check with strict mode
-npm run deploy       # Build and deploy to GitHub Pages
+npm run semantic-release  # Manual semantic release (automated via GitHub Actions)
 ```
 
 ### Type Checking
 Always run `npm run lint` after making changes - it performs strict TypeScript checking with `npx tsc --noEmit --strict`.
+
+### Semantic Versioning & Releases
+This project follows semantic versioning with automated changelog generation:
+
+- **Commit Format**: Use conventional commit format (configured via `.gitmessage` template)
+  - `feat:` for new features (minor version bump)
+  - `fix:` for bug fixes (patch version bump)
+  - `BREAKING CHANGE:` in footer for breaking changes (major version bump)
+  - `chore:`, `docs:`, `style:`, `refactor:`, `test:`, `ci:` for other changes (no version bump)
+
+- **Automated Releases**: Single GitHub Actions workflow handles both release and deployment
+  - **Release Job**: Analyzes commits, bumps version, generates changelog, creates GitHub release
+  - **Deploy Job**: Builds with updated version and deploys to GitHub Pages
+  - Ensures deployment always happens with the latest released version
+  - Version number is displayed in app footer
 
 ## Architecture Overview
 

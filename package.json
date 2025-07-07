@@ -29,6 +29,6 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "npx tsc --noEmit --strict && echo 'TypeScript check passed'",
-    "deploy": "npm run build && npx gh-pages -d dist"
+    "semantic-release": "semantic-release"
   }
 }

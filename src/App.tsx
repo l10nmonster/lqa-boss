@@ -475,6 +475,18 @@ function App() {
             instructions={jobData.instructions}
           />
         )}
+
+        {/* Footer */}
+        <Box
+          as="footer"
+          textAlign="center"
+          py={2}
+          mt="auto"
+          color="gray.500"
+          fontSize="sm"
+        >
+          v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
+        </Box>
     </Box>
   )
 }
