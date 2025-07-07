@@ -33,6 +33,7 @@ function App() {
   const [fileName, setFileName] = useState<string>('')
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false)
   const [gcsMode, setGcsMode] = useState<GCSModeConfig | null>(null)
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // GCS operations hook
@@ -51,10 +52,26 @@ function App() {
     }
   }, [])
 
-  // Auto-load file or show file picker when GCS mode is detected
+  // Auto-load file or show auth prompt when GCS mode is detected
   useEffect(() => {
+    let retryCount = 0
+    const maxRetries = 10
+    
     const attemptAutoAction = async () => {
       if (!gcsMode) return
+      
+      // Check if Google Identity Services is loaded, with retry mechanism
+      if (!(window as any).google?.accounts?.oauth2) {
+        if (retryCount < maxRetries) {
+          retryCount++
+          console.log(`Google Identity Services not yet loaded, retrying (${retryCount}/${maxRetries})...`)
+          setTimeout(attemptAutoAction, 500)
+          return
+        } else {
+          console.warn('Google Identity Services failed to load after maximum retries')
+          return
+        }
+      }
       
       if (gcsMode.filename) {
         // URL has filename - try to load the specific file
@@ -64,33 +81,55 @@ function App() {
           if (file) {
             await handleFileLoad(file)
           }
-        } else if (gcs.clientId) {
-          console.log('No valid token, attempting silent authentication for file load')
-          await gcs.initializeAuth(async () => {
-            const file = await gcs.loadFile(gcsMode.bucket, gcsMode.prefix, gcsMode.filename!)
-            if (file) {
-              await handleFileLoad(file)
-            }
-          })
+        } else {
+          // Not authenticated - show auth prompt instead of auto-triggering
+          console.log('Not authenticated, showing auth prompt for file load')
+          setShowAuthPrompt(true)
         }
       } else {
-        // URL has only bucket/prefix - show file picker
+        // URL has only bucket/prefix - show file picker or auth prompt
         if (gcs.isAuthenticated) {
           console.log('Opening file picker with saved credentials')
           await gcs.loadFileListForMode(gcsMode)
-        } else if (gcs.clientId) {
-          console.log('No valid token, attempting silent authentication for file picker')
-          await gcs.initializeAuth(async () => {
-            await gcs.loadFileListForMode(gcsMode)
-          })
+        } else {
+          // Not authenticated - show auth prompt instead of auto-triggering
+          console.log('Not authenticated, showing auth prompt for file picker')
+          setShowAuthPrompt(true)
         }
       }
     }
     
-    // Add a small delay to ensure all state is set
-    const timer = setTimeout(attemptAutoAction, 100)
+    // Start attempting auto action after a small delay
+    const timer = setTimeout(attemptAutoAction, 200)
     return () => clearTimeout(timer)
   }, [gcsMode, gcs.isAuthenticated, gcs.accessToken, gcs.clientId])
+
+  // Handle auth prompt action
+  const handleAuthPromptAccept = async () => {
+    if (!gcsMode) return
+    
+    setShowAuthPrompt(false)
+    
+    try {
+      if (gcsMode.filename) {
+        // User wants to load a specific file
+        await gcs.initializeAuth(async () => {
+          const file = await gcs.loadFile(gcsMode.bucket, gcsMode.prefix, gcsMode.filename!)
+          if (file) {
+            await handleFileLoad(file)
+          }
+        })
+      } else {
+        // User wants to browse files
+        await gcs.initializeAuth(async () => {
+          await gcs.loadFileListForMode(gcsMode)
+        })
+      }
+    } catch (error: any) {
+      console.error('Authentication failed:', error.message)
+      alert(`Authentication failed: ${error.message}`)
+    }
+  }
 
   const bgGradient = 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 25%, #bae6fd 50%, #e0f2fe 75%, #f0f9ff 100%)'
 
@@ -393,7 +432,41 @@ function App() {
 
           {/* Main Content */}
           <Box flex="1" overflow="hidden">
-            {flowData ? (
+            {showAuthPrompt ? (
+              // Auth prompt when user needs to sign in
+              <GlassBox p={6} height="100%" display="flex" alignItems="center" justifyContent="center">
+                <Stack gap={6} textAlign="center" maxW="md">
+                  <Heading size="lg" color="gray.700">
+                    Google Cloud Storage Access Required
+                  </Heading>
+                  <Text color="gray.600" fontSize="lg">
+                    {gcsMode?.filename ? (
+                      <>To access the file <strong>{gcsMode.filename}</strong> in <strong>{gcsMode.bucket}/{gcsMode.prefix}</strong>, you need to sign in to Google Cloud Storage.</>
+                    ) : (
+                      <>To browse files in <strong>{gcsMode?.bucket}/{gcsMode?.prefix}</strong>, you need to sign in to Google Cloud Storage.</>
+                    )}
+                  </Text>
+                  <Stack direction="row" gap={4} justify="center">
+                    <Button
+                      variant="solid"
+                      colorScheme="blue"
+                      size="lg"
+                      onClick={handleAuthPromptAccept}
+                    >
+                      <FiKey /> Sign In to GCS
+                    </Button>
+                    <Button
+                      variant="outline"
+                      colorScheme="gray"
+                      size="lg"
+                      onClick={() => setShowAuthPrompt(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </Stack>
+                </Stack>
+              </GlassBox>
+            ) : flowData ? (
               // Two-pane layout when flowData exists
               <ResizablePane>
                 {/* Screenshot Section */}
