@@ -34,6 +34,8 @@ function App() {
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false)
   const [gcsMode, setGcsMode] = useState<GCSModeConfig | null>(null)
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
+  const [showClientIdPrompt, setShowClientIdPrompt] = useState(false)
+  const [clientIdInput, setClientIdInput] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // GCS operations hook
@@ -108,6 +110,14 @@ function App() {
   const handleAuthPromptAccept = async () => {
     if (!gcsMode) return
     
+    // Check if we need to collect client ID first
+    if (!gcs.clientId) {
+      setShowAuthPrompt(false)
+      setShowClientIdPrompt(true)
+      return
+    }
+    
+    // We have client ID, proceed with auth
     setShowAuthPrompt(false)
     
     try {
@@ -120,6 +130,38 @@ function App() {
           }
         })
       } else {
+        // User wants to browse files
+        await gcs.initializeAuth(async () => {
+          await gcs.loadFileListForMode(gcsMode)
+        })
+      }
+    } catch (error: any) {
+      console.error('Authentication failed:', error.message)
+      alert(`Authentication failed: ${error.message}`)
+    }
+  }
+
+  // Handle client ID submission
+  const handleClientIdSubmit = async () => {
+    if (!clientIdInput.trim()) return
+    
+    // Save client ID
+    gcs.setClientId(clientIdInput.trim())
+    localStorage.setItem('gcs-client-id', clientIdInput.trim())
+    setShowClientIdPrompt(false)
+    setClientIdInput('')
+    
+    // Now proceed with auth immediately (no delay)
+    try {
+      if (gcsMode?.filename) {
+        // User wants to load a specific file
+        await gcs.initializeAuth(async () => {
+          const file = await gcs.loadFile(gcsMode.bucket, gcsMode.prefix, gcsMode.filename!)
+          if (file) {
+            await handleFileLoad(file)
+          }
+        })
+      } else if (gcsMode) {
         // User wants to browse files
         await gcs.initializeAuth(async () => {
           await gcs.loadFileListForMode(gcsMode)
@@ -432,7 +474,48 @@ function App() {
 
           {/* Main Content */}
           <Box flex="1" overflow="hidden">
-            {showAuthPrompt ? (
+            {showClientIdPrompt ? (
+              // Client ID input prompt
+              <GlassBox p={6} height="100%" display="flex" alignItems="center" justifyContent="center">
+                <Stack gap={6} textAlign="center" maxW="md">
+                  <Heading size="lg" color="gray.700">
+                    Google OAuth2 Client ID Required
+                  </Heading>
+                  <Text color="gray.600" fontSize="lg">
+                    To access Google Cloud Storage, please enter your Google OAuth2 Client ID.
+                  </Text>
+                  <Input
+                    placeholder="Enter your Google OAuth2 Client ID"
+                    value={clientIdInput}
+                    onChange={(e) => setClientIdInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleClientIdSubmit()}
+                    size="lg"
+                  />
+                  <Stack direction="row" gap={4} justify="center">
+                    <Button
+                      variant="solid"
+                      colorScheme="blue"
+                      size="lg"
+                      onClick={handleClientIdSubmit}
+                      disabled={!clientIdInput.trim()}
+                    >
+                      Continue
+                    </Button>
+                    <Button
+                      variant="outline"
+                      colorScheme="gray"
+                      size="lg"
+                      onClick={() => {
+                        setShowClientIdPrompt(false)
+                        setClientIdInput('')
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </Stack>
+                </Stack>
+              </GlassBox>
+            ) : showAuthPrompt ? (
               // Auth prompt when user needs to sign in
               <GlassBox p={6} height="100%" display="flex" alignItems="center" justifyContent="center">
                 <Stack gap={6} textAlign="center" maxW="md">

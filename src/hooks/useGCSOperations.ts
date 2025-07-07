@@ -12,6 +12,7 @@ interface UseGCSOperationsReturn {
   // Operations
   initializeAuth: (onSuccess?: (token: string) => Promise<void>) => Promise<void>
   signOut: () => void
+  setClientId: (clientId: string) => void
   loadFile: (bucket: string, prefix: string, filename: string) => Promise<File>
   saveFile: (bucket: string, prefix: string, filename: string, data: any) => Promise<string>
   listFiles: (bucket: string, prefix: string) => Promise<GCSFile[]>
@@ -102,6 +103,7 @@ export const useGCSOperations = (): UseGCSOperationsReturn => {
     // Operations
     initializeAuth: auth.initializeAuth,
     signOut: auth.signOut,
+    setClientId: auth.setClientId,
     loadFile,
     saveFile,
     listFiles,

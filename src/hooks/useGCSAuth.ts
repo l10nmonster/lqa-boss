@@ -52,22 +52,14 @@ export const useGCSAuth = (): UseGCSAuthReturn => {
       throw new Error('Google Identity Services not loaded. Please refresh the page.')
     }
 
-    let currentClientId = clientId
-    
-    // Ask for client ID only if not saved
-    if (!currentClientId) {
-      const promptResult = prompt('Enter your Google OAuth2 Client ID:')
-      if (!promptResult) throw new Error('Client ID required')
-      
-      currentClientId = promptResult
-      localStorage.setItem('gcs-client-id', currentClientId)
-      setClientId(currentClientId)
+    if (!clientId) {
+      throw new Error('Client ID required. Please set client ID first.')
     }
 
     return new Promise((resolve, reject) => {
       try {
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: currentClientId,
+          client_id: clientId,
           scope: 'https://www.googleapis.com/auth/devstorage.read_write',
           callback: async (response: any) => {
             if (response.access_token) {
