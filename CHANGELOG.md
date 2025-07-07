@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/l10nmonster/lqa-boss/compare/v1.0.3...v1.0.4) (2025-07-07)
+
+
+### Bug Fixes
+
+* relative paths issue ([6cdc720](https://github.com/l10nmonster/lqa-boss/commit/6cdc7200ef1c1292140d9e3c9b9bb0da78c223cd))
+
 ## [1.0.3](https://github.com/l10nmonster/lqa-boss/compare/v1.0.2...v1.0.3) (2025-07-07)
 
 
