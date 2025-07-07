@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/l10nmonster/lqa-boss/compare/v1.0.1...v1.0.2) (2025-07-07)
+
+
+### Bug Fixes
+
+* add GitHub Pages SPA routing support for deep GCS paths ([4a4fa56](https://github.com/l10nmonster/lqa-boss/commit/4a4fa561ed8c7585aaf98f8987d89a9da7736b18))
+
 ## [1.0.1](https://github.com/l10nmonster/lqa-boss/compare/v1.0.0...v1.0.1) (2025-07-07)
 
 
