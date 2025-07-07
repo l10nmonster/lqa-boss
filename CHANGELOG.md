@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/l10nmonster/lqa-boss/compare/v1.0.0...v1.0.1) (2025-07-07)
+
+
+### Bug Fixes
+
+* **release:** configure npm plugin to update package.json without publishing ([48fe5ae](https://github.com/l10nmonster/lqa-boss/commit/48fe5ae7426622e2e050ef39a23f66086d45efa4))
+
 # 1.0.0 (2025-07-07)
 
 
