@@ -7,8 +7,7 @@ const urlsToCache = [
     BASE_PATH,
     BASE_PATH + 'index.html',
     BASE_PATH + 'manifest.webmanifest',
-    BASE_PATH + 'icons/icon-512x512.png',
-    BASE_PATH + 'libs/jszip.min.js'
+    BASE_PATH + 'icons/icon-512x512.png'
 ];
 
 self.addEventListener('install', event => {
