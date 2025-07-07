@@ -56,6 +56,23 @@ export const useKeyboardNavigation = ({
         }
       }
 
+      // CMD+Enter (or Ctrl+Enter on Windows): Go to next segment
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        
+        if (totalSegments === 0) return
+        
+        // Move to next segment or page
+        if (activeSegmentIndex >= totalSegments - 1) {
+          if (currentPageIndex < totalPages - 1) {
+            navigatePage(1)
+            // Will set to first segment on next page
+          }
+        } else {
+          setActiveSegmentIndex(activeSegmentIndex === -1 ? 0 : activeSegmentIndex + 1)
+        }
+      }
+
       // Arrow key navigation for pages
       if (e.key === 'ArrowLeft' && e.ctrlKey) {
         if (currentPageIndex > 0) navigatePage(-1)
