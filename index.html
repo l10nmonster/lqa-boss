@@ -6,6 +6,16 @@
         <meta name="theme-color" content="#007bff"/>
         <title>LQA Boss</title>
         <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <script>
+          // GitHub Pages SPA support - restore redirected URL
+          (function() {
+            if (sessionStorage.redirect) {
+              const redirectUrl = sessionStorage.redirect;
+              delete sessionStorage.redirect;
+              history.replaceState(null, null, redirectUrl);
+            }
+          })();
+        </script>
         <link rel="manifest" href="./manifest.webmanifest">
         <meta name="mobile-web-app-capable" content="yes">
         <link rel="icon" type="image/png" href="./icons/icon-512x512.png" />
