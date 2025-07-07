@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/l10nmonster/lqa-boss/compare/v1.0.4...v1.0.5) (2025-07-07)
+
+
+### Bug Fixes
+
+* improve popup blocker handling with proper user interaction chain ([03b936b](https://github.com/l10nmonster/lqa-boss/commit/03b936b971c02866db73c276048731c1827fad12))
+
 ## [1.0.4](https://github.com/l10nmonster/lqa-boss/compare/v1.0.3...v1.0.4) (2025-07-07)
 
 
