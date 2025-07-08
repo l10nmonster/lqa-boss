@@ -1,3 +1,10 @@
+## [1.0.7](https://github.com/l10nmonster/lqa-boss/compare/v1.0.6...v1.0.7) (2025-07-08)
+
+
+### Bug Fixes
+
+* chrome stuttering scrolling ([bae4358](https://github.com/l10nmonster/lqa-boss/commit/bae435899ab3be2e6d872451d8d10d3e3cefd16f))
+
 ## [1.0.6](https://github.com/l10nmonster/lqa-boss/compare/v1.0.5...v1.0.6) (2025-07-08)
 
 
