@@ -52,6 +52,7 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
         boxShadow="xl"
         borderRadius="xl"
         overflow="hidden"
+        data-testid="instructions-modal"
       >
         {/* Header */}
         <Box
@@ -75,6 +76,7 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
             onClick={onClose}
             color="gray.500"
             _hover={{ color: "gray.700" }}
+            aria-label="close modal"
           >
             <FiX size={20} />
           </Button>

@@ -350,7 +350,7 @@ function App() {
   }, [currentPageIndex, flowData, jobData])
 
   return (
-    <Box minH="100vh" background={bgGradient} p={4}>
+    <Box minH="100vh" background={bgGradient} p={4} data-testid="app-container">
       <Stack direction="column" gap={4} align="stretch" h="100vh">
           {/* Header */}
           <Flex
@@ -386,6 +386,7 @@ function App() {
                       onClick={() => setIsInstructionsModalOpen(true)}
                       size="md"
                       px={3}
+                      data-testid="instructions-button"
                     >
                       <FiInfo />
                     </Button>
@@ -444,6 +445,7 @@ function App() {
                       onClick={() => setIsInstructionsModalOpen(true)}
                       size="md"
                       px={3}
+                      data-testid="instructions-button"
                     >
                       <FiInfo />
                     </Button>

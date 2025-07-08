@@ -25,7 +25,9 @@
     "@types/react-dom": "^19.0.0-rc",
     "@vitejs/plugin-react": "^4.3.0",
     "conventional-changelog-conventionalcommits": "^7.0.2",
+    "puppeteer": "^22.0.0",
     "semantic-release": "^22.0.12",
+    "wait-on": "^7.2.0",
     "typescript": "^5.4.2",
     "vite": "^6.0.0"
   },
@@ -34,6 +36,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "npx tsc --noEmit --strict && echo 'TypeScript check passed'",
+    "test:unit": "node --test tests/unit/**/*.test.js",
+    "test:ui": "node --test tests/ui/**/*.test.js",
+    "test": "npm run test:unit && npm run test:ui",
+    "test:ci": "npm run lint && npm run test",
     "semantic-release": "semantic-release"
   }
 }

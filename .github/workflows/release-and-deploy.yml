@@ -17,8 +17,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run lint and unit tests
+        run: npm run test:unit && npm run lint
+
+      - name: Build project for testing
+        run: npm run build
+
+      - name: Start preview server for UI tests
+        run: npm run preview &
+        
+      - name: Wait for server to be ready
+        run: |
+          npx wait-on http://localhost:4173 --timeout 30000
+
+      - name: Run UI tests
+        env:
+          TEST_URL: http://localhost:4173
+        run: npm run test:ui
+
   release:
     runs-on: ubuntu-latest
+    needs: test
     outputs:
       new-release-published: ${{ steps.semantic.outputs.new_release_published }}
       new-release-version: ${{ steps.semantic.outputs.new_release_version }}
@@ -46,7 +82,7 @@ jobs:
 
   build-and-deploy:
     runs-on: ubuntu-latest
-    needs: release
+    needs: [test, release]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
