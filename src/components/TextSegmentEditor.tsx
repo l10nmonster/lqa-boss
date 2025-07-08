@@ -73,15 +73,6 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
     : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
 
-  useEffect(() => {
-    // Scroll active segment into view
-    if (activeSegmentIndex >= 0 && editorRefs.current[activeSegmentIndex]) {
-      editorRefs.current[activeSegmentIndex].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      })
-    }
-  }, [activeSegmentIndex])
 
   const handleNormalizedChange = (guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
