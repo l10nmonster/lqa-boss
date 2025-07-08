@@ -36,7 +36,6 @@ const GlassBox: React.FC<GlassBoxProps> = ({ children, ...props }) => {
       }}
       transition="all 0.3s ease"
       _hover={{
-        transform: 'translateY(-2px)',
         boxShadow: '0 12px 40px 0 rgba(59, 130, 246, 0.2), 0 4px 20px 0 rgba(59, 130, 246, 0.15)',
         borderColor: 'rgba(255, 255, 255, 0.4)',
         bg: 'rgba(255, 255, 255, 0.3)',

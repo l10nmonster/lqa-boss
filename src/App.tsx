@@ -350,8 +350,8 @@ function App() {
   }, [currentPageIndex, flowData, jobData])
 
   return (
-    <Box minH="100vh" background={bgGradient} p={4} data-testid="app-container">
-      <Stack direction="column" gap={4} align="stretch" h="100vh">
+    <Box minH="100vh" background={bgGradient} p={4} data-testid="app-container" overflow="hidden">
+      <Stack direction="column" gap={4} align="stretch" h="calc(100vh - 2rem)" maxW="100vw" overflow="hidden">
           {/* Header */}
           <Flex
             as={GlassBox}
@@ -475,7 +475,7 @@ function App() {
           />
 
           {/* Main Content */}
-          <Box flex="1" overflow="hidden">
+          <Box flex="1" overflow="hidden" minWidth={0} maxW="100%">
             {showClientIdPrompt ? (
               // Client ID input prompt
               <GlassBox p={6} height="100%" display="flex" alignItems="center" justifyContent="center">
@@ -580,7 +580,7 @@ function App() {
                 </GlassBox>
 
                 {/* Editor Section */}
-                <GlassBox p={6} height="100%" overflow="hidden">
+                <GlassBox p={6} height="100%" overflow="hidden" minWidth={0} maxW="100%">
                   <Heading size="md" mb={4} color="gray.700">
                     Editable Text Segments
                   </Heading>
@@ -602,7 +602,7 @@ function App() {
               </ResizablePane>
             ) : (
               // Single-pane layout when no flowData (screenshot-less mode)
-              <GlassBox p={6} height="100%" overflow="hidden">
+              <GlassBox p={6} height="100%" overflow="hidden" minWidth={0} maxW="100%">
                 <Heading size="md" mb={4} color="gray.700">
                   Editable Translation Units
                 </Heading>

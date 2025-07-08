@@ -66,6 +66,7 @@ const ResizablePane: React.FC<ResizablePaneProps> = ({
         height="100%"
         overflow="hidden"
         position="relative"
+        minWidth={0}
       >
         {children[0]}
       </Box>
@@ -76,6 +77,7 @@ const ResizablePane: React.FC<ResizablePaneProps> = ({
         width="12px"
         height="100%"
         cursor="col-resize"
+        flexShrink={0}
         _hover={{
           '&::after': {
             opacity: 1,
@@ -122,6 +124,7 @@ const ResizablePane: React.FC<ResizablePaneProps> = ({
         height="100%"
         overflow="hidden"
         position="relative"
+        minWidth={0}
       >
         {children[1]}
       </Box>

@@ -532,6 +532,9 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
           backdropFilter: 'blur(5px)'
         }}
         transition="all 0.2s"
+        minWidth={0}
+        maxW="100%"
+        overflowWrap="break-word"
       >
         <RichTextPlugin
           contentEditable={
@@ -544,6 +547,9 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
                 fontWeight: '500',
                 lineHeight: '1.6',
                 cursor: 'text',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word',
+                maxWidth: '100%',
               }}
             />
           }

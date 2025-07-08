@@ -22,9 +22,49 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   activeSegmentIndex,
   onSegmentFocus,
 }) => {
-  const editorRefs = useRef<{ [key: string]: HTMLDivElement }>({})
+  const editorRefs = useRef<{ [key: number]: HTMLDivElement }>({})
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const tusByGuid = new Map(jobData.tus.map(tu => [tu.guid, tu]))
   const originalTusByGuid = new Map(originalJobData.tus.map(tu => [tu.guid, tu]))
+
+  // Handle Esc key to deselect segment
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && activeSegmentIndex !== -1) {
+        onSegmentFocus(-1)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [activeSegmentIndex, onSegmentFocus])
+
+  // Auto-scroll to center active segment
+  useEffect(() => {
+    // Use setTimeout to ensure DOM is fully rendered
+    const timeoutId = setTimeout(() => {
+      const activeElement = editorRefs.current[activeSegmentIndex]
+      const scrollContainer = scrollContainerRef.current
+
+      if (activeElement && scrollContainer) {
+        const containerHeight = scrollContainer.clientHeight
+        const elementHeight = activeElement.offsetHeight
+        const elementOffsetTop = activeElement.offsetTop
+        
+        // Calculate target scroll position to center the element
+        // Position the element's center at the container's center
+        const targetScrollTop = elementOffsetTop + (elementHeight / 2) - (containerHeight / 2)
+        
+        // Smooth scroll to the calculated position
+        scrollContainer.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        })
+      }
+    }, 100)
+
+    return () => clearTimeout(timeoutId)
+  }, [activeSegmentIndex])
 
   // Get translation units to display
   // If we have page data, use segments to determine which TUs to show
@@ -82,11 +122,15 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
 
   return (
     <Stack
+      ref={scrollContainerRef}
       direction="column"
       gap={4}
       align="stretch"
       height="100%"
       overflowY="auto"
+      minWidth={0}
+      maxW="100%"
+      py={4}
       css={{
         '&::-webkit-scrollbar': {
           width: '8px',
@@ -149,14 +193,16 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             borderLeftWidth="4px"
             borderLeftColor={isModified ? 'orange.400' : (isActive ? 'blue.400' : 'green.400')}
             boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.15)' : '0 2px 8px 0 rgba(0, 0, 0, 0.05)'}
-            transform={isActive ? 'scale(1.02)' : 'scale(1)'}
+            transform={isActive ? 'scale(1)' : 'scale(0.98)'}
             transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             onClick={() => onSegmentFocus(index)}
             cursor="pointer"
+            minWidth={0}
+            maxW="100%"
             _hover={{
               bg: isActive ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.3)',
               borderColor: isActive ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255, 255, 255, 0.4)',
-              transform: isActive ? 'scale(1.02) translateY(-2px)' : 'scale(1.01) translateY(-1px)',
+              transform: isActive ? 'scale(1) translateY(-2px)' : 'scale(0.98) translateY(-2px)',
               boxShadow: isActive ? '0 12px 32px 0 rgba(59, 130, 246, 0.2)' : '0 4px 12px 0 rgba(0, 0, 0, 0.1)',
             }}
           >
