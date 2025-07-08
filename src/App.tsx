@@ -626,19 +626,21 @@ function App() {
               </ResizablePane>
             ) : (
               // Single-pane layout when no flowData (screenshot-less mode)
-              <GlassBox p={6} height="100%" overflow="hidden" minWidth={0} maxW="100%">
-                <Heading size="md" mb={4} color="gray.700">
+              <GlassBox p={6} height="100%" overflow="hidden" minWidth={0} maxW="100%" boxSizing="border-box" display="flex" flexDirection="column">
+                <Heading size="md" mb={4} color="gray.700" flexShrink={0}>
                   Editable Translation Units
                 </Heading>
                 {jobData && originalJobData ? (
-                  <TextSegmentEditor
+                  <Box flex="1" minHeight={0}>
+                    <TextSegmentEditor
                     page={null}
                     jobData={jobData}
                     originalJobData={originalJobData}
                     onTranslationUnitChange={updateTranslationUnit}
                     activeSegmentIndex={activeSegmentIndex}
                     onSegmentFocus={setActiveSegmentIndex}
-                  />
+                    />
+                  </Box>
                 ) : (
                   <Text color="gray.600" textAlign="center" py={20}>
                     Load a .lqaboss file to view and edit

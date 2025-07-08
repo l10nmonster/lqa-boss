@@ -183,7 +183,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
                 borderColor={index === activeSegmentIndex ? 'blue.500' : 'orange.500'}
                 borderRadius="md"
                 cursor="pointer"
-                transition="all 0.2s"
+                transition="all 0.4s ease-in-out"
                 _hover={{
                   bg: index === activeSegmentIndex ? 'blue.100' : 'orange.100',
                   transform: 'scale(1.05)',

@@ -179,7 +179,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             borderLeftColor={isModified ? 'orange.400' : (isActive ? 'blue.500' : 'green.300')}
             boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.3)' : '0 2px 8px 0 rgba(0, 0, 0, 0.2)'}
             transform={isActive ? 'scale(1)' : 'scale(0.99)'}
-            transition="transform 0.2s ease-out, background-color 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out, filter 0.2s ease-out"
+            transition="transform 0.4s ease-in-out, background-color 0.4s ease-in-out, border-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out, filter 0.4s ease-in-out"
             onClick={() => onSegmentFocus(index)}
             cursor="pointer"
             minWidth={0}
