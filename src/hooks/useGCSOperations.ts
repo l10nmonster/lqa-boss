@@ -10,7 +10,7 @@ interface UseGCSOperationsReturn {
   clientId: string
   
   // Operations
-  initializeAuth: (onSuccess?: (token: string) => Promise<void>) => Promise<void>
+  initializeAuth: (onSuccess?: (token: string) => Promise<void>, overrideClientId?: string) => Promise<void>
   signOut: () => void
   setClientId: (clientId: string) => void
   loadFile: (bucket: string, prefix: string, filename: string) => Promise<File>

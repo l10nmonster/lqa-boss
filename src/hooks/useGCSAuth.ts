@@ -7,7 +7,7 @@ interface GCSAuthState {
 }
 
 interface UseGCSAuthReturn extends GCSAuthState {
-  initializeAuth: (onSuccess?: (token: string) => Promise<void>) => Promise<void>
+  initializeAuth: (onSuccess?: (token: string) => Promise<void>, overrideClientId?: string) => Promise<void>
   signOut: () => void
   setClientId: (clientId: string) => void
   setAccessToken: (token: string) => void
@@ -47,19 +47,20 @@ export const useGCSAuth = (): UseGCSAuthReturn => {
     }
   }, [])
 
-  const initializeAuth = async (onSuccess?: (token: string) => Promise<void>): Promise<void> => {
+  const initializeAuth = async (onSuccess?: (token: string) => Promise<void>, overrideClientId?: string): Promise<void> => {
     if (!(window as any).google) {
       throw new Error('Google Identity Services not loaded. Please refresh the page.')
     }
 
-    if (!clientId) {
+    const effectiveClientId = overrideClientId || clientId
+    if (!effectiveClientId) {
       throw new Error('Client ID required. Please set client ID first.')
     }
 
     return new Promise((resolve, reject) => {
       try {
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
+          client_id: effectiveClientId,
           scope: 'https://www.googleapis.com/auth/devstorage.read_write',
           callback: async (response: any) => {
             if (response.access_token) {

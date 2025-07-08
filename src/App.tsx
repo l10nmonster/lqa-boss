@@ -145,30 +145,48 @@ function App() {
   const handleClientIdSubmit = async () => {
     if (!clientIdInput.trim()) return
     
-    // Save client ID
-    gcs.setClientId(clientIdInput.trim())
-    localStorage.setItem('gcs-client-id', clientIdInput.trim())
-    setShowClientIdPrompt(false)
-    setClientIdInput('')
+    const newClientId = clientIdInput.trim()
     
-    // Now proceed with auth immediately (no delay)
+    // Don't hide the client ID prompt yet - only hide after successful authentication
+    // Don't clear the input either - keep it in case of retry
+    
+    // Proceed with auth, passing the client ID directly
     try {
       if (gcsMode?.filename) {
         // User wants to load a specific file
         await gcs.initializeAuth(async () => {
+          // Authentication succeeded - now we can hide the prompt and save client ID
+          setShowClientIdPrompt(false)
+          setClientIdInput('')
+          gcs.setClientId(newClientId)
+          localStorage.setItem('gcs-client-id', newClientId)
+          
           const file = await gcs.loadFile(gcsMode.bucket, gcsMode.prefix, gcsMode.filename!)
           if (file) {
             await handleFileLoad(file)
           }
-        })
+        }, newClientId)
       } else if (gcsMode) {
         // User wants to browse files
         await gcs.initializeAuth(async () => {
+          // Authentication succeeded - now we can hide the prompt and save client ID
+          setShowClientIdPrompt(false)
+          setClientIdInput('')
+          gcs.setClientId(newClientId)
+          localStorage.setItem('gcs-client-id', newClientId)
+          
           await gcs.loadFileListForMode(gcsMode)
-        })
+        }, newClientId)
       }
+      
+      // Authentication succeeded, hide auth prompt
+      setShowAuthPrompt(false)
     } catch (error: any) {
       console.error('Authentication failed:', error.message)
+      
+      // Keep client ID prompt visible for retry
+      // Input field still has the invalid client ID for user to correct
+      
       alert(`Authentication failed: ${error.message}`)
     }
   }
@@ -404,7 +422,13 @@ function App() {
                     <Button
                       variant="solid"
                       colorScheme="green"
-                      onClick={() => gcs.initializeAuth()}
+                      onClick={() => {
+                        if (!gcs.clientId) {
+                          setShowClientIdPrompt(true)
+                        } else {
+                          gcs.initializeAuth()
+                        }
+                      }}
                       size="md"
                     >
                       <FiKey /> Sign In to GCS
