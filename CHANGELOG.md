@@ -1,3 +1,10 @@
+## [1.0.8](https://github.com/l10nmonster/lqa-boss/compare/v1.0.7...v1.0.8) (2025-07-08)
+
+
+### Bug Fixes
+
+* another attempt for chrome stuttering ([2da0994](https://github.com/l10nmonster/lqa-boss/commit/2da09949d692e5c2ecdcae75d5fc32494c5e587b))
+
 ## [1.0.7](https://github.com/l10nmonster/lqa-boss/compare/v1.0.6...v1.0.7) (2025-07-08)
 
 
