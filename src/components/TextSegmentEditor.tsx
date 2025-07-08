@@ -39,33 +39,6 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [activeSegmentIndex, onSegmentFocus])
 
-  // Auto-scroll to center active segment
-  useEffect(() => {
-    if (activeSegmentIndex >= 0) {
-      // Use requestAnimationFrame to ensure DOM is fully rendered
-      const frameId = requestAnimationFrame(() => {
-        const activeElement = editorRefs.current[activeSegmentIndex]
-        const scrollContainer = scrollContainerRef.current
-
-        if (activeElement && scrollContainer) {
-          const containerHeight = scrollContainer.clientHeight
-          const elementHeight = activeElement.offsetHeight
-          const elementOffsetTop = activeElement.offsetTop
-          
-          // Calculate target scroll position to center the element
-          const targetScrollTop = elementOffsetTop + (elementHeight / 2) - (containerHeight / 2)
-          
-          // Use instant scroll to avoid conflicts with scrollIntoView
-          scrollContainer.scrollTo({
-            top: targetScrollTop,
-            behavior: 'instant'
-          })
-        }
-      })
-
-      return () => cancelAnimationFrame(frameId)
-    }
-  }, [activeSegmentIndex])
 
   // Get translation units to display
   // If we have page data, use segments to determine which TUs to show
@@ -75,11 +48,11 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
 
   useEffect(() => {
-    // Scroll active segment into view
+    // Scroll active segment into view with centering
     if (activeSegmentIndex >= 0 && editorRefs.current[activeSegmentIndex]) {
       editorRefs.current[activeSegmentIndex].scrollIntoView({
         behavior: 'smooth',
-        block: 'nearest',
+        block: 'center',
       })
     }
   }, [activeSegmentIndex])
@@ -133,6 +106,12 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
       maxW="100%"
       py={4}
       css={{
+        // Chrome scroll performance optimizations
+        willChange: 'scroll-position',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        perspective: '1000px',
+        // Scrollbar styling
         '&::-webkit-scrollbar': {
           width: '8px',
         },
@@ -187,15 +166,19 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             }}
             p={isActive ? 6 : 4}
             bg={isActive ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.2)'}
-            backdropFilter="blur(10px)"
+            css={{
+              willChange: 'transform, background-color, border-color, box-shadow',
+              backfaceVisibility: 'hidden',
+              transform: 'translateZ(0)',
+            }}
             borderRadius="lg"
             border="1px solid"
             borderColor={isActive ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.3)'}
             borderLeftWidth="4px"
             borderLeftColor={isModified ? 'orange.400' : (isActive ? 'blue.400' : 'green.400')}
             boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.15)' : '0 2px 8px 0 rgba(0, 0, 0, 0.05)'}
-            transform={isActive ? 'scale(1)' : 'scale(0.98)'}
-            transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+            transform={isActive ? 'scale(1)' : 'scale(0.99)'}
+            transition="transform 0.2s ease-out, background-color 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out"
             onClick={() => onSegmentFocus(index)}
             cursor="pointer"
             minWidth={0}
@@ -203,8 +186,8 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             _hover={{
               bg: isActive ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.3)',
               borderColor: isActive ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255, 255, 255, 0.4)',
-              transform: isActive ? 'scale(1) translateY(-2px)' : 'scale(0.98) translateY(-2px)',
-              boxShadow: isActive ? '0 12px 32px 0 rgba(59, 130, 246, 0.2)' : '0 4px 12px 0 rgba(0, 0, 0, 0.1)',
+              transform: isActive ? 'scale(1) translateY(-1px)' : 'scale(0.99) translateY(-1px)',
+              boxShadow: isActive ? '0 8px 16px 0 rgba(59, 130, 246, 0.2)' : '0 4px 8px 0 rgba(0, 0, 0, 0.1)',
             }}
           >
             {isActive ? (
