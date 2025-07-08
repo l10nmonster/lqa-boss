@@ -98,8 +98,7 @@ export class GCSOperations {
       }
 
       const result = await response.json()
-      const lqabossFiles = (result.items || [])
-        .filter((item: any) => item.name.endsWith('.lqaboss'))
+      const allFiles = (result.items || [])
         .map((item: any) => ({
           name: item.name.replace(`${prefixPath}`, ''),
           fullName: item.name,
@@ -107,7 +106,7 @@ export class GCSOperations {
           updated: item.updated
         }))
 
-      return lqabossFiles
+      return allFiles
     } catch (error: any) {
       console.error('Error listing GCS files:', error)
       this.handleTokenExpiry(error)
