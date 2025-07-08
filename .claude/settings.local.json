@@ -18,7 +18,10 @@
       "Bash(node:*)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npx @chakra-ui/cli snippet add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -21,6 +21,7 @@ import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
 import { useGCSOperations } from './hooks/useGCSOperations'
 import { GCSUrlParser, GCSModeConfig } from './utils/gcsUrlParser'
 import GCSFilePicker from './components/GCSFilePicker'
+import { Toaster, toaster } from './components/ui/toaster'
 import { isEqual } from 'lodash'
 
 
@@ -80,10 +81,15 @@ function App() {
       if (gcsMode.filename) {
         // URL has filename - try to load the specific file
         if (gcs.isAuthenticated) {
-          console.log('Attempting to auto-load file with saved credentials')
-          const file = await gcs.loadFileFromMode(gcsMode)
-          if (file) {
-            await handleFileLoad(file)
+          // Check if this file is already loaded to prevent duplicate loading
+          if (fileName !== gcsMode.filename) {
+            console.log('Attempting to auto-load file with saved credentials')
+            const file = await gcs.loadFileFromMode(gcsMode)
+            if (file) {
+              await handleFileLoad(file)
+            }
+          } else {
+            console.log('File already loaded, skipping auto-load')
           }
         } else {
           // Not authenticated - show auth prompt instead of auto-triggering
@@ -106,7 +112,7 @@ function App() {
     // Start attempting auto action after a small delay
     const timer = setTimeout(attemptAutoAction, 200)
     return () => clearTimeout(timer)
-  }, [gcsMode, gcs.isAuthenticated, gcs.accessToken, gcs.clientId])
+  }, [gcsMode, gcs.isAuthenticated, gcs.accessToken, gcs.clientId, fileName])
 
   // Handle auth prompt action
   const handleAuthPromptAccept = async () => {
@@ -215,7 +221,7 @@ function App() {
   }, [])
 
   // Function to load saved translations for a job
-  const loadSavedTranslations = async (filename: string) => {
+  const loadSavedTranslations = async (filename: string): Promise<{ foundEdited: boolean; editedCount: number }> => {
     if (!gcsMode || !filename.endsWith('.lqaboss')) {
       // Not a .lqaboss file, set up two-state system (original = saved = current)
       setJobData(currentJobData => {
@@ -225,7 +231,7 @@ function App() {
         }
         return currentJobData
       })
-      return
+      return { foundEdited: false, editedCount: 0 }
     }
 
     const jobId = filename.replace('.lqaboss', '')
@@ -240,6 +246,8 @@ function App() {
         
         // Only apply translations if there are any saved
         if (savedJobData.tus && savedJobData.tus.length > 0) {
+          let editedCount = 0
+          
           // Apply saved translations and set up three-state system
           setJobData(prevJobData => {
             if (!prevJobData) return prevJobData
@@ -247,10 +255,15 @@ function App() {
             // Create a map for quick lookup of saved translations
             const savedTuMap = new Map(savedJobData.tus.map((tu: any) => [tu.guid, tu]))
             
-            // Update job data with saved translations
+            // Update job data with saved translations and count edited ones
             const updatedTus = prevJobData.tus.map(tu => {
               const savedTu = savedTuMap.get(tu.guid) as any
               if (savedTu && savedTu.ntgt) {
+                // Check if the saved translation is different from the original source
+                const originalNtgt = tu.nsrc ? JSON.parse(JSON.stringify(tu.nsrc)) : []
+                if (!isEqual(savedTu.ntgt, originalNtgt)) {
+                  editedCount++
+                }
                 return { ...tu, ntgt: savedTu.ntgt }
               }
               return tu
@@ -275,6 +288,7 @@ function App() {
           })
           
           console.log(`Successfully applied ${savedJobData.tus.length} saved translations`)
+          return { foundEdited: true, editedCount }
         } else {
           // No saved translations, set up two-state system (original = saved = current)
           setJobData(currentJobData => {
@@ -284,6 +298,7 @@ function App() {
             }
             return currentJobData
           })
+          return { foundEdited: false, editedCount: 0 }
         }
       } else {
         // No JSON file found, set up two-state system (original = saved = current)
@@ -294,6 +309,7 @@ function App() {
           }
           return currentJobData
         })
+        return { foundEdited: false, editedCount: 0 }
       }
     } catch (error) {
       console.log(`No saved translations found for job: ${error}`)
@@ -305,6 +321,7 @@ function App() {
         }
         return currentJobData
       })
+      return { foundEdited: false, editedCount: 0 }
     }
   }
 
@@ -362,7 +379,24 @@ function App() {
       
       // After loading the .lqaboss file, try to load saved translations
       // This will set originalJobData appropriately
-      await loadSavedTranslations(file.name)
+      const translationResult = await loadSavedTranslations(file.name)
+      
+      // Show toast notification about loaded file and edited translations
+      if (translationResult.foundEdited && translationResult.editedCount > 0) {
+        toaster.create({
+          title: "File loaded successfully",
+          description: `Found ${translationResult.editedCount} edited translation${translationResult.editedCount === 1 ? '' : 's'}`,
+          type: "success",
+          duration: 4000,
+        })
+      } else {
+        toaster.create({
+          title: "File loaded successfully",
+          description: "No edited translations found",
+          type: "info",
+          duration: 3000,
+        })
+      }
     } catch (error: any) {
       console.error('Error loading file:', error)
       alert(error.message || 'Failed to load file')
@@ -750,7 +784,6 @@ function App() {
               </GlassBox>
             )}
           </Box>
-        </Stack>
 
         {/* Instructions Modal */}
         {jobData?.instructions && (
@@ -772,7 +805,9 @@ function App() {
         >
           v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
         </Box>
-        
+      </Stack>
+      
+      <Toaster />
     </Box>
   )
 }
