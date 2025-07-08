@@ -1,3 +1,15 @@
+## [1.0.9](https://github.com/l10nmonster/lqa-boss/compare/v1.0.8...v1.0.9) (2025-07-08)
+
+
+### Bug Fixes
+
+* chrome stuttering while scrolling ([0f398e5](https://github.com/l10nmonster/lqa-boss/commit/0f398e593f8b5e639d298b99cd02f44c6972dd42))
+* client id flow ([7694bee](https://github.com/l10nmonster/lqa-boss/commit/7694beefa08697d579925e83ca27e0d3ad196111))
+* improve gcs file browser ([4806bb1](https://github.com/l10nmonster/lqa-boss/commit/4806bb1a3f353cd20dc8794bdbd36bacdd397d78))
+* improve segment transition animation ([494d9fc](https://github.com/l10nmonster/lqa-boss/commit/494d9fcb5fbba2d98f58baba1cf40c66bb2f393d))
+* improve UI ([d3db584](https://github.com/l10nmonster/lqa-boss/commit/d3db584805d038b5a9ce9efdf374142fce2118fe))
+* load done translations if they exist ([e894980](https://github.com/l10nmonster/lqa-boss/commit/e8949804752dae9ea234c02820c7cc7076a40a8e))
+
 ## [1.0.8](https://github.com/l10nmonster/lqa-boss/compare/v1.0.7...v1.0.8) (2025-07-08)
 
 
