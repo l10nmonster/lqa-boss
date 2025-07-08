@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/l10nmonster/lqa-boss/compare/v1.0.5...v1.0.6) (2025-07-08)
+
+
+### Bug Fixes
+
+* overflow and other usability issues ([fb44ccc](https://github.com/l10nmonster/lqa-boss/commit/fb44ccc73cce994104bdcb17cf825caba8d69828))
+
 ## [1.0.5](https://github.com/l10nmonster/lqa-boss/compare/v1.0.4...v1.0.5) (2025-07-07)
 
 
