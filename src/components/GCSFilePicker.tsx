@@ -9,6 +9,7 @@ import {
   Badge,
   Grid,
   Stack,
+  Checkbox,
 } from '@chakra-ui/react'
 import GlassBox from './GlassBox'
 import { GCSFile } from '../utils/gcsOperations'
@@ -66,15 +67,18 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
         <Heading size="sm" color="gray.700">
           Select .lqaboss File from GCS
         </Heading>
-        <Stack direction="row" gap={3}>
-          <Button
-            size="sm"
-            onClick={() => setShowDoneJobs(!showDoneJobs)}
-            colorScheme={showDoneJobs ? "green" : "gray"}
-            variant={showDoneJobs ? "solid" : "outline"}
+        <Stack direction="row" gap={3} align="center">
+          <Checkbox.Root
+            checked={showDoneJobs}
+            onCheckedChange={(details) => setShowDoneJobs(!!details.checked)}
+            colorPalette="green"
           >
-            {showDoneJobs ? "✓" : ""} DONE
-          </Button>
+            <Checkbox.HiddenInput />
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <Checkbox.Label>Show DONE jobs</Checkbox.Label>
+          </Checkbox.Root>
           <Button size="sm" onClick={onClose}>
             Close
           </Button>
