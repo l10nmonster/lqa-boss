@@ -12,7 +12,8 @@
       "Bash(mkdir:*)",
       "Bash(ls:*)",
       "Bash(git add:*)",
-      "Bash(claude mcp:*)"
+      "Bash(claude mcp:*)",
+      "Bash(npm test)"
     ],
     "deny": []
   }

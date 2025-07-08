@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { saveChangedTus } from '../../src/utils/saveHandler.ts';
+import { saveChangedTus } from '../utils/saveHandler.js';
 
 // Mock DOM elements for testing
 const createMockDOM = () => {

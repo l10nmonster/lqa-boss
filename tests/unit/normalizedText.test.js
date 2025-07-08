@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { normalizedToString, normalizedToDisplayString, normalizedToDisplayStringForTarget, extractEditableText } from '../../src/utils/normalizedText.ts';
+import { normalizedToString, normalizedToDisplayString, normalizedToDisplayStringForTarget, extractEditableText } from '../utils/normalizedText.js';
 
 describe('normalizedText utilities', () => {
   test('normalizedToString handles empty and invalid inputs', () => {
