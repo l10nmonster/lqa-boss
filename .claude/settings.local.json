@@ -14,7 +14,8 @@
       "Bash(git add:*)",
       "Bash(claude mcp:*)",
       "Bash(npm test)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

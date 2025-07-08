@@ -9,6 +9,7 @@ interface TextSegmentEditorProps {
   page: Page | null
   jobData: JobData
   originalJobData: JobData
+  savedJobData: JobData
   onTranslationUnitChange: (tu: TranslationUnit) => void
   activeSegmentIndex: number
   onSegmentFocus: (index: number) => void
@@ -18,6 +19,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   page,
   jobData,
   originalJobData,
+  savedJobData,
   onTranslationUnitChange,
   activeSegmentIndex,
   onSegmentFocus,
@@ -26,6 +28,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const tusByGuid = new Map(jobData.tus.map(tu => [tu.guid, tu]))
   const originalTusByGuid = new Map(originalJobData.tus.map(tu => [tu.guid, tu]))
+  const savedTusByGuid = new Map(savedJobData.tus.map(tu => [tu.guid, tu]))
 
   // Handle Esc key to deselect segment
   useEffect(() => {
@@ -65,17 +68,49 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   }
 
   const handleUndo = (guid: string) => {
+    const savedTu = savedTusByGuid.get(guid)
+    if (savedTu) {
+      onTranslationUnitChange(savedTu)
+    }
+  }
+
+  const handleOriginal = (guid: string) => {
     const originalTu = originalTusByGuid.get(guid)
     if (originalTu) {
       onTranslationUnitChange(originalTu)
     }
   }
 
-  const isTuModified = (guid: string): boolean => {
+  // Three-state system for segment colors
+  const getSegmentState = (guid: string): 'original' | 'saved' | 'modified' => {
     const currentTu = tusByGuid.get(guid)
     const originalTu = originalTusByGuid.get(guid)
-    if (!currentTu || !originalTu) return false
-    return !isEqual(currentTu.ntgt, originalTu.ntgt)
+    const savedTu = savedTusByGuid.get(guid)
+    
+    if (!currentTu || !originalTu || !savedTu) return 'original'
+    
+    // Check if current matches original source text (green)
+    if (isEqual(currentTu.ntgt, originalTu.ntgt)) {
+      return 'original' // Green - matches original source text
+    }
+    
+    // Check if current matches saved translation (yellow)  
+    if (isEqual(currentTu.ntgt, savedTu.ntgt)) {
+      return 'saved' // Yellow - matches saved translation
+    }
+    
+    // Current differs from both original and saved
+    return 'modified' // Red - has unsaved changes
+  }
+  
+  const getSegmentBorderColor = (guid: string, isActive: boolean): string => {
+    const state = getSegmentState(guid)
+    switch (state) {
+      case 'original': return isActive ? 'blue.500' : 'green.300'
+      case 'saved': return isActive ? 'blue.500' : 'yellow.400' 
+      case 'modified': return isActive ? 'blue.500' : 'orange.400'
+      default: return isActive ? 'blue.500' : 'green.300'
+    }
   }
 
   if (page && (!page.segments || page.segments.length === 0)) {
@@ -156,7 +191,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
           }
         }
 
-        const isModified = isTuModified(tu.guid)
+        const segmentState = getSegmentState(tu.guid)
         
         return (
           <Box
@@ -176,7 +211,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             border="1px solid"
             borderColor={isActive ? 'rgba(59, 130, 246, 0.6)' : 'rgba(255, 255, 255, 0.2)'}
             borderLeftWidth="4px"
-            borderLeftColor={isModified ? 'orange.400' : (isActive ? 'blue.500' : 'green.300')}
+            borderLeftColor={getSegmentBorderColor(tu.guid, isActive)}
             boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.3)' : '0 2px 8px 0 rgba(0, 0, 0, 0.2)'}
             transform={isActive ? 'scale(1)' : 'scale(0.99)'}
             transition="transform 0.4s ease-in-out, background-color 0.4s ease-in-out, border-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out, filter 0.4s ease-in-out"
@@ -202,19 +237,34 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       </Text>
                     </Box>
                   </HStack>
-                  <Button
-                    aria-label="Undo changes"
-                    size="sm"
-                    variant="ghost"
-                    colorScheme="blue"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleUndo(tu.guid)
-                    }}
-                    disabled={!isModified}
-                  >
-                    Undo
-                  </Button>
+                  <HStack>
+                    <Button
+                      aria-label="Revert to original source text"
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="green"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOriginal(tu.guid)
+                      }}
+                      disabled={segmentState === 'original'}
+                    >
+                      Original
+                    </Button>
+                    <Button
+                      aria-label="Undo to saved translation"
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="yellow"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleUndo(tu.guid)
+                      }}
+                      disabled={segmentState === 'original' || segmentState === 'saved'}
+                    >
+                      Undo
+                    </Button>
+                  </HStack>
                 </HStack>
                 <NormalizedTextEditor
                   key={tu.guid}

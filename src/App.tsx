@@ -23,10 +23,12 @@ import { GCSUrlParser, GCSModeConfig } from './utils/gcsUrlParser'
 import GCSFilePicker from './components/GCSFilePicker'
 import { isEqual } from 'lodash'
 
+
 function App() {
   const [flowData, setFlowData] = useState<FlowData | null>(null)
   const [jobData, setJobData] = useState<JobData | null>(null)
   const [originalJobData, setOriginalJobData] = useState<JobData | null>(null)
+  const [savedJobData, setSavedJobData] = useState<JobData | null>(null)
   const [zipFile, setZipFile] = useState<JSZip | null>(null)
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
@@ -212,6 +214,100 @@ function App() {
     }
   }, [])
 
+  // Function to load saved translations for a job
+  const loadSavedTranslations = async (filename: string) => {
+    if (!gcsMode || !filename.endsWith('.lqaboss')) {
+      // Not a .lqaboss file, set up two-state system (original = saved = current)
+      setJobData(currentJobData => {
+        if (currentJobData) {
+          setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
+          setSavedJobData(JSON.parse(JSON.stringify(currentJobData)))
+        }
+        return currentJobData
+      })
+      return
+    }
+
+    const jobId = filename.replace('.lqaboss', '')
+    const jsonFilename = `${jobId}.json`
+    
+    try {
+      const jsonFile = await gcs.loadFile(gcsMode.bucket, gcsMode.prefix, jsonFilename)
+      
+      if (jsonFile) {
+        const jsonContent = await jsonFile.text()
+        const savedJobData = JSON.parse(jsonContent)
+        
+        // Only apply translations if there are any saved
+        if (savedJobData.tus && savedJobData.tus.length > 0) {
+          // Apply saved translations and set up three-state system
+          setJobData(prevJobData => {
+            if (!prevJobData) return prevJobData
+            
+            // Create a map for quick lookup of saved translations
+            const savedTuMap = new Map(savedJobData.tus.map((tu: any) => [tu.guid, tu]))
+            
+            // Update job data with saved translations
+            const updatedTus = prevJobData.tus.map(tu => {
+              const savedTu = savedTuMap.get(tu.guid) as any
+              if (savedTu && savedTu.ntgt) {
+                return { ...tu, ntgt: savedTu.ntgt }
+              }
+              return tu
+            })
+            
+            const finalJobData = { ...prevJobData, tus: updatedTus }
+            
+            // Set up three-state tracking:
+            // originalJobData = source text (for "Original" button - green state)
+            const originalTus = prevJobData.tus.map(tu => ({
+              ...tu,
+              ntgt: tu.nsrc ? JSON.parse(JSON.stringify(tu.nsrc)) : []
+            }))
+            setOriginalJobData({ ...prevJobData, tus: originalTus })
+            
+            // savedJobData = saved translations (for "Undo" button - yellow state)
+            setSavedJobData(JSON.parse(JSON.stringify(finalJobData)))
+            
+            console.log('Set up three-state system: Original (green) → Saved (yellow) → Current (red)')
+            
+            return finalJobData
+          })
+          
+          console.log(`Successfully applied ${savedJobData.tus.length} saved translations`)
+        } else {
+          // No saved translations, set up two-state system (original = saved = current)
+          setJobData(currentJobData => {
+            if (currentJobData) {
+              setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
+              setSavedJobData(JSON.parse(JSON.stringify(currentJobData)))
+            }
+            return currentJobData
+          })
+        }
+      } else {
+        // No JSON file found, set up two-state system (original = saved = current)
+        setJobData(currentJobData => {
+          if (currentJobData) {
+            setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
+            setSavedJobData(JSON.parse(JSON.stringify(currentJobData)))
+          }
+          return currentJobData
+        })
+      }
+    } catch (error) {
+      console.log(`No saved translations found for job: ${error}`)
+      // Error loading JSON, set up two-state system (original = saved = current)
+      setJobData(currentJobData => {
+        if (currentJobData) {
+          setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
+          setSavedJobData(JSON.parse(JSON.stringify(currentJobData)))
+        }
+        return currentJobData
+      })
+    }
+  }
+
   const handleFileLoad = async (file: File) => {
     if (!file) return
 
@@ -253,7 +349,6 @@ function App() {
       setZipFile(zip)
       setFlowData(parsedFlowData)
       setJobData(parsedJobData)
-      setOriginalJobData(JSON.parse(JSON.stringify(parsedJobData)))
       setFileName(file.name)
       setCurrentPageIndex(0)
       setActiveSegmentIndex(-1)
@@ -264,6 +359,10 @@ function App() {
       }
 
       console.log('Successfully loaded:', file.name, parsedFlowData ? 'with flow metadata' : 'without flow metadata')
+      
+      // After loading the .lqaboss file, try to load saved translations
+      // This will set originalJobData appropriately
+      await loadSavedTranslations(file.name)
     } catch (error: any) {
       console.error('Error loading file:', error)
       alert(error.message || 'Failed to load file')
@@ -608,11 +707,12 @@ function App() {
                   <Heading size="md" mb={4} color="gray.700">
                     Editable Text Segments
                   </Heading>
-                  {currentPage && jobData && originalJobData ? (
+                  {currentPage && jobData && originalJobData && savedJobData ? (
                     <TextSegmentEditor
                       page={currentPage}
                       jobData={jobData}
                       originalJobData={originalJobData}
+                      savedJobData={savedJobData}
                       onTranslationUnitChange={updateTranslationUnit}
                       activeSegmentIndex={activeSegmentIndex}
                       onSegmentFocus={setActiveSegmentIndex}
@@ -630,12 +730,13 @@ function App() {
                 <Heading size="md" mb={4} color="gray.700" flexShrink={0}>
                   Editable Translation Units
                 </Heading>
-                {jobData && originalJobData ? (
+                {jobData && originalJobData && savedJobData ? (
                   <Box flex="1" minHeight={0}>
                     <TextSegmentEditor
                     page={null}
                     jobData={jobData}
                     originalJobData={originalJobData}
+                    savedJobData={savedJobData}
                     onTranslationUnitChange={updateTranslationUnit}
                     activeSegmentIndex={activeSegmentIndex}
                     onSegmentFocus={setActiveSegmentIndex}
@@ -671,6 +772,7 @@ function App() {
         >
           v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
         </Box>
+        
     </Box>
   )
 }
