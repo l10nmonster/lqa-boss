@@ -40,7 +40,7 @@ export class PlaceholderNode extends DecoratorNode<React.ReactNode> {
     span.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'
     span.style.padding = '2px 4px'
     span.style.borderRadius = '4px'
-    span.style.fontFamily = 'monospace'
+    span.style.fontFamily = 'inherit'
     span.style.fontSize = '0.9em'
     span.style.userSelect = 'none'
     span.style.cursor = 'grab'
@@ -53,6 +53,27 @@ export class PlaceholderNode extends DecoratorNode<React.ReactNode> {
       e.dataTransfer?.setData('text/node-key', this.__key || '')
       span.style.opacity = '0.5'
       span.style.cursor = 'grabbing'
+      
+      // Create a transparent drag image to hide the default drag ghost
+      const dragImage = document.createElement('div')
+      dragImage.style.position = 'absolute'
+      dragImage.style.top = '-1000px'
+      dragImage.style.left = '-1000px'
+      dragImage.style.width = '1px'
+      dragImage.style.height = '1px'
+      dragImage.style.opacity = '0'
+      dragImage.style.pointerEvents = 'none'
+      document.body.appendChild(dragImage)
+      
+      // Set transparent drag image
+      e.dataTransfer?.setDragImage(dragImage, 0, 0)
+      
+      // Clean up the drag image after a short delay
+      setTimeout(() => {
+        if (dragImage && dragImage.parentNode) {
+          dragImage.parentNode.removeChild(dragImage)
+        }
+      }, 0)
     })
     
     span.addEventListener('dragend', () => {
@@ -250,8 +271,8 @@ function DragDropPlugin(): null {
         dragIndicator = createDragIndicator()
         document.body.appendChild(dragIndicator)
       }
-      dragIndicator.style.left = `${x}px`
-      dragIndicator.style.top = `${y - 10}px`
+      dragIndicator.style.left = `${x - 3}px`
+      dragIndicator.style.top = `${y + 20}px`
       dragIndicator.style.opacity = '1'
     }
 
@@ -544,7 +565,7 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
                 outline: 'none',
                 color: '#374151',
                 fontSize: '16px',
-                fontWeight: '500',
+                fontWeight: 'normal',
                 lineHeight: '1.6',
                 cursor: 'text',
                 wordWrap: 'break-word',

@@ -165,38 +165,42 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
               if (el) editorRefs.current[index] = el
             }}
             p={isActive ? 6 : 4}
-            bg={isActive ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.2)'}
+            bg={isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 58, 138, 0.8)'}
             css={{
               willChange: 'transform, background-color, border-color, box-shadow',
               backfaceVisibility: 'hidden',
               transform: 'translateZ(0)',
+              filter: isActive ? 'none' : 'blur(0.4px)',
             }}
             borderRadius="lg"
             border="1px solid"
-            borderColor={isActive ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.3)'}
+            borderColor={isActive ? 'rgba(59, 130, 246, 0.6)' : 'rgba(255, 255, 255, 0.2)'}
             borderLeftWidth="4px"
-            borderLeftColor={isModified ? 'orange.400' : (isActive ? 'blue.400' : 'green.400')}
-            boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.15)' : '0 2px 8px 0 rgba(0, 0, 0, 0.05)'}
+            borderLeftColor={isModified ? 'orange.400' : (isActive ? 'blue.500' : 'green.300')}
+            boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.3)' : '0 2px 8px 0 rgba(0, 0, 0, 0.2)'}
             transform={isActive ? 'scale(1)' : 'scale(0.99)'}
-            transition="transform 0.2s ease-out, background-color 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out"
+            transition="transform 0.2s ease-out, background-color 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out, filter 0.2s ease-out"
             onClick={() => onSegmentFocus(index)}
             cursor="pointer"
             minWidth={0}
             maxW="100%"
             _hover={{
-              bg: isActive ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.3)',
-              borderColor: isActive ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255, 255, 255, 0.4)',
+              bg: isActive ? 'rgba(255, 255, 255, 1)' : 'rgba(30, 58, 138, 0.9)',
+              borderColor: isActive ? 'rgba(59, 130, 246, 0.8)' : 'rgba(255, 255, 255, 0.3)',
               transform: isActive ? 'scale(1) translateY(-1px)' : 'scale(0.99) translateY(-1px)',
-              boxShadow: isActive ? '0 8px 16px 0 rgba(59, 130, 246, 0.2)' : '0 4px 8px 0 rgba(0, 0, 0, 0.1)',
+              boxShadow: isActive ? '0 8px 16px 0 rgba(59, 130, 246, 0.4)' : '0 4px 8px 0 rgba(30, 58, 138, 0.4)',
+              filter: isActive ? 'none' : 'blur(0.2px)',
             }}
           >
             {isActive ? (
               <VStack align="stretch" gap={3}>
                 <HStack justify="space-between">
                   <HStack>
-                    <Text fontFamily="mono" fontSize="xs" color="gray.500" fontWeight="medium">
-                      {tu.nsrc ? normalizedToDisplayString(tu.nsrc) : '(no source text)'}
-                    </Text>
+                    <Box p={2} bg="gray.100" borderRadius="md" maxW="100%">
+                      <Text fontSize="sm" color="gray.700" fontWeight="normal">
+                        {tu.nsrc ? normalizedToDisplayString(tu.nsrc) : '(no source text)'}
+                      </Text>
+                    </Box>
                   </HStack>
                   <Button
                     aria-label="Undo changes"
@@ -226,22 +230,22 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                     border="1px solid"
                     borderColor="rgba(255, 193, 7, 0.3)"
                   >
-                    <Text fontSize="sm" color="gray.700" fontWeight="medium" mb={1}>
+                    <Text fontSize="xs" color="gray.800" fontWeight="normal" mb={1}>
                       Notes:
                     </Text>
-                    <Text fontSize="sm" color="gray.600">
+                    <Text fontSize="xs" color="gray.700" fontWeight="normal">
                       {notesDesc}
                     </Text>
                   </Box>
                 )}
-                <Flex gap={2} justify="flex-end" align="center" color="gray.500" fontSize="xs" wrap="wrap" rowGap={1}>
-                  <Text><Text as="span" fontWeight="bold">rid:</Text> {safeRid}</Text>
-                  <Text><Text as="span" fontWeight="bold">sid:</Text> {safeSid}</Text>
-                  <Text><Text as="span" fontWeight="bold">guid:</Text> {safeGuid}</Text>
+                <Flex gap={2} justify="flex-end" align="center" color="gray.600" fontSize="xs" wrap="wrap" rowGap={1}>
+                  <Text fontWeight="normal"><Text as="span" fontWeight="normal">rid:</Text> {safeRid}</Text>
+                  <Text fontWeight="normal"><Text as="span" fontWeight="normal">sid:</Text> {safeSid}</Text>
+                  <Text fontWeight="normal"><Text as="span" fontWeight="normal">guid:</Text> {safeGuid}</Text>
                 </Flex>
               </VStack>
             ) : (
-              <Text color="gray.600" fontSize="sm" lineHeight="1.4">
+              <Text color="gray.200" fontSize="sm" lineHeight="1.4" fontWeight="normal">
                 {tu.ntgt ? normalizedToDisplayStringForTarget(tu.ntgt) : '(no target text)'}
               </Text>
             )}
