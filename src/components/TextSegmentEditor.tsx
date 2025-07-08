@@ -41,29 +41,30 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
 
   // Auto-scroll to center active segment
   useEffect(() => {
-    // Use setTimeout to ensure DOM is fully rendered
-    const timeoutId = setTimeout(() => {
-      const activeElement = editorRefs.current[activeSegmentIndex]
-      const scrollContainer = scrollContainerRef.current
+    if (activeSegmentIndex >= 0) {
+      // Use requestAnimationFrame to ensure DOM is fully rendered
+      const frameId = requestAnimationFrame(() => {
+        const activeElement = editorRefs.current[activeSegmentIndex]
+        const scrollContainer = scrollContainerRef.current
 
-      if (activeElement && scrollContainer) {
-        const containerHeight = scrollContainer.clientHeight
-        const elementHeight = activeElement.offsetHeight
-        const elementOffsetTop = activeElement.offsetTop
-        
-        // Calculate target scroll position to center the element
-        // Position the element's center at the container's center
-        const targetScrollTop = elementOffsetTop + (elementHeight / 2) - (containerHeight / 2)
-        
-        // Smooth scroll to the calculated position
-        scrollContainer.scrollTo({
-          top: targetScrollTop,
-          behavior: 'smooth'
-        })
-      }
-    }, 100)
+        if (activeElement && scrollContainer) {
+          const containerHeight = scrollContainer.clientHeight
+          const elementHeight = activeElement.offsetHeight
+          const elementOffsetTop = activeElement.offsetTop
+          
+          // Calculate target scroll position to center the element
+          const targetScrollTop = elementOffsetTop + (elementHeight / 2) - (containerHeight / 2)
+          
+          // Use instant scroll to avoid conflicts with scrollIntoView
+          scrollContainer.scrollTo({
+            top: targetScrollTop,
+            behavior: 'instant'
+          })
+        }
+      })
 
-    return () => clearTimeout(timeoutId)
+      return () => cancelAnimationFrame(frameId)
+    }
   }, [activeSegmentIndex])
 
   // Get translation units to display
@@ -73,6 +74,15 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
     : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
 
+  useEffect(() => {
+    // Scroll active segment into view
+    if (activeSegmentIndex >= 0 && editorRefs.current[activeSegmentIndex]) {
+      editorRefs.current[activeSegmentIndex].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }
+  }, [activeSegmentIndex])
 
   const handleNormalizedChange = (guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
