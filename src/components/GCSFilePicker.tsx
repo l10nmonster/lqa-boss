@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Flex,
@@ -8,19 +8,22 @@ import {
   HStack,
   Badge,
   Grid,
-  Stack,
   Checkbox,
+  Popover,
+  Portal,
 } from '@chakra-ui/react'
-import GlassBox from './GlassBox'
+import { FiUpload } from 'react-icons/fi'
 import { GCSFile } from '../utils/gcsOperations'
 
 interface GCSFilePickerProps {
-  isOpen: boolean
   files: GCSFile[]
   bucket: string
   prefix: string
-  onClose: () => void
   onFileSelect: (filename: string) => void
+  onLoadFileList?: () => Promise<void>
+  disabled?: boolean
+  triggerButton?: React.ReactNode
+  autoOpen?: boolean
 }
 
 // Helper function to check if a job is done (has corresponding .json file)
@@ -34,16 +37,31 @@ const extractJobId = (filename: string): string => {
 }
 
 const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
-  isOpen,
   files,
   bucket,
   prefix,
-  onClose,
-  onFileSelect
+  onFileSelect,
+  onLoadFileList,
+  disabled = false,
+  triggerButton,
+  autoOpen = false
 }) => {
   const [showDoneJobs, setShowDoneJobs] = useState(true)
-  
-  if (!isOpen) return null
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Auto-open when autoOpen prop is true
+  useEffect(() => {
+    if (autoOpen && !disabled) {
+      setIsOpen(true)
+    }
+  }, [autoOpen, disabled])
+
+  // Load file list when popover opens and files array is empty
+  useEffect(() => {
+    if (isOpen && files.length === 0 && onLoadFileList && !disabled) {
+      onLoadFileList()
+    }
+  }, [isOpen, files.length, onLoadFileList, disabled])
 
   // Filter and sort .lqaboss files by updated date (descending)
   let lqabossFiles = files
@@ -61,74 +79,121 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
   // Limit to maximum 10 jobs
   lqabossFiles = lqabossFiles.slice(0, 10)
 
+  const handleFileSelect = (filename: string) => {
+    onFileSelect(filename)
+    setIsOpen(false)
+  }
+
+  const defaultTrigger = (
+    <Button
+      variant="outline"
+      colorScheme="blue"
+      size="md"
+      disabled={disabled}
+    >
+      <FiUpload /> Load from GCS
+    </Button>
+  )
+
   return (
-    <GlassBox p={4}>
-      <Flex justify="space-between" align="center" mb={4}>
-        <Heading size="sm" color="gray.700">
-          Select .lqaboss File from GCS
-        </Heading>
-        <Stack direction="row" gap={3} align="center">
-          <Checkbox.Root
-            checked={showDoneJobs}
-            onCheckedChange={(details) => setShowDoneJobs(!!details.checked)}
-            colorPalette="green"
+    <Popover.Root 
+      open={isOpen} 
+      onOpenChange={(details) => setIsOpen(details.open)}
+      positioning={{ 
+        placement: "bottom-end", 
+        gutter: 8
+      }}
+    >
+      <Popover.Trigger asChild>
+        {triggerButton || defaultTrigger}
+      </Popover.Trigger>
+      <Portal>
+        <Popover.Positioner>
+          <Popover.Content 
+            width="800px" 
+            maxWidth="90vw"
+            maxHeight="500px" 
+            overflow="auto"
+            bg="rgba(255, 255, 255, 0.95)"
+            backdropFilter="blur(20px)"
+            border="1px solid"
+            borderColor="rgba(255, 255, 255, 0.2)"
+            borderRadius="xl"
+            boxShadow="0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+            p={6}
           >
-            <Checkbox.HiddenInput />
-            <Checkbox.Control>
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-            <Checkbox.Label>Show DONE jobs</Checkbox.Label>
-          </Checkbox.Root>
-          <Button size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </Stack>
-      </Flex>
-      
-      {lqabossFiles.length === 0 ? (
-        <Text color="gray.600">
-          No .lqaboss files found in {bucket}/{prefix}
-        </Text>
-      ) : (
-        <Grid templateColumns="repeat(auto-fit, minmax(280px, 1fr))" gap={3}>
-          {lqabossFiles.map((file, index) => {
-            const jobId = extractJobId(file.name)
-            const isDone = isJobDone(files, jobId)
-            
-            return (
-              <Button
-                key={index}
-                variant="outline"
-                justifyContent="flex-start"
-                onClick={() => onFileSelect(file.name)}
-                p={3}
-                height="auto"
-                whiteSpace="normal"
-                width="100%"
-              >
-                <Box textAlign="left" width="100%">
-                  <HStack justify="space-between" align="center" mb={1}>
-                    <Text fontWeight="bold" fontSize="sm">
-                      Job: {jobId}
-                    </Text>
-                    <Badge 
-                      colorPalette={isDone ? "green" : "orange"}
-                      variant={isDone ? "solid" : "subtle"}
-                      size="sm"
-                    >
-                      {isDone ? "DONE" : "WIP"}
-                    </Badge>
-                  </HStack>
-                  <Text fontSize="xs" color="gray.500">
-                    {(parseInt(file.size) / 1024).toFixed(1)} KB • {new Date(file.updated).toLocaleDateString()}
-                  </Text>
-                </Box>
-              </Button>
-            )
-          })}
-        </Grid>
-      )}
-    </GlassBox>
+          <Flex justify="space-between" align="center" mb={6}>
+            <Heading size="sm" color="gray.700">
+              Select .lqaboss File from GCS
+            </Heading>
+            <Checkbox.Root
+              checked={showDoneJobs}
+              onCheckedChange={(details) => setShowDoneJobs(!!details.checked)}
+              colorPalette="green"
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              <Checkbox.Label>Show DONE jobs</Checkbox.Label>
+            </Checkbox.Root>
+          </Flex>
+          
+          {lqabossFiles.length === 0 ? (
+            <Text color="gray.600" textAlign="center" py={8}>
+              No .lqaboss files found in {bucket}/{prefix}
+            </Text>
+          ) : (
+            <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={4}>
+              {lqabossFiles.map((file, index) => {
+                const jobId = extractJobId(file.name)
+                const isDone = isJobDone(files, jobId)
+                
+                return (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    justifyContent="flex-start"
+                    onClick={() => handleFileSelect(file.name)}
+                    p={4}
+                    height="auto"
+                    whiteSpace="normal"
+                    width="100%"
+                    bg="rgba(255, 255, 255, 0.8)"
+                    _hover={{ 
+                      bg: "rgba(59, 130, 246, 0.1)",
+                      borderColor: "blue.400",
+                      transform: "translateY(-1px)",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)"
+                    }}
+                    transition="all 0.2s"
+                  >
+                    <Box textAlign="left" width="100%">
+                      <HStack justify="space-between" align="center" mb={2}>
+                        <Text fontWeight="bold" fontSize="sm" color="gray.800">
+                          Job: {jobId}
+                        </Text>
+                        <Badge 
+                          colorPalette={isDone ? "green" : "orange"}
+                          variant={isDone ? "solid" : "subtle"}
+                          size="sm"
+                        >
+                          {isDone ? "DONE" : "WIP"}
+                        </Badge>
+                      </HStack>
+                      <Text fontSize="xs" color="gray.600">
+                        {(parseInt(file.size) / 1024).toFixed(1)} KB • {new Date(file.updated).toLocaleDateString()}
+                      </Text>
+                    </Box>
+                  </Button>
+                )
+              })}
+            </Grid>
+          )}
+          </Popover.Content>
+        </Popover.Positioner>
+      </Portal>
+    </Popover.Root>
   )
 }
 

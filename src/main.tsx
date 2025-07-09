@@ -1,7 +1,9 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
-import App from './App'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { LocalEditorPage } from './pages/LocalEditorPage'
+import { GCSEditorPage } from './pages/GCSEditorPage'
 
 // Service Worker Registration
 if ('serviceWorker' in navigator) {
@@ -22,11 +24,32 @@ if ('launchQueue' in window && window.launchQueue) {
   // This will be handled in the App component
 }
 
+const router = createBrowserRouter([
+  {
+    path: "/lqa-boss",
+    element: <LocalEditorPage />,
+  },
+  {
+    path: "/lqa-boss/gcs/:bucket/:prefix/:filename",
+    element: <GCSEditorPage />,
+  },
+  {
+    path: "/lqa-boss/gcs/:bucket/:prefix",
+    element: <GCSEditorPage />,
+  },
+  {
+    path: "/",
+    element: <LocalEditorPage />,
+  },
+], {
+  basename: "/"
+})
+
 const root = createRoot(document.getElementById('root')!)
 root.render(
   <React.StrictMode>
     <ChakraProvider value={defaultSystem}>
-      <App />
+      <RouterProvider router={router} />
     </ChakraProvider>
   </React.StrictMode>
 ) 
