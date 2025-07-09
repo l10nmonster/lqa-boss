@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react'
-import { Box, Stack, Text, VStack, HStack, Button, Flex } from '@chakra-ui/react'
+import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal } from '@chakra-ui/react'
+import { FiEdit, FiHome, FiRotateCcw, FiCopy, FiTarget } from 'react-icons/fi'
 import { Page, JobData, TranslationUnit, NormalizedItem } from '../types'
 import NormalizedTextEditor from './NormalizedTextEditor'
-import { normalizedToDisplayString, normalizedToDisplayStringForTarget } from '../utils/normalizedText'
+import { normalizedToDisplayString, normalizedToDisplayStringForTarget, normalizedToString } from '../utils/normalizedText'
 import { isEqual } from 'lodash'
 
 interface TextSegmentEditorProps {
@@ -78,6 +79,22 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     const originalTu = originalTusByGuid.get(guid)
     if (originalTu) {
       onTranslationUnitChange(originalTu)
+    }
+  }
+
+  const handleCopySource = (guid: string) => {
+    const tu = tusByGuid.get(guid)
+    if (tu && tu.nsrc) {
+      const sourceText = normalizedToString(tu.nsrc)
+      navigator.clipboard.writeText(sourceText)
+    }
+  }
+
+  const handleCopyTarget = (guid: string) => {
+    const tu = tusByGuid.get(guid)
+    if (tu && tu.ntgt) {
+      const targetText = normalizedToString(tu.ntgt)
+      navigator.clipboard.writeText(targetText)
     }
   }
 
@@ -204,7 +221,6 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             css={{
               willChange: 'transform, background-color, border-color, box-shadow',
               backfaceVisibility: 'hidden',
-              transform: 'translateZ(0)',
               filter: isActive ? 'none' : 'blur(0.4px)',
             }}
             borderRadius="lg"
@@ -237,34 +253,54 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       </Text>
                     </Box>
                   </HStack>
-                  <HStack>
-                    <Button
-                      aria-label="Revert to original source text"
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="green"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleOriginal(tu.guid)
-                      }}
-                      disabled={segmentState === 'original'}
-                    >
-                      Original
-                    </Button>
-                    <Button
-                      aria-label="Undo to saved translation"
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="yellow"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleUndo(tu.guid)
-                      }}
-                      disabled={segmentState === 'original' || segmentState === 'saved'}
-                    >
-                      Undo
-                    </Button>
-                  </HStack>
+                  <Menu.Root>
+                    <Menu.Trigger asChild>
+                      <IconButton
+                        aria-label="Edit options"
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <FiEdit />
+                      </IconButton>
+                    </Menu.Trigger>
+                    <Portal>
+                      <Menu.Positioner zIndex={9999}>
+                        <Menu.Content>
+                          <Menu.Item
+                            value="original"
+                            disabled={segmentState === 'original'}
+                            onClick={() => handleOriginal(tu.guid)}
+                          >
+                            <FiHome />
+                            Original
+                          </Menu.Item>
+                          <Menu.Item
+                            value="undo"
+                            disabled={segmentState === 'original' || segmentState === 'saved'}
+                            onClick={() => handleUndo(tu.guid)}
+                          >
+                            <FiRotateCcw />
+                            Undo
+                          </Menu.Item>
+                          <Menu.Item
+                            value="copy-source"
+                            onClick={() => handleCopySource(tu.guid)}
+                          >
+                            <FiCopy />
+                            Copy source
+                          </Menu.Item>
+                          <Menu.Item
+                            value="copy-target"
+                            onClick={() => handleCopyTarget(tu.guid)}
+                          >
+                            <FiTarget />
+                            Copy target
+                          </Menu.Item>
+                        </Menu.Content>
+                      </Menu.Positioner>
+                    </Portal>
+                  </Menu.Root>
                 </HStack>
                 <NormalizedTextEditor
                   key={tu.guid}
