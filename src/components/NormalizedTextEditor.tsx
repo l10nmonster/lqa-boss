@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react'
+import React, { useEffect, useCallback, useRef, forwardRef } from 'react'
 import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getNodeByKey } from 'lexical'
 import { 
   HeadingNode,
@@ -181,8 +181,8 @@ interface InitializePluginProps {
 
 function InitializePlugin({ normalizedContent }: InitializePluginProps): null {
   const [editor] = useLexicalComposerContext()
-  const [isInitialized, setIsInitialized] = useState(false)
-  const [lastExternalContent, setLastExternalContent] = useState<NormalizedItem[]>([])
+  const isInitializedRef = useRef(false)
+  const lastExternalContentRef = useRef<NormalizedItem[]>([])
 
   // Helper function to get current editor content as normalized items
   const getCurrentContent = (): NormalizedItem[] => {
@@ -215,10 +215,10 @@ function InitializePlugin({ normalizedContent }: InitializePluginProps): null {
       const currentContent = getCurrentContent()
       
       // Check if this is genuinely new external content
-      const isNewExternalContent = !arraysEqual(normalizedContent, lastExternalContent)
+      const isNewExternalContent = !arraysEqual(normalizedContent, lastExternalContentRef.current)
       const isDifferentFromCurrent = !arraysEqual(normalizedContent, currentContent)
       
-      if (!isInitialized || (isNewExternalContent && isDifferentFromCurrent)) {
+      if (!isInitializedRef.current || (isNewExternalContent && isDifferentFromCurrent)) {
         editor.update(() => {
           const root = $getRoot()
           root.clear()
@@ -235,12 +235,12 @@ function InitializePlugin({ normalizedContent }: InitializePluginProps): null {
           
           root.append(paragraph)
           
-          setLastExternalContent([...normalizedContent])
-          setIsInitialized(true)
+          lastExternalContentRef.current = [...normalizedContent]
+          isInitializedRef.current = true
         }, { tag: 'content-update' })
       }
     })
-  }, [editor, normalizedContent, isInitialized, lastExternalContent])
+  }, [editor, normalizedContent])
 
   return null
 }
@@ -471,13 +471,56 @@ interface NormalizedTextEditorProps {
   isActive?: boolean
 }
 
-const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
+export interface NormalizedTextEditorRef {
+  blur: () => void
+  forceUpdate: (content: NormalizedItem[]) => void
+}
+
+// Plugin to expose editor methods via ref
+function EditorRefPlugin({ editorRef }: { editorRef: React.RefObject<NormalizedTextEditorRef | null> }): null {
+  const [editor] = useLexicalComposerContext()
+
+  React.useImperativeHandle(editorRef, () => ({
+    blur: () => {
+      editor.blur()
+    },
+    forceUpdate: (content: NormalizedItem[]) => {
+      editor.update(() => {
+        const root = $getRoot()
+        root.clear()
+        
+        const paragraph = $createParagraphNode()
+        
+        content.forEach(item => {
+          if (typeof item === 'string') {
+            paragraph.append($createTextNode(item))
+          } else {
+            paragraph.append($createPlaceholderNode(item))
+          }
+        })
+        
+        root.append(paragraph)
+      }, { tag: 'force-update' })
+    }
+  }), [editor])
+
+  return null
+}
+
+const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextEditorProps>(({
   normalizedContent,
   onChange,
   onFocus,
   isActive
-}) => {
+}, ref) => {
   const lastEmittedContentRef = useRef<NormalizedItem[]>([])
+  const editorRef = useRef<NormalizedTextEditorRef>(null)
+
+  // Connect the forwarded ref to our internal ref
+  React.useImperativeHandle(ref, () => ({
+    blur: () => editorRef.current?.blur(),
+    forceUpdate: (content: NormalizedItem[]) => editorRef.current?.forceUpdate(content)
+  }), [])
 
   const initialConfig = {
     namespace: 'NormalizedTextEditor',
@@ -582,9 +625,10 @@ const NormalizedTextEditor: React.FC<NormalizedTextEditorProps> = ({
         <FocusPlugin />
         <InitializePlugin normalizedContent={normalizedContent} />
         <DragDropPlugin />
+        <EditorRefPlugin editorRef={editorRef} />
       </Box>
     </LexicalComposer>
   )
-}
+})
 
 export default NormalizedTextEditor 

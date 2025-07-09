@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useMemo, useCallback } from 'react'
 import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal } from '@chakra-ui/react'
 import { FiEdit, FiHome, FiRotateCcw, FiCopy, FiTarget } from 'react-icons/fi'
 import { Page, JobData, TranslationUnit, NormalizedItem } from '../types'
-import NormalizedTextEditor from './NormalizedTextEditor'
+import NormalizedTextEditor, { NormalizedTextEditorRef } from './NormalizedTextEditor'
 import { normalizedToDisplayString, normalizedToDisplayStringForTarget, normalizedToString } from '../utils/normalizedText'
 import { isEqual } from 'lodash'
 
@@ -27,9 +27,12 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
 }) => {
   const editorRefs = useRef<{ [key: number]: HTMLDivElement }>({})
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const tusByGuid = new Map(jobData.tus.map(tu => [tu.guid, tu]))
-  const originalTusByGuid = new Map(originalJobData.tus.map(tu => [tu.guid, tu]))
-  const savedTusByGuid = new Map(savedJobData.tus.map(tu => [tu.guid, tu]))
+  const normalizedEditorRefs = useRef<{ [key: string]: NormalizedTextEditorRef | null }>({})
+  
+  // Memoize the maps to prevent unnecessary re-creation
+  const tusByGuid = useMemo(() => new Map(jobData.tus.map(tu => [tu.guid, tu])), [jobData.tus])
+  const originalTusByGuid = useMemo(() => new Map(originalJobData.tus.map(tu => [tu.guid, tu])), [originalJobData.tus])
+  const savedTusByGuid = useMemo(() => new Map(savedJobData.tus.map(tu => [tu.guid, tu])), [savedJobData.tus])
 
   // Handle Esc key to deselect segment
   useEffect(() => {
@@ -61,42 +64,48 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     }
   }, [activeSegmentIndex])
 
-  const handleNormalizedChange = (guid: string, newNtgt: NormalizedItem[]) => {
+  const handleNormalizedChange = useCallback((guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
     if (tu) {
       onTranslationUnitChange({ ...tu, ntgt: newNtgt })
     }
-  }
+  }, [tusByGuid, onTranslationUnitChange])
 
-  const handleUndo = (guid: string) => {
+  const handleUndo = useCallback((guid: string) => {
     const savedTu = savedTusByGuid.get(guid)
     if (savedTu) {
+      // Force update the editor content immediately
+      normalizedEditorRefs.current[guid]?.forceUpdate(savedTu.ntgt || [])
+      // Update the state as well
       onTranslationUnitChange(savedTu)
     }
-  }
+  }, [savedTusByGuid, onTranslationUnitChange])
 
-  const handleOriginal = (guid: string) => {
+  const handleOriginal = useCallback((guid: string) => {
     const originalTu = originalTusByGuid.get(guid)
     if (originalTu) {
+      // Force update the editor content immediately
+      normalizedEditorRefs.current[guid]?.forceUpdate(originalTu.ntgt || [])
+      // Update the state as well
       onTranslationUnitChange(originalTu)
     }
-  }
+  }, [originalTusByGuid, onTranslationUnitChange])
 
-  const handleCopySource = (guid: string) => {
+  const handleCopySource = useCallback((guid: string) => {
     const tu = tusByGuid.get(guid)
     if (tu && tu.nsrc) {
       const sourceText = normalizedToString(tu.nsrc)
       navigator.clipboard.writeText(sourceText)
     }
-  }
+  }, [tusByGuid])
 
-  const handleCopyTarget = (guid: string) => {
+  const handleCopyTarget = useCallback((guid: string) => {
     const tu = tusByGuid.get(guid)
     if (tu && tu.ntgt) {
       const targetText = normalizedToString(tu.ntgt)
       navigator.clipboard.writeText(targetText)
     }
-  }
+  }, [tusByGuid])
 
   // Three-state system for segment colors
   const getSegmentState = (guid: string): 'original' | 'saved' | 'modified' => {
@@ -304,6 +313,9 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                 </HStack>
                 <NormalizedTextEditor
                   key={tu.guid}
+                  ref={(ref) => {
+                    normalizedEditorRefs.current[tu.guid] = ref
+                  }}
                   normalizedContent={tu.ntgt || []}
                   onChange={(newNtgt) => handleNormalizedChange(tu.guid, newNtgt)}
                   isActive={isActive}

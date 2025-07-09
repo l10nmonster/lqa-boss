@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { Box, Heading, Text, Input, HStack, Kbd, InputGroup, Menu, IconButton } from '@chakra-ui/react'
 import { FiSearch, FiSliders } from 'react-icons/fi'
 import JSZip from 'jszip'
@@ -21,7 +21,11 @@ interface TranslationEditorProps {
   onInstructionsOpen?: () => void
 }
 
-export const TranslationEditor: React.FC<TranslationEditorProps> = ({
+export interface TranslationEditorRef {
+  openInstructions: () => void
+}
+
+export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEditorProps>(({
   flowData,
   jobData,
   originalJobData,
@@ -29,10 +33,15 @@ export const TranslationEditor: React.FC<TranslationEditorProps> = ({
   zipFile,
   onTranslationUnitChange,
   onInstructionsOpen,
-}) => {
+}, ref) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false)
+
+  // Expose openInstructions method via ref
+  useImperativeHandle(ref, () => ({
+    openInstructions: () => setIsInstructionsModalOpen(true)
+  }), [])
   const [filterText, setFilterText] = useState('')
   const filterInputRef = useRef<HTMLInputElement>(null)
   const userDeselected = useRef(false)
@@ -56,12 +65,17 @@ export const TranslationEditor: React.FC<TranslationEditorProps> = ({
   }
   
   // Show instructions modal if instructions are present and trigger external handler
+  // Only run when instructions change, not when entire jobData changes
+  const instructions = jobData?.instructions
+  const instructionsRef = useRef<string | undefined>(undefined)
+  
   useEffect(() => {
-    if (jobData?.instructions && onInstructionsOpen) {
+    if (instructions && instructions !== instructionsRef.current && onInstructionsOpen) {
       setIsInstructionsModalOpen(true)
       onInstructionsOpen()
+      instructionsRef.current = instructions
     }
-  }, [jobData?.instructions, onInstructionsOpen])
+  }, [instructions, onInstructionsOpen])
   
   const navigatePage = (direction: number) => {
     if (!flowData) return
@@ -442,4 +456,4 @@ export const TranslationEditor: React.FC<TranslationEditorProps> = ({
       )}
     </>
   )
-} 
+}) 

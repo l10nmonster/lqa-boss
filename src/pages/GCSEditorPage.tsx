@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { EditorLayout } from '../components/layout/EditorLayout'
 import { GCSEditorHeader } from '../components/headers/GCSEditorHeader'
-import { TranslationEditor } from '../components/TranslationEditor'
+import { TranslationEditor, TranslationEditorRef } from '../components/TranslationEditor'
 import { ClientIdPrompt } from '../components/prompts/ClientIdPrompt'
 import { AuthPrompt } from '../components/prompts/AuthPrompt'
 
@@ -28,6 +28,7 @@ export const GCSEditorPage: React.FC = () => {
   
   const currentFileNameRef = useRef<string>('')
   const fileLoadingIdRef = useRef<number>(0)
+  const translationEditorRef = useRef<TranslationEditorRef>(null)
   
   const gcs = useGCSOperations()
   const fileLoader = useFileLoader()
@@ -324,6 +325,7 @@ export const GCSEditorPage: React.FC = () => {
     try {
       const savedName = await gcs.saveFileToMode(gcsMode, outputFileName, outputData)
       if (savedName) {
+        translationData.markAsSaved()
         toaster.create({
           title: "File saved successfully",
           description: `Saved to GCS: ${savedName}`,
@@ -350,7 +352,7 @@ export const GCSEditorPage: React.FC = () => {
   }
   
   const handleShowInstructions = () => {
-    // Instructions modal is handled by TranslationEditor
+    translationEditorRef.current?.openInstructions()
   }
   
   // Load file list handler
@@ -397,6 +399,7 @@ export const GCSEditorPage: React.FC = () => {
             files={[]}
             onFileSelect={() => {}}
             onLoadFileList={handleLoadFileList}
+            fileStatus={translationData.fileStatus}
           />
         }
       >
@@ -423,6 +426,7 @@ export const GCSEditorPage: React.FC = () => {
             files={gcs.files}
             onFileSelect={handleGcsFileSelect}
             onLoadFileList={handleLoadFileList}
+            fileStatus={translationData.fileStatus}
           />
         }
       >
@@ -452,6 +456,7 @@ export const GCSEditorPage: React.FC = () => {
             files={gcs.files}
             onFileSelect={handleGcsFileSelect}
             onLoadFileList={handleLoadFileList}
+            fileStatus={translationData.fileStatus}
           />
         }
       >
@@ -484,10 +489,12 @@ export const GCSEditorPage: React.FC = () => {
             files={gcs.files}
             onFileSelect={handleGcsFileSelect}
             onLoadFileList={handleLoadFileList}
+            fileStatus={translationData.fileStatus}
           />
         }
       >
         <TranslationEditor
+          ref={translationEditorRef}
           flowData={fileLoader.flowData}
           jobData={translationData.jobData}
           originalJobData={translationData.originalJobData}

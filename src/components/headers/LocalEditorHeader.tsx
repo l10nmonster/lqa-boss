@@ -2,6 +2,7 @@ import React from 'react'
 import { Flex, Button, Stack, HStack, VStack, Image, Text } from '@chakra-ui/react'
 import { FiUpload, FiSave, FiInfo } from 'react-icons/fi'
 import GlassBox from '../GlassBox'
+import { StatusBadge, FileStatus } from '../StatusBadge'
 
 interface LocalEditorHeaderProps {
   onFileLoad: () => void
@@ -11,6 +12,7 @@ interface LocalEditorHeaderProps {
   fileName: string
   hasData: boolean
   flowName?: string
+  fileStatus: FileStatus
 }
 
 export const LocalEditorHeader: React.FC<LocalEditorHeaderProps> = ({
@@ -21,6 +23,7 @@ export const LocalEditorHeader: React.FC<LocalEditorHeaderProps> = ({
   fileName: _fileName,
   hasData,
   flowName,
+  fileStatus,
 }) => {
   return (
     <Flex
@@ -38,9 +41,12 @@ export const LocalEditorHeader: React.FC<LocalEditorHeaderProps> = ({
           borderRadius="full"
         />
         <VStack align="start" gap={0}>
-          <Text fontSize="lg" fontWeight="bold" color="gray.700">
-            LQA Boss
-          </Text>
+          <HStack gap={2} align="center">
+            <Text fontSize="lg" fontWeight="bold" color="gray.700">
+              LQA Boss
+            </Text>
+            <StatusBadge status={fileStatus} />
+          </HStack>
           <Text fontSize="sm" color="gray.500">
             {flowName || (hasData ? '(out of context)' : '(no flow loaded)')}
           </Text>

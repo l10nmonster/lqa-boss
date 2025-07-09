@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { JobData, TranslationUnit } from '../types'
 import { isEqual } from 'lodash'
+import { FileStatus } from '../components/StatusBadge'
 
 export interface TranslationDataState {
   jobData: JobData | null
@@ -12,11 +13,37 @@ export const useTranslationData = () => {
   const [jobData, setJobData] = useState<JobData | null>(null)
   const [originalJobData, setOriginalJobData] = useState<JobData | null>(null)
   const [savedJobData, setSavedJobData] = useState<JobData | null>(null)
+  const [fileStatus, setFileStatus] = useState<FileStatus>('NEW')
   
   const updateTranslationUnit = (tu: TranslationUnit) => {
-    if (!jobData) return
-    const newTus = jobData.tus.map(t => t.guid === tu.guid ? tu : t)
-    setJobData({ ...jobData, tus: newTus })
+    if (!jobData || !originalJobData) return
+    
+    // Find the current TU to compare
+    const currentTu = jobData.tus.find(t => t.guid === tu.guid)
+    if (!currentTu) return
+    
+    // Only update if the content actually changed
+    if (!isEqual(currentTu.ntgt, tu.ntgt)) {
+      const newTus = jobData.tus.map(t => t.guid === tu.guid ? tu : t)
+      setJobData({ ...jobData, tus: newTus })
+      
+      // Determine the correct status based on current state
+      if (fileStatus === 'LOADED' && savedJobData) {
+        // In LOADED state, compare against saved data
+        const hasChangesFromSaved = newTus.some(newTu => {
+          const savedTu = savedJobData.tus.find(t => t.guid === newTu.guid)
+          return savedTu && !isEqual(newTu.ntgt, savedTu.ntgt)
+        })
+        setFileStatus(hasChangesFromSaved ? 'CHANGED' : 'LOADED')
+      } else {
+        // In NEW state, compare against original data
+        const hasChangesFromOriginal = newTus.some(newTu => {
+          const origTu = originalJobData.tus.find(t => t.guid === newTu.guid)
+          return origTu && !isEqual(newTu.ntgt, origTu.ntgt)
+        })
+        setFileStatus(hasChangesFromOriginal ? 'CHANGED' : 'NEW')
+      }
+    }
   }
   
   const setupTwoStateSystem = (currentJobData: JobData) => {
@@ -24,6 +51,7 @@ export const useTranslationData = () => {
     setJobData(currentJobData)
     setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
     setSavedJobData(JSON.parse(JSON.stringify(currentJobData)))
+    setFileStatus('NEW')
   }
   
   const setupThreeStateSystem = (currentJobData: JobData, loadedSavedData: JobData) => {
@@ -40,6 +68,7 @@ export const useTranslationData = () => {
     
     // current job data
     setJobData(loadedSavedData)
+    setFileStatus('LOADED')
   }
   
   const applyLoadedTranslations = (
@@ -82,21 +111,28 @@ export const useTranslationData = () => {
     })
   }
   
+  const markAsSaved = () => {
+    setFileStatus('SAVED')
+  }
+
   const reset = () => {
     setJobData(null)
     setOriginalJobData(null)
     setSavedJobData(null)
+    setFileStatus('NEW')
   }
   
   return {
     jobData,
     originalJobData,
     savedJobData,
+    fileStatus,
     updateTranslationUnit,
     setupTwoStateSystem,
     setupThreeStateSystem,
     applyLoadedTranslations,
     getChangedTus,
+    markAsSaved,
     reset,
   }
 } 

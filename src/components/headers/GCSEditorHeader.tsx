@@ -4,6 +4,7 @@ import { FiSave, FiInfo, FiKey, FiLogOut } from 'react-icons/fi'
 import GlassBox from '../GlassBox'
 import GCSFilePicker from '../GCSFilePicker'
 import { GCSFile } from '../../utils/gcsOperations'
+import { StatusBadge, FileStatus } from '../StatusBadge'
 
 interface GCSEditorHeaderProps {
   bucket: string
@@ -19,6 +20,7 @@ interface GCSEditorHeaderProps {
   files: GCSFile[]
   onFileSelect: (filename: string) => void
   onLoadFileList?: () => Promise<void>
+  fileStatus: FileStatus
 }
 
 export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
@@ -35,6 +37,7 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
   files,
   onFileSelect,
   onLoadFileList,
+  fileStatus,
 }) => {
   // Auto-open popover when there's no filename (user is browsing files)
   const shouldAutoOpen = !filename && isAuthenticated && files.length > 0
@@ -55,9 +58,12 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
           borderRadius="full"
         />
         <VStack align="start" gap={0}>
-          <Text fontSize="lg" fontWeight="bold" color="gray.700">
-            LQA Boss
-          </Text>
+          <HStack gap={2} align="center">
+            <Text fontSize="lg" fontWeight="bold" color="gray.700">
+              LQA Boss
+            </Text>
+            <StatusBadge status={fileStatus} />
+          </HStack>
           <Text fontSize="sm" color="gray.500">
             GCS: {bucket}/{prefix}{filename ? `/${filename}` : ''}
           </Text>

@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react'
 import { Input } from '@chakra-ui/react'
 import { EditorLayout } from '../components/layout/EditorLayout'
 import { LocalEditorHeader } from '../components/headers/LocalEditorHeader'
-import { TranslationEditor } from '../components/TranslationEditor'
+import { TranslationEditor, TranslationEditorRef } from '../components/TranslationEditor'
 import { useTranslationData } from '../hooks/useTranslationData'
 import { useFileLoader } from '../hooks/useFileLoader'
 import { saveChangedTus } from '../utils/saveHandler'
@@ -10,6 +10,7 @@ import { toaster } from '../components/ui/toaster'
 
 export const LocalEditorPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const translationEditorRef = useRef<TranslationEditorRef>(null)
   
   const fileLoader = useFileLoader()
   const translationData = useTranslationData()
@@ -85,6 +86,13 @@ export const LocalEditorPage: React.FC = () => {
     
     try {
       saveChangedTus(translationData.jobData, translationData.originalJobData, fileLoader.fileName)
+      translationData.markAsSaved()
+      toaster.create({
+        title: "Changes saved",
+        description: "Your changes have been saved successfully",
+        type: "success",
+        duration: 4000,
+      })
     } catch (error: any) {
       console.error('Error saving changes:', error)
       toaster.create({
@@ -97,7 +105,7 @@ export const LocalEditorPage: React.FC = () => {
   }
   
   const handleShowInstructions = () => {
-    // Instructions modal is handled by TranslationEditor
+    translationEditorRef.current?.openInstructions()
   }
   
   return (
@@ -120,10 +128,12 @@ export const LocalEditorPage: React.FC = () => {
             fileName={fileLoader.fileName}
             hasData={!!translationData.jobData}
             flowName={fileLoader.flowData?.flowName}
+            fileStatus={translationData.fileStatus}
           />
         }
       >
         <TranslationEditor
+          ref={translationEditorRef}
           flowData={fileLoader.flowData}
           jobData={translationData.jobData}
           originalJobData={translationData.originalJobData}
