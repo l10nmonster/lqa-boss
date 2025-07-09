@@ -7,6 +7,9 @@ import {
   Input,
   Text,
   Stack,
+  Image,
+  HStack,
+  VStack,
 } from '@chakra-ui/react'
 import { FiUpload, FiSave, FiInfo, FiKey, FiLogOut } from 'react-icons/fi'
 import JSZip from 'jszip'
@@ -40,6 +43,8 @@ function App() {
   const [showClientIdPrompt, setShowClientIdPrompt] = useState(false)
   const [clientIdInput, setClientIdInput] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const currentFileNameRef = useRef<string>('')
+  const fileLoadingIdRef = useRef<number>(0)
 
   // GCS operations hook
   const gcs = useGCSOperations()
@@ -82,7 +87,7 @@ function App() {
         // URL has filename - try to load the specific file
         if (gcs.isAuthenticated) {
           // Check if this file is already loaded to prevent duplicate loading
-          if (fileName !== gcsMode.filename) {
+          if (currentFileNameRef.current !== gcsMode.filename) {
             console.log('Attempting to auto-load file with saved credentials')
             const file = await gcs.loadFileFromMode(gcsMode)
             if (file) {
@@ -112,7 +117,7 @@ function App() {
     // Start attempting auto action after a small delay
     const timer = setTimeout(attemptAutoAction, 200)
     return () => clearTimeout(timer)
-  }, [gcsMode, gcs.isAuthenticated, gcs.accessToken, gcs.clientId, fileName])
+  }, [gcsMode, gcs.isAuthenticated, gcs.accessToken, gcs.clientId])
 
   // Handle auth prompt action
   const handleAuthPromptAccept = async () => {
@@ -145,7 +150,12 @@ function App() {
       }
     } catch (error: any) {
       console.error('Authentication failed:', error.message)
-      alert(`Authentication failed: ${error.message}`)
+      toaster.create({
+        title: "Authentication failed",
+        description: error.message,
+        type: "error",
+        duration: 6000,
+      })
     }
   }
 
@@ -195,7 +205,12 @@ function App() {
       // Keep client ID prompt visible for retry
       // Input field still has the invalid client ID for user to correct
       
-      alert(`Authentication failed: ${error.message}`)
+      toaster.create({
+        title: "Authentication failed",
+        description: error.message,
+        type: "error",
+        duration: 6000,
+      })
     }
   }
 
@@ -288,9 +303,11 @@ function App() {
           })
           
           console.log(`Successfully applied ${savedJobData.tus.length} saved translations`)
+          console.log('Found saved translations for file:', filename)
           return { foundEdited: true, editedCount }
         } else {
           // No saved translations, set up two-state system (original = saved = current)
+          console.log('No saved translations found for file:', filename)
           setJobData(currentJobData => {
             if (currentJobData) {
               setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
@@ -302,6 +319,7 @@ function App() {
         }
       } else {
         // No JSON file found, set up two-state system (original = saved = current)
+        console.log('No JSON file found for file:', filename)
         setJobData(currentJobData => {
           if (currentJobData) {
             setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
@@ -314,6 +332,7 @@ function App() {
     } catch (error) {
       console.log(`No saved translations found for job: ${error}`)
       // Error loading JSON, set up two-state system (original = saved = current)
+      console.log('Error loading translations for file:', filename)
       setJobData(currentJobData => {
         if (currentJobData) {
           setOriginalJobData(JSON.parse(JSON.stringify(currentJobData)))
@@ -327,6 +346,10 @@ function App() {
 
   const handleFileLoad = async (file: File) => {
     if (!file) return
+
+    // Increment file loading ID to track this specific load
+    const currentLoadId = fileLoadingIdRef.current + 1
+    fileLoadingIdRef.current = currentLoadId
 
     try {
       const arrayBuffer = await file.arrayBuffer()
@@ -367,6 +390,7 @@ function App() {
       setFlowData(parsedFlowData)
       setJobData(parsedJobData)
       setFileName(file.name)
+      currentFileNameRef.current = file.name
       setCurrentPageIndex(0)
       setActiveSegmentIndex(-1)
 
@@ -381,22 +405,25 @@ function App() {
       // This will set originalJobData appropriately
       const translationResult = await loadSavedTranslations(file.name)
       
-      // Show toast notification about loaded file and edited translations
-      if (translationResult.foundEdited && translationResult.editedCount > 0) {
+      // Show toast immediately after loading is complete, with fresh data
+      setTimeout(() => {
+        console.log('Immediate toast after load:', {
+          fileName: file.name,
+          fileLoadingId: fileLoadingIdRef.current,
+          foundEdited: translationResult.foundEdited,
+          editedCount: translationResult.editedCount
+        })
+        
+        // Use the result from loadSavedTranslations directly
         toaster.create({
           title: "File loaded successfully",
-          description: `Found ${translationResult.editedCount} edited translation${translationResult.editedCount === 1 ? '' : 's'}`,
+          description: translationResult.foundEdited 
+            ? `Found ${translationResult.editedCount} edited translation${translationResult.editedCount === 1 ? '' : 's'}` 
+            : 'No edited translations found',
           type: "success",
           duration: 4000,
         })
-      } else {
-        toaster.create({
-          title: "File loaded successfully",
-          description: "No edited translations found",
-          type: "info",
-          duration: 3000,
-        })
-      }
+      }, 100) // Small delay to ensure state updates have completed
     } catch (error: any) {
       console.error('Error loading file:', error)
       alert(error.message || 'Failed to load file')
@@ -435,10 +462,20 @@ function App() {
       try {
         const savedName = await gcs.saveFileToMode(gcsMode, outputFileName, outputData)
         if (savedName) {
-          alert(`File saved to GCS: ${savedName}`)
+          toaster.create({
+            title: "File saved successfully",
+            description: `Saved to GCS: ${savedName}`,
+            type: "success",
+            duration: 4000,
+          })
         }
       } catch (error: any) {
-        alert(`Failed to save file to GCS: ${error.message}`)
+        toaster.create({
+          title: "Save failed",
+          description: `Failed to save to GCS: ${error.message}`,
+          type: "error",
+          duration: 6000,
+        })
       }
     } else {
       // Use original local save
@@ -461,6 +498,7 @@ function App() {
       const newUrl = GCSUrlParser.buildFileUrl(gcsMode.bucket, gcsMode.prefix, filename)
       window.history.pushState({}, '', newUrl)
       setGcsMode({ ...gcsMode, filename })
+      currentFileNameRef.current = filename
     }
   }
 
@@ -510,13 +548,27 @@ function App() {
             align="center"
             justify="space-between"
           >
-            <Heading size="lg" color="gray.700">
-              {gcsMode ? (
-                `LQA Boss - GCS: ${gcsMode.bucket}/${gcsMode.prefix}${gcsMode.filename ? `/${gcsMode.filename}` : ''}`
-              ) : (
-                `LQA Boss: ${flowData?.flowName || (jobData ? '(out of context)' : '(no flow loaded)')}`
-              )}
-            </Heading>
+            <HStack gap={3} align="center">
+              <Image 
+                src={`${import.meta.env.BASE_URL}icons/icon-512x512.png`}
+                alt="LQA Boss Logo" 
+                height="64px" 
+                width="64px"
+                borderRadius="full"
+              />
+              <VStack align="start" gap={0}>
+                <Text fontSize="lg" fontWeight="bold" color="gray.700">
+                  LQA Boss
+                </Text>
+                <Text fontSize="sm" color="gray.500">
+                  {gcsMode ? (
+                    `GCS: ${gcsMode.bucket}/${gcsMode.prefix}${gcsMode.filename ? `/${gcsMode.filename}` : ''}`
+                  ) : (
+                    `${flowData?.flowName || (jobData ? '(out of context)' : '(no flow loaded)')}`
+                  )}
+                </Text>
+              </VStack>
+            </HStack>
             <Stack direction="row" gap={4}>
               {gcsMode ? (
                 // GCS Mode buttons

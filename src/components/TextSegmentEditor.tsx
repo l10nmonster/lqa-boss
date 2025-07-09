@@ -108,7 +108,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     switch (state) {
       case 'original': return isActive ? 'blue.500' : 'green.300'
       case 'saved': return isActive ? 'blue.500' : 'yellow.400' 
-      case 'modified': return isActive ? 'blue.500' : 'orange.400'
+      case 'modified': return isActive ? 'blue.500' : 'red.500'
       default: return isActive ? 'blue.500' : 'green.300'
     }
   }

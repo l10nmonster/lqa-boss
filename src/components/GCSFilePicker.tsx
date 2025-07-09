@@ -112,7 +112,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
                       Job: {jobId}
                     </Text>
                     <Badge 
-                      colorScheme={isDone ? "green" : "orange"}
+                      colorPalette={isDone ? "green" : "orange"}
                       variant={isDone ? "solid" : "subtle"}
                       size="sm"
                     >
