@@ -6,15 +6,20 @@ A modern, glassmorphic viewer and editor for LQA Boss (.lqaboss) files, built wi
 
 - **Modern Tech Stack**: Built with React 19, TypeScript, Chakra UI, and Lexical editor
 - **Glassmorphic Design**: Beautiful, modern UI with glass-like effects and smooth animations
-- **Rich Text Editing**: Powered by Meta's Lexical editor framework
+- **Rich Text Editing**: Powered by Meta's Lexical editor framework with advanced features
+- **Smart File Status Tracking**: Real-time status badges (NEW, SAVED, CHANGED, LOADED) with intelligent state management
+- **Modal-Based File Loading**: Centered modal dialogs with blurred backgrounds for professional GCS file selection
+- **Real-Time Search & Filtering**: Advanced filtering system with customizable field selection and instant results
 - **Original Size Screenshots**: Images display at their native resolution for better readability and accurate overlay positioning
 - **Resizable Split View**: Drag to adjust the space between screenshot and text editor
 - **Integrated Navigation**: Page navigation controls overlaid on the screenshot viewer to save space
 - **Full-Screen Interface**: Uses entire screen width for maximum workspace
 - **Keyboard Navigation**: Navigate between segments and pages using Tab/Shift+Tab and Ctrl+Arrow keys
 - **Visual Feedback**: Color-coded segments (green for unmodified, red for modified, blue for active)
+- **Streamlined Menu System**: Consolidated GCS operations in archive icon dropdown with cloud-based icons
 - **Google Cloud Storage Integration**: Direct file loading and saving from/to GCS buckets with OAuth2 authentication
 - **URL-Driven GCS Access**: Automatic file loading via GCS URLs with persistent authentication
+- **Performance Optimizations**: Reduced editor lag, prevented unnecessary status changes, and optimized re-renders
 - **PWA Support**: Works as a Progressive Web App with file association support
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Future-Ready**: Using React 19, Chakra UI 3, Lexical 0.32, Framer Motion 12, and Vite 6 for cutting-edge performance
@@ -58,9 +63,12 @@ npm run preview
 2. Navigate between pages using the arrow buttons overlaid on the screenshot or Ctrl+Left/Right
 3. Drag the vertical divider between screenshot and editor to adjust the split
 4. Click on highlighted segments in the screenshot to jump to that text
-5. Edit text in the Lexical editor on the right
-6. Use Tab/Shift+Tab to navigate between segments
-7. Click "Save Changes" to download a JSON file with all modifications
+5. **Use the search filter** to quickly find specific segments by typing in the filter box or pressing Cmd+K
+6. **Customize filter fields** using the sliders menu to search in source, target, notes, or IDs
+7. Edit text in the Lexical editor on the right
+8. Use Tab/Shift+Tab to navigate between segments
+9. Click "Save Changes" to download a JSON file with all modifications
+10. Monitor file status via the colored badge in the header (NEW/SAVED/CHANGED/LOADED)
 
 ### Google Cloud Storage Mode
 Access files directly from GCS buckets using URL patterns:
@@ -80,20 +88,40 @@ http://localhost:3000/lqa-boss/gcs/<bucket>/<prefix>/
 2. Sign in to Google (tokens saved with expiry)
 3. Files load automatically with saved credentials
 
-**GCS Features:**
-- Automatic file loading from GCS URLs
-- Persistent authentication (no repeated sign-ins)
-- Direct saving to GCS buckets
-- File browser for bucket contents
-- Smart token expiration handling
+**GCS Operations:**
+- **Archive Menu**: Click the archive icon (📁) to access GCS operations
+- **Load Job**: Opens a centered modal to browse and select .lqaboss files
+- **Save Job**: Saves current changes to GCS bucket
+- **Sign Out**: Clear authentication (grayed out when not signed in)
+- **Modal File Browser**: Professional file picker with status badges (DONE/WIP)
+- **Automatic Loading**: Files load automatically with saved credentials
+- **Smart Authentication**: Persistent tokens with automatic expiration handling
 
 ## UI Layout
 
-The app features a modern, space-efficient layout:
+The app features a modern, space-efficient layout with intelligent status tracking:
+
+### Header Elements
+- **Status Badge**: Real-time file status indicator with 4 states:
+  - 🔵 **NEW**: Fresh file, no changes made
+  - 🟢 **SAVED**: All changes saved to storage
+  - 🔴 **CHANGED**: Unsaved modifications present
+  - 🟡 **LOADED**: File loaded with existing saved changes
+- **Archive Menu**: Dropdown with GCS operations (📁 icon)
+- **Instructions Button**: Shows job instructions when available (ℹ️ icon)
+
+### Editor Panel Controls
+- **Search Filter**: Real-time text filter with keyboard shortcut (Cmd+K/Ctrl+K)
+- **Filter Settings Menu**: Customizable field selection (⚙️ sliders icon)
+- **Segment Navigation**: Tab/Shift+Tab for moving between filtered results
+
+### Layout Features
 - **Full-width interface**: Uses the entire screen width for maximum workspace
 - **Resizable panes**: Drag the divider between screenshot and editor to customize your view
 - **Integrated controls**: Navigation buttons are overlaid on the screenshot to save vertical space
 - **Smart scrolling**: Screenshots display at their native resolution with automatic scrollbars when needed
+- **Modal Dialogs**: Centered modals with blurred backgrounds for file operations
+- **Responsive Design**: Adapts to different screen sizes with mobile-friendly controls
 
 ## Keyboard Shortcuts
 
@@ -102,6 +130,34 @@ The app features a modern, space-efficient layout:
 - **CMD+Enter** (Mac) / **Ctrl+Enter** (Windows): Next segment
 - **Ctrl+Left**: Previous page
 - **Ctrl+Right**: Next page
+- **CMD+K** (Mac) / **Ctrl+K** (Windows): Focus search filter
+
+## Advanced Filtering System
+
+The app includes a powerful real-time filtering system for both screenshot and text-only modes:
+
+### Filter Interface
+- **Search Input**: Located in the top-right corner of the editor panel
+- **Filter Settings Menu**: Click the sliders icon (⚙️) to customize searchable fields
+- **Real-Time Results**: Segments are filtered instantly as you type
+- **Keyboard Shortcut**: Use `Cmd+K` (Mac) or `Ctrl+K` (Windows) to quickly focus the search
+
+### Searchable Fields
+Configure which fields to include in your search via the filter settings menu:
+
+- ✅ **Source**: Search in source text content
+- ✅ **Target**: Search in target/translated text content  
+- ✅ **Notes**: Search in segment notes and descriptions
+- ✅ **RID**: Search by Resource ID numbers
+- ✅ **SID**: Search by Segment ID numbers
+- ✅ **GUID**: Search by unique segment identifiers
+
+### Filter Behavior
+- **Case-Insensitive**: All searches ignore letter case
+- **Partial Matching**: Matches any text containing your search term
+- **Multi-Field**: Search across multiple selected fields simultaneously  
+- **Smart Navigation**: Active segment auto-deselects when filtered out
+- **Preserve Context**: Filter persists across page navigation in screenshot mode
 
 ## File Format
 
@@ -114,6 +170,8 @@ The app works with .lqaboss files, which are ZIP archives containing:
 - **Translation Units**: Core editing elements with source (`nsrc`) and target (`ntgt`) normalized text arrays
 - **Normalized Text**: Supports strings and placeholders for HTML tags and variables
 - **Dual Mode**: Screenshot mode (with flow metadata) or text-only mode (job data only)
+- **State Management**: Three-state system tracking original, saved, and current versions for accurate change detection
+- **Smart Exports**: Only exports changed translation units to optimize file sizes and performance
 
 ## Technologies Used
 

@@ -1,6 +1,6 @@
-import React from 'react'
-import { Flex, Button, Stack, HStack, VStack, Image, Text } from '@chakra-ui/react'
-import { FiSave, FiInfo, FiKey, FiLogOut } from 'react-icons/fi'
+import React, { useState, useEffect } from 'react'
+import { Flex, Button, Stack, HStack, VStack, Image, Text, Menu, IconButton, Portal } from '@chakra-ui/react'
+import { FiInfo, FiLogOut, FiArchive, FiUploadCloud, FiDownloadCloud } from 'react-icons/fi'
 import GlassBox from '../GlassBox'
 import GCSFilePicker from '../GCSFilePicker'
 import { GCSFile } from '../../utils/gcsOperations'
@@ -12,7 +12,6 @@ interface GCSEditorHeaderProps {
   filename?: string
   isAuthenticated: boolean
   onSave: () => void
-  onSignIn: () => void
   onSignOut: () => void
   hasInstructions: boolean
   onShowInstructions: () => void
@@ -29,7 +28,6 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
   filename,
   isAuthenticated,
   onSave,
-  onSignIn,
   onSignOut,
   hasInstructions,
   onShowInstructions,
@@ -41,6 +39,19 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
 }) => {
   // Auto-open popover when there's no filename (user is browsing files)
   const shouldAutoOpen = !filename && isAuthenticated && files.length > 0
+  const [showFilePicker, setShowFilePicker] = useState(shouldAutoOpen)
+
+  // Update file picker state when authentication or files change
+  useEffect(() => {
+    const newShouldAutoOpen = !filename && isAuthenticated && files.length > 0
+    if (newShouldAutoOpen && !showFilePicker) {
+      setShowFilePicker(true)
+    }
+  }, [isAuthenticated, files.length, filename, showFilePicker])
+
+  const handleLoadFromGCS = () => {
+    setShowFilePicker(true)
+  }
 
   return (
     <Flex
@@ -70,15 +81,6 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
         </VStack>
       </HStack>
       <Stack direction="row" gap={4}>
-        <GCSFilePicker
-          files={files}
-          bucket={bucket}
-          prefix={prefix}
-          onFileSelect={onFileSelect}
-          onLoadFileList={onLoadFileList}
-          disabled={!isAuthenticated}
-          autoOpen={shouldAutoOpen}
-        />
         {hasInstructions && (
           <Button
             variant="outline"
@@ -91,35 +93,68 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
             <FiInfo />
           </Button>
         )}
-        <Button
-          variant="solid"
-          colorScheme="blue"
-          onClick={onSave}
-          disabled={!hasData || !isAuthenticated}
-          size="md"
-        >
-          <FiSave /> Save to GCS
-        </Button>
-        {!isAuthenticated ? (
-          <Button
-            variant="solid"
-            colorScheme="green"
-            onClick={onSignIn}
-            size="md"
-          >
-            <FiKey /> Sign In to GCS
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            colorScheme="gray"
-            onClick={onSignOut}
-            size="md"
-          >
-            <FiLogOut /> Sign Out
-          </Button>
-        )}
+        <Menu.Root>
+          <Menu.Trigger asChild>
+            <IconButton
+              variant="outline"
+              colorScheme="blue"
+              size="md"
+              aria-label="GCS Operations"
+            >
+              <FiArchive />
+            </IconButton>
+          </Menu.Trigger>
+          <Portal>
+            <Menu.Positioner>
+              <Menu.Content>
+                <Menu.Item
+                  value="load"
+                  disabled={!isAuthenticated}
+                  cursor={!isAuthenticated ? 'not-allowed' : 'pointer'}
+                  onClick={handleLoadFromGCS}
+                >
+                  <FiDownloadCloud style={{ marginRight: '8px' }} />
+                  Load Job
+                </Menu.Item>
+                <Menu.Item
+                  value="save"
+                  disabled={!hasData || !isAuthenticated}
+                  cursor={(!hasData || !isAuthenticated) ? 'not-allowed' : 'pointer'}
+                  onClick={onSave}
+                >
+                  <FiUploadCloud style={{ marginRight: '8px' }} />
+                  Save Job
+                </Menu.Item>
+                <Menu.Separator />
+                <Menu.Item
+                  value="signout"
+                  disabled={!isAuthenticated}
+                  cursor={!isAuthenticated ? 'not-allowed' : 'pointer'}
+                  onClick={onSignOut}
+                >
+                  <FiLogOut style={{ marginRight: '8px' }} />
+                  Sign Out
+                </Menu.Item>
+              </Menu.Content>
+            </Menu.Positioner>
+          </Portal>
+        </Menu.Root>
       </Stack>
+      
+      {/* GCS File Picker Modal */}
+      <GCSFilePicker
+        files={files}
+        bucket={bucket}
+        prefix={prefix}
+        onFileSelect={(filename) => {
+          onFileSelect(filename)
+          setShowFilePicker(false)
+        }}
+        onLoadFileList={onLoadFileList}
+        disabled={!isAuthenticated}
+        isOpen={showFilePicker}
+        onClose={() => setShowFilePicker(false)}
+      />
     </Flex>
   )
 } 

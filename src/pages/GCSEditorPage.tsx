@@ -343,13 +343,6 @@ export const GCSEditorPage: React.FC = () => {
     }
   }
   
-  const handleSignIn = () => {
-    if (!gcs.clientId) {
-      setShowClientIdPrompt(true)
-    } else {
-      gcs.initializeAuth()
-    }
-  }
   
   const handleShowInstructions = () => {
     translationEditorRef.current?.openInstructions()
@@ -391,7 +384,6 @@ export const GCSEditorPage: React.FC = () => {
             prefix="unknown"
             isAuthenticated={false}
             onSave={() => {}}
-            onSignIn={() => {}}
             onSignOut={() => {}}
             hasInstructions={false}
             onShowInstructions={() => {}}
@@ -418,7 +410,6 @@ export const GCSEditorPage: React.FC = () => {
             filename={gcsMode.filename}
             isAuthenticated={gcs.isAuthenticated}
             onSave={handleSaveChanges}
-            onSignIn={handleSignIn}
             onSignOut={gcs.signOut}
             hasInstructions={!!translationData.jobData?.instructions}
             onShowInstructions={handleShowInstructions}
@@ -448,7 +439,6 @@ export const GCSEditorPage: React.FC = () => {
             filename={gcsMode.filename}
             isAuthenticated={gcs.isAuthenticated}
             onSave={handleSaveChanges}
-            onSignIn={handleSignIn}
             onSignOut={gcs.signOut}
             hasInstructions={!!translationData.jobData?.instructions}
             onShowInstructions={handleShowInstructions}
@@ -465,7 +455,6 @@ export const GCSEditorPage: React.FC = () => {
           prefix={gcsMode.prefix}
           filename={gcsMode.filename}
           onAccept={handleAuthPromptAccept}
-          onCancel={() => setShowAuthPrompt(false)}
         />
       </EditorLayout>
     )
@@ -481,7 +470,6 @@ export const GCSEditorPage: React.FC = () => {
             filename={gcsMode.filename}
             isAuthenticated={gcs.isAuthenticated}
             onSave={handleSaveChanges}
-            onSignIn={handleSignIn}
             onSignOut={gcs.signOut}
             hasInstructions={!!translationData.jobData?.instructions}
             onShowInstructions={handleShowInstructions}

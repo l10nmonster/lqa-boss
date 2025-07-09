@@ -8,15 +8,13 @@ interface AuthPromptProps {
   prefix: string
   filename?: string
   onAccept: () => void
-  onCancel: () => void
 }
 
 export const AuthPrompt: React.FC<AuthPromptProps> = ({ 
   bucket, 
   prefix, 
   filename, 
-  onAccept, 
-  onCancel 
+  onAccept
 }) => {
   return (
     <GlassBox p={6} height="100%" display="flex" alignItems="center" justifyContent="center">
@@ -36,24 +34,14 @@ export const AuthPrompt: React.FC<AuthPromptProps> = ({
             </>
           )}
         </Text>
-        <Stack direction="row" gap={4} justify="center">
-          <Button
-            variant="solid"
-            colorScheme="blue"
-            size="lg"
-            onClick={onAccept}
-          >
-            <FiKey /> Sign In to GCS
-          </Button>
-          <Button
-            variant="outline"
-            colorScheme="gray"
-            size="lg"
-            onClick={onCancel}
-          >
-            Cancel
-          </Button>
-        </Stack>
+        <Button
+          variant="solid"
+          colorScheme="blue"
+          size="lg"
+          onClick={onAccept}
+        >
+          <FiKey /> Sign In to GCS
+        </Button>
       </Stack>
     </GlassBox>
   )

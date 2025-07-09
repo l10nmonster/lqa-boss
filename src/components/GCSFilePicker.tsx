@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
   Box,
-  Flex,
   Heading,
   Button,
   Text,
@@ -9,10 +8,9 @@ import {
   Badge,
   Grid,
   Checkbox,
-  Popover,
   Portal,
 } from '@chakra-ui/react'
-import { FiUpload } from 'react-icons/fi'
+import { FiX } from 'react-icons/fi'
 import { GCSFile } from '../utils/gcsOperations'
 
 interface GCSFilePickerProps {
@@ -22,8 +20,8 @@ interface GCSFilePickerProps {
   onFileSelect: (filename: string) => void
   onLoadFileList?: () => Promise<void>
   disabled?: boolean
-  triggerButton?: React.ReactNode
-  autoOpen?: boolean
+  isOpen: boolean
+  onClose: () => void
 }
 
 // Helper function to check if a job is done (has corresponding .json file)
@@ -43,20 +41,12 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
   onFileSelect,
   onLoadFileList,
   disabled = false,
-  triggerButton,
-  autoOpen = false
+  isOpen,
+  onClose
 }) => {
   const [showDoneJobs, setShowDoneJobs] = useState(true)
-  const [isOpen, setIsOpen] = useState(false)
 
-  // Auto-open when autoOpen prop is true
-  useEffect(() => {
-    if (autoOpen && !disabled) {
-      setIsOpen(true)
-    }
-  }, [autoOpen, disabled])
-
-  // Load file list when popover opens and files array is empty
+  // Load file list when modal opens and files array is empty
   useEffect(() => {
     if (isOpen && files.length === 0 && onLoadFileList && !disabled) {
       onLoadFileList()
@@ -81,64 +71,98 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
 
   const handleFileSelect = (filename: string) => {
     onFileSelect(filename)
-    setIsOpen(false)
+    onClose()
   }
 
-  const defaultTrigger = (
-    <Button
-      variant="outline"
-      colorScheme="blue"
-      size="md"
-      disabled={disabled}
-    >
-      <FiUpload /> Load from GCS
-    </Button>
-  )
+  if (!isOpen) return null
 
   return (
-    <Popover.Root 
-      open={isOpen} 
-      onOpenChange={(details) => setIsOpen(details.open)}
-      positioning={{ 
-        placement: "bottom-end", 
-        gutter: 8
-      }}
-    >
-      <Popover.Trigger asChild>
-        {triggerButton || defaultTrigger}
-      </Popover.Trigger>
-      <Portal>
-        <Popover.Positioner>
-          <Popover.Content 
-            width="800px" 
-            maxWidth="90vw"
-            maxHeight="500px" 
-            overflow="auto"
-            bg="rgba(255, 255, 255, 0.95)"
-            backdropFilter="blur(20px)"
-            border="1px solid"
-            borderColor="rgba(255, 255, 255, 0.2)"
-            borderRadius="xl"
-            boxShadow="0 25px 50px -12px rgba(0, 0, 0, 0.25)"
-            p={6}
+    <Portal>
+      {/* Overlay */}
+      <Box
+        position="fixed"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        bg="blackAlpha.600"
+        backdropFilter="blur(10px)"
+        zIndex="overlay"
+        onClick={onClose}
+      />
+      
+      {/* Modal Content */}
+      <Box
+        position="fixed"
+        top="50%"
+        left="50%"
+        transform="translate(-50%, -50%)"
+        zIndex="modal"
+        maxW="4xl"
+        w="90%"
+        maxH="80vh"
+        bg="white"
+        backdropFilter="blur(20px)"
+        border="1px solid"
+        borderColor="gray.200"
+        boxShadow="xl"
+        borderRadius="xl"
+        overflow="hidden"
+        data-testid="gcs-file-picker-modal"
+      >
+        {/* Header */}
+        <Box
+          p={6}
+          borderBottom="1px solid"
+          borderColor="gray.100"
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <Heading size="lg" color="gray.700">
+            📁 Load Job from GCS
+          </Heading>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            color="gray.500"
+            _hover={{ color: "gray.700" }}
+            aria-label="close modal"
           >
-          <Flex justify="space-between" align="center" mb={6}>
-            <Heading size="sm" color="gray.700">
-              Select .lqaboss File from GCS
-            </Heading>
-            <Checkbox.Root
-              checked={showDoneJobs}
-              onCheckedChange={(details) => setShowDoneJobs(!!details.checked)}
-              colorPalette="green"
-            >
-              <Checkbox.HiddenInput />
-              <Checkbox.Control>
-                <Checkbox.Indicator />
-              </Checkbox.Control>
-              <Checkbox.Label>Show DONE jobs</Checkbox.Label>
-            </Checkbox.Root>
-          </Flex>
-          
+            <FiX size={20} />
+          </Button>
+        </Box>
+        
+        {/* Subheader with filter */}
+        <Box
+          px={6}
+          py={4}
+          borderBottom="1px solid"
+          borderColor="gray.100"
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+          bg="gray.50"
+        >
+          <Text fontSize="sm" color="gray.600">
+            {bucket}/{prefix}
+          </Text>
+          <Checkbox.Root
+            checked={showDoneJobs}
+            onCheckedChange={(details) => setShowDoneJobs(!!details.checked)}
+            colorPalette="green"
+          >
+            <Checkbox.HiddenInput />
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <Checkbox.Label>Show DONE jobs</Checkbox.Label>
+          </Checkbox.Root>
+        </Box>
+        
+        {/* Body */}
+        <Box p={6} overflow="auto" maxH="60vh">
           {lqabossFiles.length === 0 ? (
             <Text color="gray.600" textAlign="center" py={8}>
               No .lqaboss files found in {bucket}/{prefix}
@@ -159,7 +183,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
                     height="auto"
                     whiteSpace="normal"
                     width="100%"
-                    bg="rgba(255, 255, 255, 0.8)"
+                    bg="white"
                     _hover={{ 
                       bg: "rgba(59, 130, 246, 0.1)",
                       borderColor: "blue.400",
@@ -190,10 +214,9 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
               })}
             </Grid>
           )}
-          </Popover.Content>
-        </Popover.Positioner>
-      </Portal>
-    </Popover.Root>
+        </Box>
+      </Box>
+    </Portal>
   )
 }
 
