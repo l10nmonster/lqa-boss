@@ -1,3 +1,17 @@
+# [1.1.0](https://github.com/l10nmonster/lqa-boss/compare/v1.0.10...v1.1.0) (2025-07-09)
+
+
+### Bug Fixes
+
+* Move segment actions to a menu ([aff7dbf](https://github.com/l10nmonster/lqa-boss/commit/aff7dbf21f1f65b16abe85bf7513cc7bfacf3842))
+* Streamline GCS buttons ([4bceb32](https://github.com/l10nmonster/lqa-boss/commit/4bceb32b4412c833a067bbadc4eb92a2e6e1fdd0))
+
+
+### Features
+
+* Add status badge ([9c7cad5](https://github.com/l10nmonster/lqa-boss/commit/9c7cad5339b7c487ad5cd7114b1f411665ba5b4f))
+* Full-text segment filter ([6c5d68d](https://github.com/l10nmonster/lqa-boss/commit/6c5d68dc0463c87bb3e2d3a4ed944afa94b0c299))
+
 ## [1.0.10](https://github.com/l10nmonster/lqa-boss/compare/v1.0.9...v1.0.10) (2025-07-09)
 
 
