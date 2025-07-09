@@ -1,3 +1,12 @@
+## [1.0.10](https://github.com/l10nmonster/lqa-boss/compare/v1.0.9...v1.0.10) (2025-07-09)
+
+
+### Bug Fixes
+
+* More UI polish ([d463e0f](https://github.com/l10nmonster/lqa-boss/commit/d463e0ffe86e59c650bdcbd77f11d703b0ed2901))
+* Refactored the fake checkbox to use a proper Chakra UI checkbox component. ([c8d1688](https://github.com/l10nmonster/lqa-boss/commit/c8d1688980ccc8cc4c20decdddc82c20b81c9301))
+* Use Toast notifications ([a4d1ef1](https://github.com/l10nmonster/lqa-boss/commit/a4d1ef1f861f8e7101fd8b9a7d5e33fa19f4aafc))
+
 ## [1.0.9](https://github.com/l10nmonster/lqa-boss/compare/v1.0.8...v1.0.9) (2025-07-08)
 
 
