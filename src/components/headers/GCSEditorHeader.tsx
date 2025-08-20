@@ -20,6 +20,7 @@ interface GCSEditorHeaderProps {
   onFileSelect: (filename: string) => void
   onLoadFileList?: () => Promise<void>
   fileStatus: FileStatus
+  hasLanguageInfo?: boolean
 }
 
 export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
@@ -36,6 +37,7 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
   onFileSelect,
   onLoadFileList,
   fileStatus,
+  hasLanguageInfo = false,
 }) => {
   // Auto-open popover when there's no filename (user is browsing files)
   const shouldAutoOpen = !filename && isAuthenticated && files.length > 0
@@ -81,7 +83,7 @@ export const GCSEditorHeader: React.FC<GCSEditorHeaderProps> = ({
         </VStack>
       </HStack>
       <Stack direction="row" gap={4}>
-        {hasInstructions && (
+        {(hasInstructions || hasLanguageInfo) && (
           <Button
             variant="outline"
             colorScheme="blue"

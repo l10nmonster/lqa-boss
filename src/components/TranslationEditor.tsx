@@ -64,18 +64,24 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     setActiveSegmentIndex(index)
   }
   
-  // Show instructions modal if instructions are present and trigger external handler
-  // Only run when instructions change, not when entire jobData changes
-  const instructions = jobData?.instructions
-  const instructionsRef = useRef<string | undefined>(undefined)
+  // Show instructions modal every time a new file is loaded with language info
+  const sourceLang = jobData?.sourceLang
+  const targetLang = jobData?.targetLang
+  const jobDataRef = useRef<any>(undefined)
   
   useEffect(() => {
-    if (instructions && instructions !== instructionsRef.current && onInstructionsOpen) {
-      setIsInstructionsModalOpen(true)
-      onInstructionsOpen()
-      instructionsRef.current = instructions
+    if (jobData && (sourceLang || targetLang)) {
+      // Check if this is a different jobData object (new file load)
+      if (jobDataRef.current !== jobData && onInstructionsOpen) {
+        setIsInstructionsModalOpen(true)
+        onInstructionsOpen()
+        jobDataRef.current = jobData
+      }
+    } else {
+      // Reset ref when jobData is null/undefined (no file loaded)
+      jobDataRef.current = undefined
     }
-  }, [instructions, onInstructionsOpen])
+  }, [jobData, sourceLang, targetLang, onInstructionsOpen])
   
   const navigatePage = (direction: number) => {
     if (!flowData) return
@@ -447,11 +453,13 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
       )}
       
       {/* Instructions Modal */}
-      {jobData?.instructions && (
+      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions) && (
         <InstructionsModal
           isOpen={isInstructionsModalOpen}
           onClose={() => setIsInstructionsModalOpen(false)}
           instructions={jobData.instructions}
+          sourceLang={jobData.sourceLang}
+          targetLang={jobData.targetLang}
         />
       )}
     </>

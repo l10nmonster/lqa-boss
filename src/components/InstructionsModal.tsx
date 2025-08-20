@@ -10,13 +10,17 @@ import { FiX } from 'react-icons/fi'
 interface InstructionsModalProps {
   isOpen: boolean
   onClose: () => void
-  instructions: string
+  instructions?: string
+  sourceLang?: string
+  targetLang?: string
 }
 
 const InstructionsModal: React.FC<InstructionsModalProps> = ({
   isOpen,
   onClose,
   instructions,
+  sourceLang,
+  targetLang,
 }) => {
   if (!isOpen) return null
 
@@ -68,7 +72,7 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
             fontWeight="bold"
             color="gray.700"
           >
-            📋 Instructions
+            📋 Job Information
           </Text>
           <Button
             variant="ghost"
@@ -84,14 +88,41 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
         
         {/* Body */}
         <Box p={6} overflow="auto" maxH="60vh">
-          <Text
-            color="gray.700"
-            lineHeight="tall"
-            whiteSpace="pre-wrap"
-            fontSize="md"
-          >
-            {instructions}
-          </Text>
+          {/* Language Information */}
+          {(sourceLang || targetLang) && (
+            <Box mb={instructions ? 6 : 0}>
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color="gray.700"
+                mb={3}
+              >
+                🌐 Language Pair: {sourceLang || 'Not specified'} → {targetLang || 'Not specified'}
+              </Text>
+            </Box>
+          )}
+          
+          {/* Instructions */}
+          {instructions && (
+            <>
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color="gray.700"
+                mb={3}
+              >
+                📝 Instructions
+              </Text>
+              <Text
+                color="gray.700"
+                lineHeight="tall"
+                whiteSpace="pre-wrap"
+                fontSize="md"
+              >
+                {instructions}
+              </Text>
+            </>
+          )}
         </Box>
       </Box>
     </Portal>

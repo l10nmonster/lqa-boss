@@ -412,6 +412,7 @@ export const GCSEditorPage: React.FC = () => {
             onSave={handleSaveChanges}
             onSignOut={gcs.signOut}
             hasInstructions={!!translationData.jobData?.instructions}
+            hasLanguageInfo={!!(translationData.jobData?.sourceLang || translationData.jobData?.targetLang)}
             onShowInstructions={handleShowInstructions}
             hasData={!!translationData.jobData}
             files={gcs.files}
@@ -441,6 +442,7 @@ export const GCSEditorPage: React.FC = () => {
             onSave={handleSaveChanges}
             onSignOut={gcs.signOut}
             hasInstructions={!!translationData.jobData?.instructions}
+            hasLanguageInfo={!!(translationData.jobData?.sourceLang || translationData.jobData?.targetLang)}
             onShowInstructions={handleShowInstructions}
             hasData={!!translationData.jobData}
             files={gcs.files}
@@ -472,6 +474,7 @@ export const GCSEditorPage: React.FC = () => {
             onSave={handleSaveChanges}
             onSignOut={gcs.signOut}
             hasInstructions={!!translationData.jobData?.instructions}
+            hasLanguageInfo={!!(translationData.jobData?.sourceLang || translationData.jobData?.targetLang)}
             onShowInstructions={handleShowInstructions}
             hasData={!!translationData.jobData}
             files={gcs.files}

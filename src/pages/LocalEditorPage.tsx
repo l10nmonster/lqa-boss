@@ -124,6 +124,7 @@ export const LocalEditorPage: React.FC = () => {
             onFileLoad={handleFileLoadClick}
             onSave={handleSaveChanges}
             hasInstructions={!!translationData.jobData?.instructions}
+            hasLanguageInfo={!!(translationData.jobData?.sourceLang || translationData.jobData?.targetLang)}
             onShowInstructions={handleShowInstructions}
             fileName={fileLoader.fileName}
             hasData={!!translationData.jobData}

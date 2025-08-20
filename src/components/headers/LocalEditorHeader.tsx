@@ -13,6 +13,7 @@ interface LocalEditorHeaderProps {
   hasData: boolean
   flowName?: string
   fileStatus: FileStatus
+  hasLanguageInfo?: boolean
 }
 
 export const LocalEditorHeader: React.FC<LocalEditorHeaderProps> = ({
@@ -24,6 +25,7 @@ export const LocalEditorHeader: React.FC<LocalEditorHeaderProps> = ({
   hasData,
   flowName,
   fileStatus,
+  hasLanguageInfo = false,
 }) => {
   return (
     <Flex
@@ -61,7 +63,7 @@ export const LocalEditorHeader: React.FC<LocalEditorHeaderProps> = ({
         >
           <FiUpload /> Load .lqaboss File
         </Button>
-        {hasInstructions && (
+        {(hasInstructions || hasLanguageInfo) && (
           <Button
             variant="outline"
             colorScheme="blue"
