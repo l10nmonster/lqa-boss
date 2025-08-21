@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/l10nmonster/lqa-boss/compare/v1.1.1...v1.1.2) (2025-08-21)
+
+
+### Bug Fixes
+
+* Instruction modal popping up when editing a segment ([e8bda4e](https://github.com/l10nmonster/lqa-boss/commit/e8bda4e4947a5c78fc9511aeccdf3e1baaf8a52d))
+
 ## [1.1.1](https://github.com/l10nmonster/lqa-boss/compare/v1.1.0...v1.1.1) (2025-08-21)
 
 
