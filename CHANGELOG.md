@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/l10nmonster/lqa-boss/compare/v1.1.0...v1.1.1) (2025-08-21)
+
+
+### Bug Fixes
+
+* Add updatedAt in saved file ([1e07ea9](https://github.com/l10nmonster/lqa-boss/commit/1e07ea9eee0e0fffe7350ef90eb932161e2fe9f3))
+
 # [1.1.0](https://github.com/l10nmonster/lqa-boss/compare/v1.0.10...v1.1.0) (2025-07-09)
 
 
