@@ -64,22 +64,23 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     setActiveSegmentIndex(index)
   }
   
-  // Show instructions modal every time a new file is loaded with language info
+  // Show instructions modal only when a new file is loaded with language info
   const sourceLang = jobData?.sourceLang
   const targetLang = jobData?.targetLang
-  const jobDataRef = useRef<any>(undefined)
+  const currentJobGuidRef = useRef<string | undefined>(undefined)
   
   useEffect(() => {
     if (jobData && (sourceLang || targetLang)) {
-      // Check if this is a different jobData object (new file load)
-      if (jobDataRef.current !== jobData && onInstructionsOpen) {
+      // Use jobGuid to detect new file loads since it's unique per job
+      // and doesn't change when translation units are edited
+      if (currentJobGuidRef.current !== jobData.jobGuid && onInstructionsOpen) {
         setIsInstructionsModalOpen(true)
         onInstructionsOpen()
-        jobDataRef.current = jobData
+        currentJobGuidRef.current = jobData.jobGuid
       }
     } else {
       // Reset ref when jobData is null/undefined (no file loaded)
-      jobDataRef.current = undefined
+      currentJobGuidRef.current = undefined
     }
   }, [jobData, sourceLang, targetLang, onInstructionsOpen])
   

@@ -63,6 +63,7 @@ export interface TranslationUnit {
 }
 
 export interface JobData {
+  jobGuid: string
   updatedAt?: string
   sourceLang: string
   targetLang: string
