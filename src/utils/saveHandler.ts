@@ -26,6 +26,7 @@ export const saveChangedTus = (
   const outputData: JobData = {
     ...jobData,
     tus: changedTus,
+    updatedAt: new Date().toISOString(),
   };
 
   const jsonString = JSON.stringify(outputData, null, 2);

@@ -63,6 +63,7 @@ export interface TranslationUnit {
 }
 
 export interface JobData {
+  updatedAt?: string
   sourceLang: string
   targetLang: string
   tus: TranslationUnit[]
