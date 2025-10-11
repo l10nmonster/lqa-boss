@@ -76,7 +76,6 @@ export interface Page {
 }
 
 export interface FlowData {
-  flowName: string
   pages: Page[]
   [key: string]: any
 }
@@ -151,7 +150,6 @@ const handleFileLoad = async (file: File) => {
 ### Export Format
 ```json
 {
-  "flowName": "Example Flow",
   "savedAt": "ISO_timestamp",
   "pages": [{
     "pageId": "unique_id",

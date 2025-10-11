@@ -35,16 +35,14 @@ export const saveChangedTus = (
 
   const link = document.createElement('a');
   link.href = url;
-  
-  const baseName = fileName.endsWith('.lqaboss') 
-    ? fileName.slice(0, -'.lqaboss'.length) 
+
+  const baseName = fileName.endsWith('.lqaboss')
+    ? fileName.slice(0, -'.lqaboss'.length)
     : fileName;
   link.download = `${baseName}.json`;
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-
-  alert(`${changedTus.length} changed segment(s) saved.`);
 }; 

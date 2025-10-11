@@ -120,7 +120,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
           justifyContent="space-between"
         >
           <Heading size="lg" color="gray.700">
-            📁 Load Job from GCS
+            Load Job from GCS
           </Heading>
           <Button
             variant="ghost"

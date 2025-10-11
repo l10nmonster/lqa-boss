@@ -1,6 +1,6 @@
 // sw.js - Service Worker for LQA Boss PWA
 const CACHE_NAME = 'lqa-boss-v3';
-const BASE_PATH = '/lqa-boss/';
+const BASE_PATH = '/';
 
 // Core files to cache on install
 const urlsToCache = [

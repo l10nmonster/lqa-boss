@@ -5,7 +5,7 @@ import puppeteer from 'puppeteer';
 describe('Editor UI Tests', () => {
   let browser;
   let page;
-  const baseUrl = process.env.TEST_URL || 'http://localhost:3000/lqa-boss/';
+  const baseUrl = process.env.TEST_URL || 'http://localhost:3000/';
 
   before(async () => {
     browser = await puppeteer.launch({

@@ -75,12 +75,12 @@ Access files directly from GCS buckets using URL patterns:
 
 **Load Specific File:**
 ```
-http://localhost:3000/lqa-boss/gcs/<bucket>/<prefix>/<filename>.lqaboss
+http://localhost:3000/gcs/<bucket>/<prefix>/<filename>.lqaboss
 ```
 
 **Browse Files in Bucket:**
 ```
-http://localhost:3000/lqa-boss/gcs/<bucket>/<prefix>/
+http://localhost:3000/gcs/<bucket>/<prefix>/
 ```
 
 **First-time Setup:**
@@ -200,7 +200,7 @@ The project includes a GitHub Actions workflow for automatic deployment to GitHu
    git push origin main
    ```
 
-3. **Access your site** at: `https://[your-username].github.io/lqa-boss/`
+3. **Access your site** at: `https://lqaboss.l10n.monster/`
 
 The workflow automatically:
 - Builds the React app

@@ -15,7 +15,6 @@ export interface Page {
 }
 
 export interface FlowData {
-  flowName: string
   pages: Page[]
   [key: string]: any
 }
@@ -35,7 +34,6 @@ export interface ChangedPage {
 }
 
 export interface ChangedSegmentsData {
-  flowName: string
   savedAt: string
   pages: ChangedPage[]
 }

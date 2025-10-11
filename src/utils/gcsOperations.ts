@@ -34,16 +34,23 @@ export class GCSOperations {
         if (response.status === 401) {
           throw new Error('Authentication expired. Please sign in again.')
         }
+        if (response.status === 404) {
+          // Don't log 404 errors - they're often expected (e.g., checking for saved translations)
+          throw new Error(`File not found: 404`)
+        }
         throw new Error(`Failed to load file: ${response.status} ${response.statusText}`)
       }
 
       const arrayBuffer = await response.arrayBuffer()
       const file = new File([arrayBuffer], filename, { type: 'application/octet-stream' })
-      
+
       console.log(`Successfully loaded ${filename} from GCS bucket ${bucket}`)
       return file
     } catch (error: any) {
-      console.error('Error loading file from GCS:', error)
+      // Only log non-404 errors to avoid console noise
+      if (!error.message?.includes('404')) {
+        console.error('Error loading file from GCS:', error)
+      }
       this.handleTokenExpiry(error)
       throw error
     }
@@ -76,6 +83,36 @@ export class GCSOperations {
       return result.name
     } catch (error: any) {
       console.error('Error saving file to GCS:', error)
+      this.handleTokenExpiry(error)
+      throw error
+    }
+  }
+
+  async saveBlobFile(bucket: string, prefix: string, filename: string, blob: Blob, token: string): Promise<string> {
+    try {
+      const objectName = `${prefix}/${filename}`
+
+      const response = await fetch(`https://storage.googleapis.com/upload/storage/v1/b/${bucket}/o?uploadType=media&name=${encodeURIComponent(objectName)}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/octet-stream'
+        },
+        body: blob
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication expired. Please sign in again.')
+        }
+        throw new Error(`Failed to save blob file: ${response.status} ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log(`Successfully saved ${filename} to GCS bucket ${bucket}`)
+      return result.name
+    } catch (error: any) {
+      console.error('Error saving blob file to GCS:', error)
       this.handleTokenExpiry(error)
       throw error
     }
