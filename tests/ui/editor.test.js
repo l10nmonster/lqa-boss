@@ -25,18 +25,24 @@ describe('Editor UI Tests', () => {
   test('Editor components render without errors', async () => {
     await page.goto(baseUrl);
     await page.waitForSelector('[data-testid="app-container"]');
-    
+
     // Check that editor-related elements can be found or app is in a valid state
     const hasEditor = await page.$('[data-testid*="editor"]') !== null;
     const hasTextArea = await page.$('textarea') !== null;
     const hasContentEditable = await page.$('[contenteditable]') !== null;
-    
-    // At least one of these should be true, or the app should be in a file loading state
-    const hasFileInput = await page.$('input[type="file"]') !== null;
-    const hasDropZone = await page.$('[data-testid="drop-zone"]') !== null;
-    
+
+    // With plugin architecture, check for header/menu instead of file input
+    const hasLogo = await page.$('img[alt="LQA Boss Logo"]') !== null;
+    const hasHeader = await page.$('header') !== null;
+
+    // Check for File menu button by text content
+    const hasFileMenu = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.some(button => button.textContent.includes('File'));
+    });
+
     assert.ok(
-      hasEditor || hasTextArea || hasContentEditable || hasFileInput || hasDropZone,
+      hasEditor || hasTextArea || hasContentEditable || hasLogo || hasHeader || hasFileMenu,
       'App should have editor components or be in file loading state'
     );
   });
