@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/l10nmonster/lqa-boss/compare/v1.1.2...v1.1.3) (2025-10-12)
+
+
+### Bug Fixes
+
+* manifest ([f44d393](https://github.com/l10nmonster/lqa-boss/commit/f44d3935bed90980bc6e2b8b275de28134bc5ee1))
+
 ## [1.1.2](https://github.com/l10nmonster/lqa-boss/compare/v1.1.1...v1.1.2) (2025-08-21)
 
 
