@@ -3,6 +3,7 @@
     "short_name": "LQA Boss",
     "description": "View and edit LQA Boss (.lqaboss) files.",
     "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#007bff",
@@ -22,5 +23,8 @@
             },
             "launch_type": "single-client"
         }
-    ]
+    ],
+    "launch_handler": {
+        "client_mode": "focus-existing"
+    }
 }
