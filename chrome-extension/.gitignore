@@ -1,0 +1,4 @@
+node_modules/
+lib/jszip.min.js
+*.log
+.DS_Store

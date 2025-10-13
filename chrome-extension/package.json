@@ -1,0 +1,22 @@
+{
+  "name": "lqaboss-chrome-extension",
+  "version": "3.0.0",
+  "description": "Chrome extension for LQA Boss",
+  "scripts": {
+    "setup": "npm install && npm run copy-deps",
+    "copy-deps": "cp node_modules/jszip/dist/jszip.min.js lib/",
+    "clean": "rm -f lib/jszip.min.js"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "chrome-extension",
+    "lqa",
+    "localization",
+    "translation"
+  ],
+  "author": "L10n Monster",
+  "license": "MIT"
+}
