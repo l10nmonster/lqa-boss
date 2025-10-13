@@ -308,42 +308,76 @@ export const EditorPage: React.FC = () => {
 
       // If we have a pending file ID
       if (pendingFileId) {
-        // Update source file ID for future operations
-        setSourceFileId(pendingFileId)
-        setCurrentFileId(pendingFileId)
+        // Determine if this is a save operation (we have jobData and fileName)
+        const isSaveOperation = !!translationData.jobData && !!(pendingFileId as any).fileName
 
-        // Check if we have a specific filename to load
-        if (pendingFileId.filename) {
-          // Load the specific file
-          await loadFileFromPlugin(currentPlugin, pendingFileId)
-        } else {
-          // No filename - show file browser for the bucket/prefix
-          if (currentPlugin.listFiles && pendingFileId.bucket && pendingFileId.prefix) {
-            try {
-              const location = `${pendingFileId.bucket}/${pendingFileId.prefix}`
-              const files = await currentPlugin.listFiles(location)
+        if (isSaveOperation) {
+          // Continue with save flow
+          // Check if plugin can validate identifiers
+          if (currentPlugin.validateIdentifier) {
+            const validation = currentPlugin.validateIdentifier(pendingFileId, 'save')
 
-              // Convert FileInfo[] to GCSFile[] format
-              const gcsFiles: GCSFile[] = files.map(f => ({
-                name: f.name,
-                fullName: f.name,
-                size: f.size || '0',
-                updated: f.updated || new Date().toISOString()
-              }))
-
-              setFileList(gcsFiles)
-              setShowFilePicker(true)
-            } catch (error: any) {
-              toaster.create({
-                title: 'Failed to list files',
-                description: error.message,
-                type: 'error',
-                duration: 6000,
-              })
+            if (!validation.valid) {
+              // Need to prompt for missing information
+              if (currentPlugin.LocationPromptComponent) {
+                setShowLocationPrompt('save')
+                setPendingFileId(null)
+                return
+              } else {
+                toaster.create({
+                  title: 'Missing information',
+                  description: `Cannot save: missing ${validation.missing?.join(', ')}`,
+                  type: 'error',
+                  duration: 6000,
+                })
+                setPendingFileId(null)
+                return
+              }
             }
           }
+
+          // Proceed with save
+          await performSave(currentPlugin, pendingFileId)
+          setPendingFileId(null)
+        } else {
+          // Load flow
+          // Update source file ID for future operations
+          setSourceFileId(pendingFileId)
+          setCurrentFileId(pendingFileId)
+
+          // Check if we have a specific filename to load
+          if (pendingFileId.filename) {
+            // Load the specific file
+            await loadFileFromPlugin(currentPlugin, pendingFileId)
+          } else {
+            // No filename - show file browser for the bucket/prefix
+            if (currentPlugin.listFiles && pendingFileId.bucket && pendingFileId.prefix) {
+              try {
+                const location = `${pendingFileId.bucket}/${pendingFileId.prefix}`
+                const files = await currentPlugin.listFiles(location)
+
+                // Convert FileInfo[] to GCSFile[] format
+                const gcsFiles: GCSFile[] = files.map(f => ({
+                  name: f.name,
+                  fullName: f.name,
+                  size: f.size || '0',
+                  updated: f.updated || new Date().toISOString()
+                }))
+
+                setFileList(gcsFiles)
+                setShowFilePicker(true)
+              } catch (error: any) {
+                toaster.create({
+                  title: 'Failed to list files',
+                  description: error.message,
+                  type: 'error',
+                  duration: 6000,
+                })
+              }
+            }
+          }
+          setPendingFileId(null)
         }
-        setPendingFileId(null)
       }
     } catch (error: any) {
       console.error('Authentication failed:', error)
@@ -373,42 +407,76 @@ export const EditorPage: React.FC = () => {
 
       // If we have a pending file ID
       if (pendingFileId) {
-        // Update source file ID for future operations
-        setSourceFileId(pendingFileId)
-        setCurrentFileId(pendingFileId)
+        // Determine if this is a save operation (we have jobData and fileName)
+        const isSaveOperation = !!translationData.jobData && !!(pendingFileId as any).fileName
 
-        // Check if we have a specific filename to load
-        if (pendingFileId.filename) {
-          // Load the specific file
-          await loadFileFromPlugin(currentPlugin, pendingFileId)
-        } else {
-          // No filename - show file browser for the bucket/prefix
-          if (currentPlugin.listFiles && pendingFileId.bucket && pendingFileId.prefix) {
-            try {
-              const location = `${pendingFileId.bucket}/${pendingFileId.prefix}`
-              const files = await currentPlugin.listFiles(location)
+        if (isSaveOperation) {
+          // Continue with save flow
+          // Check if plugin can validate identifiers
+          if (currentPlugin.validateIdentifier) {
+            const validation = currentPlugin.validateIdentifier(pendingFileId, 'save')
 
-              // Convert FileInfo[] to GCSFile[] format
-              const gcsFiles: GCSFile[] = files.map(f => ({
-                name: f.name,
-                fullName: f.name,
-                size: f.size || '0',
-                updated: f.updated || new Date().toISOString()
-              }))
-
-              setFileList(gcsFiles)
-              setShowFilePicker(true)
-            } catch (error: any) {
-              toaster.create({
-                title: 'Failed to list files',
-                description: error.message,
-                type: 'error',
-                duration: 6000,
-              })
+            if (!validation.valid) {
+              // Need to prompt for missing information
+              if (currentPlugin.LocationPromptComponent) {
+                setShowLocationPrompt('save')
+                setPendingFileId(null)
+                return
+              } else {
+                toaster.create({
+                  title: 'Missing information',
+                  description: `Cannot save: missing ${validation.missing?.join(', ')}`,
+                  type: 'error',
+                  duration: 6000,
+                })
+                setPendingFileId(null)
+                return
+              }
             }
           }
+
+          // Proceed with save
+          await performSave(currentPlugin, pendingFileId)
+          setPendingFileId(null)
+        } else {
+          // Load flow
+          // Update source file ID for future operations
+          setSourceFileId(pendingFileId)
+          setCurrentFileId(pendingFileId)
+
+          // Check if we have a specific filename to load
+          if (pendingFileId.filename) {
+            // Load the specific file
+            await loadFileFromPlugin(currentPlugin, pendingFileId)
+          } else {
+            // No filename - show file browser for the bucket/prefix
+            if (currentPlugin.listFiles && pendingFileId.bucket && pendingFileId.prefix) {
+              try {
+                const location = `${pendingFileId.bucket}/${pendingFileId.prefix}`
+                const files = await currentPlugin.listFiles(location)
+
+                // Convert FileInfo[] to GCSFile[] format
+                const gcsFiles: GCSFile[] = files.map(f => ({
+                  name: f.name,
+                  fullName: f.name,
+                  size: f.size || '0',
+                  updated: f.updated || new Date().toISOString()
+                }))
+
+                setFileList(gcsFiles)
+                setShowFilePicker(true)
+              } catch (error: any) {
+                toaster.create({
+                  title: 'Failed to list files',
+                  description: error.message,
+                  type: 'error',
+                  duration: 6000,
+                })
+              }
+            }
+          }
+          setPendingFileId(null)
         }
-        setPendingFileId(null)
       }
     } catch (error: any) {
       console.error('Setup/Authentication failed:', error)
@@ -442,6 +510,19 @@ export const EditorPage: React.FC = () => {
         type: 'error',
         duration: 6000,
       })
+      return
+    }
+
+    // Check auth if needed
+    if (plugin.capabilities.requiresAuth && !plugin.getAuthState?.().isAuthenticated) {
+      // Build save identifier to pass through auth flow
+      const saveIdentifier = {
+        ...currentFileId,
+        fileName: fileLoader.fileName,
+        filename: fileLoader.fileName
+      }
+      setPendingFileId(saveIdentifier)
+      setShowAuthPrompt(true)
       return
     }
 

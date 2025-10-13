@@ -110,15 +110,13 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                       >
                         <FiFolder /> Open File…
                       </Menu.Item>
-                      {gcsIsAuthenticated && (
-                        <Menu.Item
-                          value="gcs-save"
-                          onClick={() => onSave(gcsPlugin)}
-                          disabled={!hasData}
-                        >
-                          <FiSave /> Save
-                        </Menu.Item>
-                      )}
+                      <Menu.Item
+                        value="gcs-save"
+                        onClick={() => onSave(gcsPlugin)}
+                        disabled={!hasData}
+                      >
+                        <FiSave /> Save
+                      </Menu.Item>
                       {gcsIsAuthenticated && (
                         <Menu.Item
                           value="gcs-sign-out"

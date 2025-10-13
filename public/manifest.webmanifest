@@ -1,5 +1,5 @@
 {
-    "name": "LQA Boss Viewer",
+    "name": "LQA Boss",
     "short_name": "LQA Boss",
     "description": "View and edit LQA Boss (.lqaboss) files.",
     "start_url": "/",

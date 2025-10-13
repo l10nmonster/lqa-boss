@@ -67,4 +67,6 @@ export interface JobData {
   targetLang: string
   tus: TranslationUnit[]
   instructions?: string
+  status?: string
+  translationProvider?: string
 } 

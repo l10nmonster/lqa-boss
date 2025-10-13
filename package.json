@@ -1,6 +1,6 @@
 {
   "name": "lqa-boss-react",
-  "version": "1.1.3",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,11 +10,11 @@
     "@chakra-ui/react": "^3.0.0",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
-    "@lexical/react": "^0.34",
+    "@lexical/react": "^0.37",
     "@types/lodash": "^4.17.18",
     "framer-motion": "^12.0.0",
     "jszip": "^3.10.1",
-    "lexical": "^0.34",
+    "lexical": "^0.37",
     "lodash": "^4.17.21",
     "react": "^19",
     "react-dom": "^19",
@@ -33,7 +33,7 @@
     "semantic-release": "^24",
     "typescript": "^5.4.2",
     "vite": "^7",
-    "wait-on": "^8"
+    "wait-on": "^9"
   },
   "scripts": {
     "dev": "vite",

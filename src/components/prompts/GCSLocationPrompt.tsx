@@ -48,7 +48,9 @@ export const GCSLocationPrompt: React.FC<GCSLocationPromptProps> = ({
       return
     }
 
-    onSubmit(bucket.trim(), prefix.trim(), filename.trim() || undefined)
+    // Only submit filename for save operations (load operations should browse files)
+    const submittedFilename = operation === 'save' ? filename.trim() || undefined : undefined
+    onSubmit(bucket.trim(), prefix.trim(), submittedFilename)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

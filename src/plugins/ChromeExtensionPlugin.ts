@@ -1,5 +1,11 @@
 import { IPersistencePlugin, FileIdentifier, PluginMetadata, PluginCapabilities } from './types'
 import { JobData } from '../types'
+import JSZip from 'jszip'
+import { generateJobGuid } from '../utils/idGenerator'
+
+// Import version from package.json
+// @ts-ignore - vite handles this import
+import packageJson from '../../package.json'
 
 // Declare chrome types for TypeScript
 declare const chrome: {
@@ -91,11 +97,8 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
       throw new Error('Chrome extension API not available. Please use Chrome or Edge browser.')
     }
 
-    console.log(`[ChromeExtensionPlugin] Requesting flow from extension ID: ${EXTENSION_ID}`)
-
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        console.error('[ChromeExtensionPlugin] Timeout waiting for extension response')
         reject(new Error(`Timeout waiting for extension response (30s). Extension ID: ${EXTENSION_ID}. Check chrome://extensions for the correct ID.`))
       }, 30000)
 
@@ -103,41 +106,66 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
       chrome.runtime.sendMessage(
         EXTENSION_ID,
         { action: 'requestFlow' },
-        (response: any) => {
+        async (response: any) => {
           clearTimeout(timeout)
 
           // Check for Chrome runtime errors
           if (chrome.runtime.lastError) {
-            console.error('[ChromeExtensionPlugin] Extension communication error:', chrome.runtime.lastError.message)
-            console.error(`[ChromeExtensionPlugin] Current extension ID: ${EXTENSION_ID}`)
-            console.error('[ChromeExtensionPlugin] If ID is incorrect, update src/plugins/ChromeExtensionPlugin.ts line 14 and rebuild')
             reject(new Error(`Extension communication failed: ${chrome.runtime.lastError.message}. Current extension ID: ${EXTENSION_ID}. Check chrome://extensions for the correct ID.`))
             return
           }
 
           if (!response) {
-            console.error('[ChromeExtensionPlugin] No response from extension')
             reject(new Error('No response from extension. Is the LQA Boss Capture extension installed?'))
             return
           }
 
-          console.log('[ChromeExtensionPlugin] Received response:', { success: response.success, hasData: !!response.data, error: response.error })
-
           if (!response.success) {
-            console.error('[ChromeExtensionPlugin] Extension returned error:', response.error)
             reject(new Error(response.error || 'Failed to get flow from extension'))
             return
           }
 
           try {
-            // Convert array back to Uint8Array then to Blob
+            // Convert array back to Uint8Array
             const uint8Array = new Uint8Array(response.data.zipData)
-            const blob = new Blob([uint8Array], { type: 'application/zip' })
-            const file = new File([blob], response.data.fileName || 'extension.lqaboss')
-            console.log(`[ChromeExtensionPlugin] Successfully created file: ${file.name} (${file.size} bytes)`)
+
+            // Load the ZIP to modify job.json
+            const zip = await JSZip.loadAsync(uint8Array)
+
+            // Read and parse job.json
+            const jobFile = zip.file('job.json')
+            if (!jobFile) {
+              reject(new Error('Invalid .lqaboss file: "job.json" not found in extension data'))
+              return
+            }
+
+            const jobContent = await jobFile.async('string')
+            const originalJobData: JobData = JSON.parse(jobContent)
+
+            // Generate new jobGuid
+            const jobGuid = generateJobGuid()
+
+            // Create updated job data, preserving all existing fields
+            const jobData: JobData = {
+              ...originalJobData, // Preserve all existing fields (including instructions)
+              jobGuid,
+              status: 'created',
+              translationProvider: `lqaboss-v${packageJson.version}`,
+            }
+
+            // Update job.json in the ZIP
+            zip.file('job.json', JSON.stringify(jobData, null, 2))
+
+            // Generate updated ZIP
+            const updatedZipData = await zip.generateAsync({ type: 'arraybuffer' })
+            const blob = new Blob([updatedZipData], { type: 'application/zip' })
+
+            // Use jobGuid as filename
+            const fileName = `${jobGuid}.lqaboss`
+            const file = new File([blob], fileName)
+
             resolve(file)
           } catch (error: any) {
-            console.error('[ChromeExtensionPlugin] Failed to create file:', error)
             reject(new Error(`Failed to create file from extension data: ${error.message}`))
           }
         }
