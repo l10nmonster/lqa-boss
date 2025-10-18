@@ -1,6 +1,6 @@
 {
   "name": "lqaboss-chrome-extension",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Chrome extension for LQA Boss",
   "scripts": {
     "setup": "npm install && npm run copy-deps",

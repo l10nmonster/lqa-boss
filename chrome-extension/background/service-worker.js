@@ -94,14 +94,54 @@ async function captureFullPageScreenshot(tabId) {
     // Attach debugger
     await chrome.debugger.attach({ tabId }, '1.3');
 
-    // Capture full page screenshot without explicit clip
-    // Let captureBeyondViewport handle the full page
+    // Get page dimensions from JavaScript (in CSS pixels)
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        // Get the bounding box of all content to find actual content height
+        const bodyRect = document.body.getBoundingClientRect();
+        const htmlRect = document.documentElement.getBoundingClientRect();
+
+        // Get bottom-most element position
+        let maxBottom = Math.max(bodyRect.bottom, htmlRect.bottom);
+
+        // Check all positioned elements that might extend beyond
+        const allElements = document.querySelectorAll('*');
+        for (const el of allElements) {
+          const rect = el.getBoundingClientRect();
+          if (rect.bottom > maxBottom) {
+            maxBottom = rect.bottom;
+          }
+        }
+
+        return {
+          width: Math.max(
+            document.documentElement.scrollWidth,
+            document.body.scrollWidth
+          ),
+          height: Math.ceil(maxBottom + window.scrollY),
+          scrollHeight: document.documentElement.scrollHeight,
+          devicePixelRatio: window.devicePixelRatio
+        };
+      }
+    });
+
+    const { width, height, devicePixelRatio } = result.result;
+
+    // Capture with explicit dimensions in CSS pixels
     const { data } = await chrome.debugger.sendCommand(
       { tabId },
       'Page.captureScreenshot',
       {
         format: 'png',
-        captureBeyondViewport: true
+        captureBeyondViewport: true,
+        clip: {
+          x: 0,
+          y: 0,
+          width: width,
+          height: height,
+          scale: 1
+        }
       }
     );
 
