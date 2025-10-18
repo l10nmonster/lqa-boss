@@ -1,3 +1,10 @@
+## [1.1.5](https://github.com/l10nmonster/lqa-boss/compare/v1.1.4...v1.1.5) (2025-10-18)
+
+
+### Bug Fixes
+
+* Calculate correct capture coordinates ([101a18d](https://github.com/l10nmonster/lqa-boss/commit/101a18d4bfeb7d35cf0ccdbd0e457dc439a421ab))
+
 ## [1.1.4](https://github.com/l10nmonster/lqa-boss/compare/v1.1.3...v1.1.4) (2025-10-13)
 
 
