@@ -4,8 +4,10 @@ import {
   Text,
   Button,
   Portal,
+  Separator,
 } from '@chakra-ui/react'
 import { FiX } from 'react-icons/fi'
+import { EPTStatistics } from '../utils/metrics'
 
 interface InstructionsModalProps {
   isOpen: boolean
@@ -13,6 +15,13 @@ interface InstructionsModalProps {
   instructions?: string
   sourceLang?: string
   targetLang?: string
+  jobGuid?: string
+  updatedAt?: string
+  sourceInfo?: {
+    pluginName: string
+    location?: string
+  }
+  eptStats?: EPTStatistics | null
 }
 
 const InstructionsModal: React.FC<InstructionsModalProps> = ({
@@ -21,6 +30,10 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
   instructions,
   sourceLang,
   targetLang,
+  jobGuid,
+  updatedAt,
+  sourceInfo,
+  eptStats,
 }) => {
   if (!isOpen) return null
 
@@ -88,6 +101,72 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
         
         {/* Body */}
         <Box p={6} overflow="auto" maxH="60vh">
+          {/* Job GUID */}
+          {jobGuid && (
+            <Box mb={4}>
+              <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={1}>
+                Job GUID
+              </Text>
+              <Text fontSize="sm" color="gray.700" fontFamily="mono">
+                {jobGuid}
+              </Text>
+            </Box>
+          )}
+
+          {/* Source Information */}
+          {sourceInfo && (
+            <Box mb={4}>
+              <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={1}>
+                Loaded From
+              </Text>
+              <Text fontSize="sm" color="gray.700">
+                {sourceInfo.pluginName}
+                {sourceInfo.location && ` (${sourceInfo.location})`}
+              </Text>
+            </Box>
+          )}
+
+          {/* Updated At */}
+          {updatedAt && (
+            <Box mb={4}>
+              <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={1}>
+                Last Updated
+              </Text>
+              <Text fontSize="sm" color="gray.700">
+                {new Date(updatedAt).toLocaleString()}
+              </Text>
+            </Box>
+          )}
+
+          {/* EPT Statistics */}
+          {eptStats && (
+            <>
+              <Box mb={4}>
+                <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={2}>
+                  Quality Metrics
+                </Text>
+                <Box
+                  bg="gray.50"
+                  p={3}
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor="gray.200"
+                >
+                  <Text fontSize="sm" color="gray.700" mb={1}>
+                    Input: {eptStats.totalSegments} segments, {eptStats.totalWords} words
+                  </Text>
+                  <Text fontSize="sm" color="gray.700" mb={1}>
+                    Corrected: {eptStats.changedSegments} segments, {eptStats.changedWords} words
+                  </Text>
+                  <Separator my={2} />
+                  <Text fontSize="sm" fontWeight="bold" color="gray.800">
+                    EPT: {eptStats.ept.toFixed(1)}
+                  </Text>
+                </Box>
+              </Box>
+            </>
+          )}
+
           {/* Language Information */}
           {(sourceLang || targetLang) && (
             <Box mb={instructions ? 6 : 0}>
@@ -101,7 +180,7 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
               </Text>
             </Box>
           )}
-          
+
           {/* Instructions */}
           {instructions && (
             <>

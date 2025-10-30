@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, useMemo } from 'react'
 import { EditorLayout } from '../components/layout/EditorLayout'
 import { UnifiedHeader } from '../components/headers/UnifiedHeader'
 import { TranslationEditor, TranslationEditorRef } from '../components/TranslationEditor'
@@ -14,8 +14,13 @@ import { toaster } from '../components/ui/toaster'
 import { JobData } from '../types'
 import { GCSFile } from '../utils/gcsOperations'
 import { useNavigate } from 'react-router-dom'
+import { calculateEPT } from '../utils/metrics'
+
+// Track processed URLs during this session (not persisted)
+let processedUrl: string | null = null
 
 export const EditorPage: React.FC = () => {
+
   // Initialize with local plugin as default
   const [currentPlugin, setCurrentPlugin] = useState<IPersistencePlugin | null>(
     () => pluginRegistry.getPlugin('local') || null
@@ -38,14 +43,19 @@ export const EditorPage: React.FC = () => {
   // Get all available plugins
   const plugins = pluginRegistry.getAllPlugins()
 
+  // Calculate EPT (Errors Per Thousand)
+  const ept = useMemo(() => {
+    return calculateEPT(translationData.jobData, translationData.originalJobData)
+  }, [translationData.jobData, translationData.originalJobData])
+
   // URL parsing for deep links (only on initial mount)
   useEffect(() => {
     const currentUrl = window.location.pathname + window.location.search
-    const lastProcessedUrl = sessionStorage.getItem('last-processed-url')
 
-    // Skip if this URL was already processed
-    // This prevents duplicate loads from React StrictMode or navigation
-    if (lastProcessedUrl === currentUrl) return
+    // Skip if this URL was already processed in this session
+    // This prevents duplicate loads from React StrictMode
+    // Note: processedUrl resets on page refresh (it's a module variable, not persisted)
+    if (processedUrl === currentUrl) return
 
     // Check for path-based GCS URLs first (e.g., /gcs/bucket/prefix/file.lqaboss)
     const pathSegments = window.location.pathname.split('/').filter(s => s)
@@ -55,7 +65,7 @@ export const EditorPage: React.FC = () => {
         const fileId = gcsPlugin.parsePathUrl(pathSegments)
         if (fileId) {
           // Mark as processed immediately
-          sessionStorage.setItem('last-processed-url', currentUrl)
+          processedUrl = currentUrl
           setCurrentPlugin(gcsPlugin)
           handleAutoLoad(gcsPlugin, fileId)
           return
@@ -71,7 +81,7 @@ export const EditorPage: React.FC = () => {
       const plugin = pluginRegistry.getPlugin(pluginId)
       if (plugin) {
         // Mark as processed immediately to prevent duplicate loads
-        sessionStorage.setItem('last-processed-url', currentUrl)
+        processedUrl = currentUrl
         setCurrentPlugin(plugin)
 
         // Extension plugin: immediately load file
@@ -126,6 +136,13 @@ export const EditorPage: React.FC = () => {
    */
   const handleAutoLoad = async (plugin: IPersistencePlugin, fileId: FileIdentifier) => {
     try {
+      // Check if plugin needs setup (e.g., client ID for GCS)
+      if (plugin.needsSetup?.()) {
+        setPendingFileId(fileId)
+        setShowClientIdPrompt(true)
+        return
+      }
+
       // Check if auth is required
       if (plugin.capabilities.requiresAuth && !plugin.getAuthState?.().isAuthenticated) {
         // Not authenticated - save fileId and show auth prompt
@@ -779,6 +796,26 @@ export const EditorPage: React.FC = () => {
     translationEditorRef.current?.openInstructions()
   }
 
+  // Helper function to format source location
+  const getSourceLocation = (): string | undefined => {
+    if (!sourceFileId) return undefined
+
+    // For GCS plugin, show bucket/prefix
+    if (sourcePlugin?.metadata.id === 'gcs' && sourceFileId.bucket) {
+      return sourceFileId.prefix
+        ? `${sourceFileId.bucket}/${sourceFileId.prefix}`
+        : sourceFileId.bucket
+    }
+
+    // For local file plugin, show filename
+    if (sourcePlugin?.metadata.id === 'local' && sourceFileId.fileName) {
+      return sourceFileId.fileName
+    }
+
+    // For other plugins or no specific location info
+    return undefined
+  }
+
   // Show client ID prompt if needed
   if (showClientIdPrompt) {
     return (
@@ -791,8 +828,7 @@ export const EditorPage: React.FC = () => {
             hasData={!!translationData.jobData}
             fileStatus={translationData.fileStatus}
             onShowInstructions={handleShowInstructions}
-            hasInstructions={!!translationData.jobData?.instructions}
-            hasLanguageInfo={!!(translationData.jobData?.sourceLang || translationData.jobData?.targetLang)}
+            ept={ept}
           />
         }
       >
@@ -813,8 +849,7 @@ export const EditorPage: React.FC = () => {
             hasData={!!translationData.jobData}
             fileStatus={translationData.fileStatus}
             onShowInstructions={handleShowInstructions}
-            hasInstructions={!!translationData.jobData?.instructions}
-            hasLanguageInfo={!!(translationData.jobData?.sourceLang || translationData.jobData?.targetLang)}
+            ept={ept}
           />
         }
       >
@@ -858,8 +893,7 @@ export const EditorPage: React.FC = () => {
           hasData={!!translationData.jobData}
           fileStatus={translationData.fileStatus}
           onShowInstructions={handleShowInstructions}
-          hasInstructions={!!translationData.jobData?.instructions}
-          hasLanguageInfo={!!(translationData.jobData?.sourceLang || translationData.jobData?.targetLang)}
+          ept={ept}
         />
       }
     >
@@ -872,6 +906,8 @@ export const EditorPage: React.FC = () => {
         zipFile={fileLoader.zipFile}
         onTranslationUnitChange={translationData.updateTranslationUnit}
         onInstructionsOpen={() => {}}
+        sourcePluginName={sourcePlugin?.metadata.name}
+        sourceLocation={getSourceLocation()}
       />
     </EditorLayout>
     </>

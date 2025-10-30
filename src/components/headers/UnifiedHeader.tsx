@@ -12,8 +12,7 @@ interface UnifiedHeaderProps {
   hasData: boolean
   fileStatus: FileStatus
   onShowInstructions?: () => void
-  hasInstructions?: boolean
-  hasLanguageInfo?: boolean
+  ept?: number | null
 }
 
 export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
@@ -23,8 +22,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   hasData,
   fileStatus,
   onShowInstructions,
-  hasInstructions = false,
-  hasLanguageInfo = false,
+  ept,
 }) => {
   // Get plugins by ID for easy lookup
   const extensionPlugin = plugins.find(p => p.metadata.id === 'extension')
@@ -151,8 +149,20 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
       </HStack>
 
       <HStack gap={2}>
-        {/* Instructions Button */}
-        {(hasInstructions || hasLanguageInfo) && onShowInstructions && (
+        {/* EPT Label */}
+        {typeof ept === 'number' && (
+          <Text
+            fontSize="sm"
+            fontWeight="semibold"
+            color="gray.700"
+            px={2}
+            data-testid="ept-label"
+          >
+            EPT: {ept.toFixed(1)}
+          </Text>
+        )}
+        {/* Job Info Button */}
+        {hasData && onShowInstructions && (
           <Button
             variant="outline"
             colorScheme="blue"

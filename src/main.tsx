@@ -88,7 +88,8 @@ const PathRedirect: React.FC = () => {
         }
       })
 
-      navigate(`/?${queryParams.toString()}`, { replace: true })
+      const targetUrl = `/?${queryParams.toString()}`
+      navigate(targetUrl, { replace: true })
     } else {
       navigate(canonicalUrl, { replace: true })
     }

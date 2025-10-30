@@ -78,18 +78,18 @@ export function normalizedToDisplayString(items: NormalizedItem[]): string {
  */
 export function normalizedToDisplayStringForTarget(items: NormalizedItem[]): string {
   if (!items || !Array.isArray(items)) return ''
-  
+
   return items.map(item => {
     if (typeof item === 'string') {
       return item
     }
-    
+
     const placeholder = item as NormalizedPlaceholder
-    
+
     if (placeholder.t === 'x') {
       return `{${placeholder.s || placeholder.v}}`
     }
-    
+
     if (placeholder.t === 'bx' || placeholder.t === 'ex') {
       const match = placeholder.v.match(/<\/?([a-zA-Z]+)[^>]*>/)
       if (match) {
@@ -97,7 +97,25 @@ export function normalizedToDisplayStringForTarget(items: NormalizedItem[]): str
         return placeholder.t === 'bx' ? `<${tagName}>` : `</${tagName}>`
       }
     }
-    
+
     return placeholder.v // No brackets
   }).join('')
+}
+
+/**
+ * Counts words in a normalized array (only counts actual text, not placeholders)
+ */
+export function countWords(items: NormalizedItem[]): number {
+  if (!items || !Array.isArray(items)) return 0
+
+  // Extract only string items (actual text, not placeholders)
+  const text = items
+    .filter(item => typeof item === 'string')
+    .join(' ')
+    .trim()
+
+  if (!text) return 0
+
+  // Split by whitespace and count non-empty tokens
+  return text.split(/\s+/).filter(word => word.length > 0).length
 } 

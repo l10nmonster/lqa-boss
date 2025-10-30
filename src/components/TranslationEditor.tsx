@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef, useMemo } from 'react'
 import { Box, Heading, Text, Input, HStack, Kbd, InputGroup, Menu, IconButton } from '@chakra-ui/react'
 import { FiSearch, FiSliders } from 'react-icons/fi'
 import JSZip from 'jszip'
@@ -10,6 +10,7 @@ import ResizablePane from './ResizablePane'
 import InstructionsModal from './InstructionsModal'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
+import { calculateEPTStatistics } from '../utils/metrics'
 
 interface TranslationEditorProps {
   flowData: FlowData | null
@@ -19,6 +20,8 @@ interface TranslationEditorProps {
   zipFile: JSZip | null
   onTranslationUnitChange: (tu: TranslationUnit) => void
   onInstructionsOpen?: () => void
+  sourcePluginName?: string
+  sourceLocation?: string
 }
 
 export interface TranslationEditorRef {
@@ -33,6 +36,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   zipFile,
   onTranslationUnitChange,
   onInstructionsOpen,
+  sourcePluginName,
+  sourceLocation,
 }, ref) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
@@ -83,7 +88,12 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
       currentJobGuidRef.current = undefined
     }
   }, [jobData, sourceLang, targetLang, onInstructionsOpen])
-  
+
+  // Calculate EPT statistics
+  const eptStats = useMemo(() => {
+    return calculateEPTStatistics(jobData, originalJobData)
+  }, [jobData, originalJobData])
+
   const navigatePage = (direction: number) => {
     if (!flowData) return
     const newIndex = currentPageIndex + direction
@@ -454,13 +464,20 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
       )}
       
       {/* Instructions Modal */}
-      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions) && (
+      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourcePluginName || eptStats) && (
         <InstructionsModal
           isOpen={isInstructionsModalOpen}
           onClose={() => setIsInstructionsModalOpen(false)}
           instructions={jobData.instructions}
           sourceLang={jobData.sourceLang}
           targetLang={jobData.targetLang}
+          jobGuid={jobData.jobGuid}
+          updatedAt={jobData.updatedAt}
+          sourceInfo={sourcePluginName ? {
+            pluginName: sourcePluginName,
+            location: sourceLocation
+          } : undefined}
+          eptStats={eptStats}
         />
       )}
     </>
