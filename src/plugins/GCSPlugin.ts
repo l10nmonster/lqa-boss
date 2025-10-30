@@ -220,6 +220,7 @@ export class GCSPlugin implements IPersistencePlugin {
     const outputData = {
       ...data,
       tus: changedTus,
+      updatedAt: new Date().toISOString(),
     }
 
     // Ensure filename has .json extension (strip .lqaboss if present)
