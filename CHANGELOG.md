@@ -1,3 +1,20 @@
+# [2.0.0](https://github.com/l10nmonster/lqa-boss/compare/v1.1.5...v2.0.0) (2025-10-30)
+
+
+### Bug Fixes
+
+* updatedAt should be set when saving to gcs ([8a4e901](https://github.com/l10nmonster/lqa-boss/commit/8a4e901b3c7b9b8c80f49b7af6b0cf6ed355fdb0))
+
+
+### Features
+
+* show EPT score in header and info modal ([3de6bc0](https://github.com/l10nmonster/lqa-boss/commit/3de6bc03a890dfb2803cec53d9589eacb3ce03c0))
+
+
+### BREAKING CHANGES
+
+* major refactor with plugin system
+
 ## [1.1.5](https://github.com/l10nmonster/lqa-boss/compare/v1.1.4...v1.1.5) (2025-10-18)
 
 
