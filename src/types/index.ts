@@ -48,6 +48,11 @@ export interface NormalizedPlaceholder {
   s?: string           // optional sample value (for 'x' type)
 }
 
+export interface PlaceholderDescription {
+  sample?: string
+  desc?: string
+}
+
 export interface TranslationUnit {
   jobGuid: string
   guid: string       // matches 'g' property in flow_metadata segments
@@ -57,7 +62,10 @@ export interface TranslationUnit {
   ntgt: NormalizedItem[]  // normalized target
   q: number
   ts: number
-  notes?: { desc?: string } | string     // optional notes - can be object with desc or legacy string
+  notes?: {
+    ph?: { [key: string]: PlaceholderDescription }  // placeholder descriptions keyed by "{0}", "{1}", etc.
+    desc?: string
+  } | string     // optional notes - can be object with desc/ph or legacy string
 }
 
 export interface JobData {

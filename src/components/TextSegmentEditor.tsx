@@ -1,10 +1,98 @@
 import React, { useEffect, useRef, useMemo, useCallback } from 'react'
-import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal } from '@chakra-ui/react'
+import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal, Tooltip } from '@chakra-ui/react'
 import { FiEdit, FiHome, FiRotateCcw, FiCopy, FiTarget } from 'react-icons/fi'
-import { Page, JobData, TranslationUnit, NormalizedItem } from '../types'
+import { Page, JobData, TranslationUnit, NormalizedItem, NormalizedPlaceholder, PlaceholderDescription } from '../types'
 import NormalizedTextEditor, { NormalizedTextEditorRef } from './NormalizedTextEditor'
-import { normalizedToDisplayString, normalizedToDisplayStringForTarget, normalizedToString } from '../utils/normalizedText'
+import { normalizedToString } from '../utils/normalizedText'
 import { isEqual } from 'lodash'
+
+// Helper to extract placeholders with their indices
+function extractPlaceholders(items: NormalizedItem[]): Array<{ index: number, placeholder: NormalizedPlaceholder }> {
+  const placeholders: Array<{ index: number, placeholder: NormalizedPlaceholder }> = []
+  let index = 1
+
+  items.forEach(item => {
+    if (typeof item !== 'string') {
+      placeholders.push({ index, placeholder: item })
+      index++
+    }
+  })
+
+  return placeholders
+}
+
+// Component to display normalized text with indexed placeholders (read-only)
+function NormalizedTextDisplay({
+  items,
+  showSample = false,
+  placeholderDescriptions
+}: {
+  items: NormalizedItem[],
+  showSample?: boolean,
+  placeholderDescriptions?: { [key: string]: PlaceholderDescription }
+}) {
+  let placeholderIndex = 1
+
+  return (
+    <>
+      {items.map((item, idx) => {
+        if (typeof item === 'string') {
+          return <React.Fragment key={idx}>{item}</React.Fragment>
+        }
+
+        const placeholder = item as NormalizedPlaceholder
+        const currentIndex = placeholderIndex++
+
+        // Get placeholder description from notes.ph if available
+        const phKey = `{${currentIndex - 1}}`
+        const phDesc = placeholderDescriptions?.[phKey]
+
+        // Build tooltip content
+        let tooltipContent = `Code: ${placeholder.v}`
+        if (placeholder.s) {
+          tooltipContent += `\nSample: ${placeholder.s}`
+        }
+        if (phDesc?.desc) {
+          tooltipContent += `\n\n${phDesc.desc}`
+        }
+
+        // Determine what to display in the pill
+        const displayText = showSample ? (placeholder.s || placeholder.v) : currentIndex
+
+        return (
+          <Tooltip.Root key={idx} openDelay={0} closeDelay={0}>
+            <Tooltip.Trigger asChild>
+              <span
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: showSample ? 'rgba(255, 255, 255, 0.95)' : 'rgba(59, 130, 246, 0.15)',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  border: showSample ? '1px solid rgba(148, 163, 184, 0.6)' : '1px solid rgba(59, 130, 246, 0.4)',
+                  fontFamily: 'monospace',
+                  fontSize: '0.85em',
+                  fontWeight: '600',
+                  userSelect: 'none',
+                  color: showSample ? 'rgba(51, 65, 85, 1)' : 'rgba(37, 99, 235, 1)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {displayText}
+              </span>
+            </Tooltip.Trigger>
+            <Portal>
+              <Tooltip.Positioner>
+                <Tooltip.Content>
+                  <Text fontSize="xs" whiteSpace="pre-line">{tooltipContent}</Text>
+                </Tooltip.Content>
+              </Tooltip.Positioner>
+            </Portal>
+          </Tooltip.Root>
+        )
+      })}
+    </>
+  )
+}
 
 interface TextSegmentEditorProps {
   page: Page | null
@@ -208,9 +296,15 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         
         // Handle notes - check if it's an object with desc property
         let notesDesc: string | null = null
+        let placeholderDescriptions: { [key: string]: PlaceholderDescription } | undefined = undefined
         if (tu.notes) {
-          if (typeof tu.notes === 'object' && 'desc' in tu.notes && tu.notes.desc) {
-            notesDesc = tu.notes.desc
+          if (typeof tu.notes === 'object') {
+            if ('desc' in tu.notes && tu.notes.desc) {
+              notesDesc = tu.notes.desc
+            }
+            if ('ph' in tu.notes && tu.notes.ph) {
+              placeholderDescriptions = tu.notes.ph
+            }
           } else if (typeof tu.notes === 'string') {
             // Legacy string notes - don't show in the info line anymore
             notesDesc = tu.notes
@@ -218,7 +312,10 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         }
 
         const segmentState = getSegmentState(tu.guid)
-        
+
+        // Extract placeholders from source for mapping display
+        const placeholders = tu.nsrc ? extractPlaceholders(tu.nsrc) : []
+
         return (
           <Box
             key={index}
@@ -258,7 +355,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                   <HStack>
                     <Box p={2} bg="gray.100" borderRadius="md" maxW="100%">
                       <Text fontSize="sm" color="gray.700" fontWeight="normal">
-                        {tu.nsrc ? normalizedToDisplayString(tu.nsrc) : '(no source text)'}
+                        {tu.nsrc ? <NormalizedTextDisplay items={tu.nsrc} placeholderDescriptions={placeholderDescriptions} /> : '(no source text)'}
                       </Text>
                     </Box>
                   </HStack>
@@ -319,7 +416,67 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                   normalizedContent={tu.ntgt || []}
                   onChange={(newNtgt) => handleNormalizedChange(tu.guid, newNtgt)}
                   isActive={isActive}
+                  placeholderDescriptions={placeholderDescriptions}
                 />
+                {/* Placeholder Mapping */}
+                {placeholders.length > 0 && (
+                  <Box
+                    p={3}
+                    bg="rgba(255, 193, 7, 0.1)"
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor="rgba(255, 193, 7, 0.3)"
+                  >
+                    <Text fontSize="xs" color="gray.800" fontWeight="semibold" mb={2}>
+                      Placeholders:
+                    </Text>
+                    <Box
+                      display="grid"
+                      gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))"
+                      gap={2}
+                    >
+                      {placeholders.map(({ index, placeholder }) => {
+                        const phKey = `{${index - 1}}`
+                        const phDesc = placeholderDescriptions?.[phKey]
+                        return (
+                          <Text key={index} fontSize="xs" color="gray.700">
+                            <span style={{
+                              display: 'inline-block',
+                              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                              padding: '1px 6px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(59, 130, 246, 0.4)',
+                              fontSize: '0.85em',
+                              fontWeight: '600',
+                              color: 'rgba(37, 99, 235, 1)',
+                              marginRight: '6px'
+                            }}>
+                              {index}
+                            </span>
+                            <span style={{
+                              fontFamily: 'monospace',
+                              fontWeight: '600',
+                              color: 'rgba(71, 85, 105, 1)'
+                            }}>
+                              {placeholder.v}
+                            </span>
+                            {phDesc?.desc && (
+                              <span style={{ fontWeight: 'normal' }}>
+                                {' - '}{phDesc.desc}
+                              </span>
+                            )}
+                            {placeholder.s && (
+                              <span style={{ fontWeight: 'normal' }}>
+                                {' (e.g. '}{placeholder.s}{')'}
+                              </span>
+                            )}
+                          </Text>
+                        )
+                      })}
+                    </Box>
+                  </Box>
+                )}
+                {/* Notes */}
                 {notesDesc && (
                   <Box
                     p={3}
@@ -344,7 +501,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
               </VStack>
             ) : (
               <Text color="gray.200" fontSize="sm" lineHeight="1.4" fontWeight="normal">
-                {tu.ntgt ? normalizedToDisplayStringForTarget(tu.ntgt) : '(no target text)'}
+                {tu.ntgt ? <NormalizedTextDisplay items={tu.ntgt} showSample={true} placeholderDescriptions={placeholderDescriptions} /> : '(no target text)'}
               </Text>
             )}
           </Box>
