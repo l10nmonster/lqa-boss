@@ -14,7 +14,7 @@ import { toaster } from '../components/ui/toaster'
 import { JobData } from '../types'
 import { GCSFile } from '../utils/gcsOperations'
 import { useNavigate } from 'react-router-dom'
-import { calculateEPT } from '../utils/metrics'
+import { calculateTER } from '../utils/metrics'
 
 // Track processed URLs during this session (not persisted)
 let processedUrl: string | null = null
@@ -43,9 +43,9 @@ export const EditorPage: React.FC = () => {
   // Get all available plugins
   const plugins = pluginRegistry.getAllPlugins()
 
-  // Calculate EPT (Errors Per Thousand)
-  const ept = useMemo(() => {
-    return calculateEPT(translationData.jobData, translationData.originalJobData)
+  // Calculate TER (Translation Error Rate)
+  const ter = useMemo(() => {
+    return calculateTER(translationData.jobData, translationData.originalJobData)
   }, [translationData.jobData, translationData.originalJobData])
 
   // URL parsing for deep links (only on initial mount)
@@ -828,7 +828,7 @@ export const EditorPage: React.FC = () => {
             hasData={!!translationData.jobData}
             fileStatus={translationData.fileStatus}
             onShowInstructions={handleShowInstructions}
-            ept={ept}
+            ter={ter}
           />
         }
       >
@@ -849,7 +849,7 @@ export const EditorPage: React.FC = () => {
             hasData={!!translationData.jobData}
             fileStatus={translationData.fileStatus}
             onShowInstructions={handleShowInstructions}
-            ept={ept}
+            ter={ter}
           />
         }
       >
@@ -893,7 +893,7 @@ export const EditorPage: React.FC = () => {
           hasData={!!translationData.jobData}
           fileStatus={translationData.fileStatus}
           onShowInstructions={handleShowInstructions}
-          ept={ept}
+          ter={ter}
         />
       }
     >

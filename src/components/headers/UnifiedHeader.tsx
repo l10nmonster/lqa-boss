@@ -12,7 +12,7 @@ interface UnifiedHeaderProps {
   hasData: boolean
   fileStatus: FileStatus
   onShowInstructions?: () => void
-  ept?: number | null
+  ter?: number | null
 }
 
 export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
@@ -22,7 +22,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   hasData,
   fileStatus,
   onShowInstructions,
-  ept,
+  ter,
 }) => {
   // Get plugins by ID for easy lookup
   const extensionPlugin = plugins.find(p => p.metadata.id === 'extension')
@@ -149,16 +149,16 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
       </HStack>
 
       <HStack gap={2}>
-        {/* EPT Label */}
-        {typeof ept === 'number' && (
+        {/* TER Label */}
+        {typeof ter === 'number' && (
           <Text
             fontSize="sm"
             fontWeight="semibold"
             color="gray.700"
             px={2}
-            data-testid="ept-label"
+            data-testid="ter-label"
           >
-            EPT: {ept.toFixed(1)}
+            TER: {(ter * 100).toFixed(0)}%
           </Text>
         )}
         {/* Job Info Button */}

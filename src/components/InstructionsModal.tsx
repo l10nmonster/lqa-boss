@@ -5,9 +5,56 @@ import {
   Button,
   Portal,
   Separator,
+  Link,
 } from '@chakra-ui/react'
 import { FiX } from 'react-icons/fi'
-import { EPTStatistics } from '../utils/metrics'
+import { TERStatistics } from '../utils/metrics'
+
+/**
+ * Parses text and converts URLs to clickable links while preserving formatting
+ */
+function parseTextWithLinks(text: string): React.ReactNode {
+  // Regular expression to match URLs
+  const urlPattern = /(https?:\/\/[^\s]+)/g
+
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  let keyCounter = 0
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      const textBefore = text.substring(lastIndex, match.index)
+      parts.push(<React.Fragment key={`text-${keyCounter++}`}>{textBefore}</React.Fragment>)
+    }
+
+    // Add the URL as a clickable link
+    const url = match[0]
+    parts.push(
+      <Link
+        key={`link-${keyCounter++}`}
+        href={url}
+        color="blue.600"
+        textDecoration="underline"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {url}
+      </Link>
+    )
+
+    lastIndex = match.index + url.length
+  }
+
+  // Add any remaining text after the last URL
+  if (lastIndex < text.length) {
+    const textAfter = text.substring(lastIndex)
+    parts.push(<React.Fragment key={`text-${keyCounter++}`}>{textAfter}</React.Fragment>)
+  }
+
+  return parts.length > 0 ? parts : text
+}
 
 interface InstructionsModalProps {
   isOpen: boolean
@@ -21,7 +68,7 @@ interface InstructionsModalProps {
     pluginName: string
     location?: string
   }
-  eptStats?: EPTStatistics | null
+  terStats?: TERStatistics | null
 }
 
 const InstructionsModal: React.FC<InstructionsModalProps> = ({
@@ -33,7 +80,7 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
   jobGuid,
   updatedAt,
   sourceInfo,
-  eptStats,
+  terStats,
 }) => {
   if (!isOpen) return null
 
@@ -101,6 +148,43 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
         
         {/* Body */}
         <Box p={6} overflow="auto" maxH="60vh">
+          {/* Language Information */}
+          {(sourceLang || targetLang) && (
+            <Box mb={4}>
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color="gray.700"
+                mb={3}
+              >
+                🌐 {sourceLang || 'Not specified'} → {targetLang || 'Not specified'}
+              </Text>
+            </Box>
+          )}
+
+          {/* Instructions */}
+          {instructions && (
+            <Box mb={4}>
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color="gray.700"
+                mb={3}
+              >
+                📝 Instructions
+              </Text>
+              <Text
+                color="gray.700"
+                lineHeight="tall"
+                whiteSpace="pre-wrap"
+                fontSize="md"
+                mb={4}
+              >
+                {parseTextWithLinks(instructions)}
+              </Text>
+            </Box>
+          )}
+
           {/* Job GUID */}
           {jobGuid && (
             <Box mb={4}>
@@ -138,69 +222,34 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
             </Box>
           )}
 
-          {/* EPT Statistics */}
-          {eptStats && (
-            <>
-              <Box mb={4}>
-                <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={2}>
-                  Quality Metrics
+          {/* TER Statistics */}
+          {terStats && (
+            <Box mb={4}>
+              <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={2}>
+                Quality Metrics
+              </Text>
+              <Box
+                bg="gray.50"
+                p={3}
+                borderRadius="md"
+                border="1px solid"
+                borderColor="gray.200"
+              >
+                <Text fontSize="sm" color="gray.700" mb={1}>
+                  Input: {terStats.totalSegments} segments, {terStats.totalWords} words
                 </Text>
-                <Box
-                  bg="gray.50"
-                  p={3}
-                  borderRadius="md"
-                  border="1px solid"
-                  borderColor="gray.200"
-                >
-                  <Text fontSize="sm" color="gray.700" mb={1}>
-                    Input: {eptStats.totalSegments} segments, {eptStats.totalWords} words
-                  </Text>
-                  <Text fontSize="sm" color="gray.700" mb={1}>
-                    Corrected: {eptStats.changedSegments} segments, {eptStats.changedWords} words
-                  </Text>
-                  <Separator my={2} />
-                  <Text fontSize="sm" fontWeight="bold" color="gray.800">
-                    EPT: {eptStats.ept.toFixed(1)}
-                  </Text>
-                </Box>
+                <Text fontSize="sm" color="gray.700" mb={1}>
+                  Corrected: {terStats.changedSegments} segments
+                </Text>
+                <Text fontSize="sm" color="gray.700" mb={1}>
+                  Edit distance: {terStats.editDistance}
+                </Text>
+                <Separator my={2} />
+                <Text fontSize="sm" fontWeight="bold" color="gray.800">
+                  TER: {(terStats.ter * 100).toFixed(0)}%
+                </Text>
               </Box>
-            </>
-          )}
-
-          {/* Language Information */}
-          {(sourceLang || targetLang) && (
-            <Box mb={instructions ? 6 : 0}>
-              <Text
-                fontSize="lg"
-                fontWeight="semibold"
-                color="gray.700"
-                mb={3}
-              >
-                🌐 Language Pair: {sourceLang || 'Not specified'} → {targetLang || 'Not specified'}
-              </Text>
             </Box>
-          )}
-
-          {/* Instructions */}
-          {instructions && (
-            <>
-              <Text
-                fontSize="lg"
-                fontWeight="semibold"
-                color="gray.700"
-                mb={3}
-              >
-                📝 Instructions
-              </Text>
-              <Text
-                color="gray.700"
-                lineHeight="tall"
-                whiteSpace="pre-wrap"
-                fontSize="md"
-              >
-                {instructions}
-              </Text>
-            </>
           )}
         </Box>
       </Box>

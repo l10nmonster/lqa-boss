@@ -10,7 +10,7 @@ import ResizablePane from './ResizablePane'
 import InstructionsModal from './InstructionsModal'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
-import { calculateEPTStatistics } from '../utils/metrics'
+import { calculateTERStatistics } from '../utils/metrics'
 
 interface TranslationEditorProps {
   flowData: FlowData | null
@@ -89,9 +89,9 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     }
   }, [jobData, sourceLang, targetLang, onInstructionsOpen])
 
-  // Calculate EPT statistics
-  const eptStats = useMemo(() => {
-    return calculateEPTStatistics(jobData, originalJobData)
+  // Calculate TER statistics
+  const terStats = useMemo(() => {
+    return calculateTERStatistics(jobData, originalJobData)
   }, [jobData, originalJobData])
 
   const navigatePage = (direction: number) => {
@@ -464,7 +464,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
       )}
       
       {/* Instructions Modal */}
-      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourcePluginName || eptStats) && (
+      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourcePluginName || terStats) && (
         <InstructionsModal
           isOpen={isInstructionsModalOpen}
           onClose={() => setIsInstructionsModalOpen(false)}
@@ -477,7 +477,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
             pluginName: sourcePluginName,
             location: sourceLocation
           } : undefined}
-          eptStats={eptStats}
+          terStats={terStats}
         />
       )}
     </>
