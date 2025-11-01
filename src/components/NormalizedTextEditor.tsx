@@ -61,6 +61,7 @@ class PlaceholderNode extends DecoratorNode<React.ReactNode> {
     const span = document.createElement('span')
     span.setAttribute('data-lexical-decorator', 'true')
     span.setAttribute('data-placeholder-index', this.__index.toString())
+    span.setAttribute('data-placeholder-v', v)
     span.setAttribute('data-tooltip', tooltipContent)
     span.className = 'placeholder-with-tooltip'
     span.style.display = 'inline-block'
@@ -970,13 +971,12 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
         const tooltipText = target.getAttribute('data-tooltip')
         if (!tooltipText) return
 
-        // Get placeholder index and check for description
-        const placeholderIndex = target.getAttribute('data-placeholder-index')
+        // Get placeholder v value and check for description
+        const placeholderV = target.getAttribute('data-placeholder-v')
         let fullTooltip = tooltipText
 
-        if (placeholderIndex && globalPlaceholderDescriptions) {
-          const phKey = `{${parseInt(placeholderIndex) - 1}}`
-          const phDesc = globalPlaceholderDescriptions[phKey]
+        if (placeholderV && globalPlaceholderDescriptions) {
+          const phDesc = globalPlaceholderDescriptions[placeholderV]
           if (phDesc?.desc) {
             fullTooltip += `\n\n${phDesc.desc}`
           }

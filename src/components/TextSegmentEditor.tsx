@@ -44,7 +44,8 @@ function NormalizedTextDisplay({
         const currentIndex = placeholderIndex++
 
         // Get placeholder description from notes.ph if available
-        const phKey = `{${currentIndex - 1}}`
+        // Match using the placeholder's v value, not the visual index
+        const phKey = placeholder.v
         const phDesc = placeholderDescriptions?.[phKey]
 
         // Build tooltip content
@@ -299,7 +300,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         let placeholderDescriptions: { [key: string]: PlaceholderDescription } | undefined = undefined
         if (tu.notes) {
           if (typeof tu.notes === 'object') {
-            if ('desc' in tu.notes && tu.notes.desc) {
+            if ('desc' in tu.notes && tu.notes.desc && tu.notes.desc.trim()) {
               notesDesc = tu.notes.desc
             }
             if ('ph' in tu.notes && tu.notes.ph) {
@@ -436,7 +437,8 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       gap={2}
                     >
                       {placeholders.map(({ index, placeholder }) => {
-                        const phKey = `{${index - 1}}`
+                        // Match using the placeholder's v value, not the visual index
+                        const phKey = placeholder.v
                         const phDesc = placeholderDescriptions?.[phKey]
                         return (
                           <Text key={index} fontSize="xs" color="gray.700">
