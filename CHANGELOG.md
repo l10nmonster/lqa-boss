@@ -1,3 +1,12 @@
+## [2.0.1](https://github.com/l10nmonster/lqa-boss/compare/v2.0.0...v2.0.1) (2025-11-01)
+
+
+### Bug Fixes
+
+* Improve editor usability with placeholders ([cdd2e81](https://github.com/l10nmonster/lqa-boss/commit/cdd2e81097f2c694ca4893dc2ba6f5f2cfb422aa))
+* Move from EPT to TER ([9ac1ec5](https://github.com/l10nmonster/lqa-boss/commit/9ac1ec5a4bc0e6383a873edd8978b53573ac8b3b))
+* use right placeholder description in legend ([714fe34](https://github.com/l10nmonster/lqa-boss/commit/714fe348aaea2365e4897670971b5b7638a88c7e))
+
 # [2.0.0](https://github.com/l10nmonster/lqa-boss/compare/v1.1.5...v2.0.0) (2025-10-30)
 
 
