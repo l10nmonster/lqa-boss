@@ -5,6 +5,10 @@ import { saveChangedTus } from '../utils/saveHandler'
 /**
  * Local file plugin for uploading and downloading .lqaboss files
  * This is the default plugin that works without any authentication
+ *
+ * Supports loading companion .json files with saved changes:
+ * - Select both .lqaboss and .json files with matching names
+ * - The .json file will be loaded as auto-save data
  */
 export class LocalFilePlugin implements IPersistencePlugin {
   readonly metadata: PluginMetadata = {
@@ -22,10 +26,14 @@ export class LocalFilePlugin implements IPersistencePlugin {
     requiresAuth: false
   }
 
+  // Store companion .json file for auto-save data
+  private companionJsonFile: File | null = null
+
   /**
    * Load a file from local device
    * If identifier.file is provided, use it directly
    * Otherwise, trigger file picker dialog
+   * Supports selecting both .lqaboss and .json files
    */
   async loadFile(identifier: FileIdentifier): Promise<File> {
     // If we have a File object already (e.g., from PWA launch), use it
@@ -33,21 +41,95 @@ export class LocalFilePlugin implements IPersistencePlugin {
       return identifier.file
     }
 
-    // Otherwise, trigger file picker
+    // Otherwise, trigger file picker (allow multiple files)
     return new Promise((resolve, reject) => {
       const input = document.createElement('input')
       input.type = 'file'
-      input.accept = '.lqaboss'
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0]
-        if (file) {
-          resolve(file)
-        } else {
+      input.accept = '.lqaboss,.json'
+      input.multiple = true // Allow selecting both files
+      input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files
+        if (!files || files.length === 0) {
           reject(new Error('No file selected'))
+          return
         }
+
+        // Find .lqaboss and .json files
+        let lqabossFile: File | null = null
+        let jsonFile: File | null = null
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          if (file.name.endsWith('.lqaboss')) {
+            lqabossFile = file
+          } else if (file.name.endsWith('.json')) {
+            jsonFile = file
+          }
+        }
+
+        if (!lqabossFile) {
+          reject(new Error('No .lqaboss file selected'))
+          return
+        }
+
+        // Store companion .json file if jobGuids match
+        if (jsonFile) {
+          try {
+            // Extract jobGuid from .lqaboss file
+            const JSZip = (await import('jszip')).default
+            const lqabossBuffer = await lqabossFile.arrayBuffer()
+            const zip = await JSZip.loadAsync(lqabossBuffer)
+            const jobFile = zip.file('job.json')
+
+            if (jobFile) {
+              const jobContent = await jobFile.async('string')
+              const jobData = JSON.parse(jobContent)
+              const lqabossGuid = jobData.jobGuid
+
+              // Extract jobGuid from .json file
+              const jsonContent = await jsonFile.text()
+              const jsonData = JSON.parse(jsonContent)
+              const jsonGuid = jsonData.jobGuid
+
+              if (lqabossGuid && jsonGuid && lqabossGuid === jsonGuid) {
+                this.companionJsonFile = jsonFile
+                console.log(`Loaded companion .json file: ${jsonFile.name} (jobGuid: ${jsonGuid})`)
+              } else {
+                console.warn(`JSON file jobGuid "${jsonGuid}" doesn't match .lqaboss jobGuid "${lqabossGuid}"`)
+              }
+            }
+          } catch (error) {
+            console.error('Error validating companion .json file:', error)
+          }
+        }
+
+        resolve(lqabossFile)
       }
       input.click()
     })
+  }
+
+  /**
+   * Load auto-save data from companion .json file
+   */
+  async loadAutoSaveData(_identifier: FileIdentifier, _filename: string): Promise<JobData | null> {
+    if (!this.companionJsonFile) {
+      return null
+    }
+
+    try {
+      const content = await this.companionJsonFile.text()
+      const data = JSON.parse(content) as JobData
+
+      // Clear the companion file after loading
+      this.companionJsonFile = null
+
+      return data
+    } catch (error) {
+      console.error('Error loading companion .json file:', error)
+      this.companionJsonFile = null
+      return null
+    }
   }
 
   /**
