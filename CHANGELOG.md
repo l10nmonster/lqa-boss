@@ -1,3 +1,15 @@
+# [2.1.0](https://github.com/l10nmonster/lqa-boss/compare/v2.0.1...v2.1.0) (2025-11-04)
+
+
+### Bug Fixes
+
+* Allow to upload completed job from local file system ([7ef37f4](https://github.com/l10nmonster/lqa-boss/commit/7ef37f4503d4e21ffcfb0f3b562e83c683395316))
+
+
+### Features
+
+* Initial implementation of quality models ([2a978da](https://github.com/l10nmonster/lqa-boss/commit/2a978da29fb878bbeb132839da9d147de4f2b7a3))
+
 ## [2.0.1](https://github.com/l10nmonster/lqa-boss/compare/v2.0.0...v2.0.1) (2025-11-01)
 
 
