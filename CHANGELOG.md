@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/l10nmonster/lqa-boss/compare/v2.1.0...v2.1.1) (2025-11-04)
+
+
+### Bug Fixes
+
+* RTL directionality in editor TOC ([ae3374e](https://github.com/l10nmonster/lqa-boss/commit/ae3374ef108bbd034c8b838fe6bf755db9e51e25))
+
 # [2.1.0](https://github.com/l10nmonster/lqa-boss/compare/v2.0.1...v2.1.0) (2025-11-04)
 
 
