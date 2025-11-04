@@ -4,11 +4,9 @@ import {
   Text,
   Button,
   Portal,
-  Separator,
   Link,
 } from '@chakra-ui/react'
 import { FiX } from 'react-icons/fi'
-import { TERStatistics } from '../utils/metrics'
 
 /**
  * Parses text and converts URLs to clickable links while preserving formatting
@@ -68,7 +66,8 @@ interface InstructionsModalProps {
     pluginName: string
     location?: string
   }
-  terStats?: TERStatistics | null
+  ter?: number | null
+  ept?: number | null
 }
 
 const InstructionsModal: React.FC<InstructionsModalProps> = ({
@@ -80,7 +79,8 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
   jobGuid,
   updatedAt,
   sourceInfo,
-  terStats,
+  ter,
+  ept,
 }) => {
   if (!isOpen) return null
 
@@ -222,8 +222,8 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
             </Box>
           )}
 
-          {/* TER Statistics */}
-          {terStats && (
+          {/* Quality Metrics */}
+          {(ter !== null && ter !== undefined) || (ept !== null && ept !== undefined) ? (
             <Box mb={4}>
               <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={2}>
                 Quality Metrics
@@ -235,22 +235,19 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
                 border="1px solid"
                 borderColor="gray.200"
               >
-                <Text fontSize="sm" color="gray.700" mb={1}>
-                  Input: {terStats.totalSegments} segments, {terStats.totalWords} words
-                </Text>
-                <Text fontSize="sm" color="gray.700" mb={1}>
-                  Corrected: {terStats.changedSegments} segments
-                </Text>
-                <Text fontSize="sm" color="gray.700" mb={1}>
-                  Edit distance: {terStats.editDistance}
-                </Text>
-                <Separator my={2} />
-                <Text fontSize="sm" fontWeight="bold" color="gray.800">
-                  TER: {(terStats.ter * 100).toFixed(0)}%
-                </Text>
+                {ter !== null && ter !== undefined && (
+                  <Text fontSize="sm" color="gray.700" mb={1}>
+                    TER: {(ter * 100).toFixed(0)}%
+                  </Text>
+                )}
+                {ept !== null && ept !== undefined && (
+                  <Text fontSize="sm" color="gray.700">
+                    EPT: {ept.toFixed(1)}
+                  </Text>
+                )}
               </Box>
             </Box>
-          )}
+          ) : null}
         </Box>
       </Box>
     </Portal>

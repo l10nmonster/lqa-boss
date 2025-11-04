@@ -866,6 +866,7 @@ interface NormalizedTextEditorProps {
   onFocus?: () => void
   isActive?: boolean
   placeholderDescriptions?: { [key: string]: { sample?: string, desc?: string } }
+  segmentState?: 'original' | 'saved' | 'modified'
 }
 
 export interface NormalizedTextEditorRef {
@@ -925,7 +926,8 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
   onChange,
   onFocus,
   isActive,
-  placeholderDescriptions
+  placeholderDescriptions,
+  segmentState = 'original'
 }, ref) => {
   const lastEmittedContentRef = useRef<NormalizedItem[]>([])
   const editorRef = useRef<NormalizedTextEditorRef>(null)
@@ -1125,6 +1127,14 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
     })
   }, [onChange])
 
+  // Get background color based on segment state
+  const getEditorBg = () => {
+    if (!isActive) return 'transparent'
+    // Show orange for all corrected segments (saved or modified)
+    if (segmentState !== 'original') return 'rgba(251, 146, 60, 0.15)' // light orange for corrected
+    return 'rgba(147, 197, 253, 0.15)' // light blue for unchanged
+  }
+
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <Box
@@ -1132,7 +1142,7 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
         onClick={onFocus}
         borderRadius="md"
         p={2}
-        bg={isActive ? 'rgba(59, 130, 246, 0.08)' : 'transparent'}
+        bg={getEditorBg()}
         backdropFilter={isActive ? 'blur(5px)' : 'none'}
         _hover={{
           bg: 'rgba(255, 255, 255, 0.2)',

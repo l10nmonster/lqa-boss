@@ -3,6 +3,7 @@ import { Box, Heading, Text, Input, HStack, Kbd, InputGroup, Menu, IconButton } 
 import { FiSearch, FiSliders } from 'react-icons/fi'
 import JSZip from 'jszip'
 import { FlowData, JobData, TranslationUnit } from '../types'
+import { QualityModel } from '../types/qualityModel'
 import ScreenshotViewer from './ScreenshotViewer'
 import TextSegmentEditor from './TextSegmentEditor'
 import GlassBox from './GlassBox'
@@ -10,7 +11,7 @@ import ResizablePane from './ResizablePane'
 import InstructionsModal from './InstructionsModal'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
-import { calculateTERStatistics } from '../utils/metrics'
+import { calculateTER } from '../utils/metrics'
 
 interface TranslationEditorProps {
   flowData: FlowData | null
@@ -19,9 +20,12 @@ interface TranslationEditorProps {
   savedJobData: JobData | null
   zipFile: JSZip | null
   onTranslationUnitChange: (tu: TranslationUnit) => void
+  onCandidateSelect: (guid: string, candidateIndex: number) => void
   onInstructionsOpen?: () => void
   sourcePluginName?: string
   sourceLocation?: string
+  qualityModel: QualityModel | null
+  ept: number | null
 }
 
 export interface TranslationEditorRef {
@@ -35,9 +39,12 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   savedJobData,
   zipFile,
   onTranslationUnitChange,
+  onCandidateSelect,
   onInstructionsOpen,
   sourcePluginName,
   sourceLocation,
+  qualityModel,
+  ept,
 }, ref) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
@@ -89,9 +96,9 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     }
   }, [jobData, sourceLang, targetLang, onInstructionsOpen])
 
-  // Calculate TER statistics
-  const terStats = useMemo(() => {
-    return calculateTERStatistics(jobData, originalJobData)
+  // Calculate TER (Translation Error Rate)
+  const ter = useMemo(() => {
+    return calculateTER(jobData, originalJobData)
   }, [jobData, originalJobData])
 
   const navigatePage = (direction: number) => {
@@ -348,8 +355,10 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               originalJobData={originalJobData}
               savedJobData={savedJobData}
               onTranslationUnitChange={onTranslationUnitChange}
+              onCandidateSelect={onCandidateSelect}
               activeSegmentIndex={activeSegmentIndex}
               onSegmentFocus={handleSetActiveSegmentIndex}
+              qualityModel={qualityModel}
             />
           </GlassBox>
         </ResizablePane>
@@ -456,15 +465,17 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               originalJobData={originalJobData}
               savedJobData={savedJobData}
               onTranslationUnitChange={onTranslationUnitChange}
+              onCandidateSelect={onCandidateSelect}
               activeSegmentIndex={activeSegmentIndex}
               onSegmentFocus={handleSetActiveSegmentIndex}
+              qualityModel={qualityModel}
             />
           </Box>
         </GlassBox>
       )}
       
       {/* Instructions Modal */}
-      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourcePluginName || terStats) && (
+      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourcePluginName || ter !== null || ept !== null) && (
         <InstructionsModal
           isOpen={isInstructionsModalOpen}
           onClose={() => setIsInstructionsModalOpen(false)}
@@ -477,7 +488,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
             pluginName: sourcePluginName,
             location: sourceLocation
           } : undefined}
-          terStats={terStats}
+          ter={ter}
+          ept={ept}
         />
       )}
     </>

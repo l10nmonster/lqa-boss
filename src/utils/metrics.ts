@@ -77,13 +77,30 @@ export function calculateTERStatistics(
   let totalWords = 0
   let changedSegments = 0
   let totalEditDistance = 0
+  const changedGuids: string[] = []
 
   // Iterate through current TUs
   for (const currentTu of currentJobData.tus) {
     totalSegments++
 
+    // Skip TUs with unresolved candidates (no original to compare to)
+    if (currentTu.candidates && currentTu.candidates.length > 0) {
+      continue
+    }
+
+    // Skip TUs where a candidate was selected (not manually edited)
+    // Candidate selection is not an "error" and shouldn't count against TER
+    if (currentTu.candidateSelected) {
+      continue
+    }
+
     const originalTu = originalTusMap.get(currentTu.guid)
     if (!originalTu) continue
+
+    // Also skip if original has candidates
+    if (originalTu.candidates && originalTu.candidates.length > 0) {
+      continue
+    }
 
     // Get words from reference (original) and hypothesis (current)
     const referenceWords = getWords(originalTu.ntgt)
@@ -99,6 +116,7 @@ export function calculateTERStatistics(
     const hasChanged = !isEqual(currentTu.ntgt, originalTu.ntgt)
     if (hasChanged) {
       changedSegments++
+      changedGuids.push(currentTu.guid)
     }
   }
 
@@ -124,4 +142,100 @@ export function calculateTER(
 ): number | null {
   const stats = calculateTERStatistics(currentJobData, originalJobData)
   return stats ? stats.ter : null
+}
+
+/**
+ * Calculates Error Per Thousand words (EPT)
+ * EPT = (Sum of all QA weights) / (Total word count) * 1000
+ */
+export function calculateEPT(
+  currentJobData: JobData | null
+): number | null {
+  if (!currentJobData) return null
+
+  let totalWeight = 0
+  let totalWords = 0
+
+  for (const tu of currentJobData.tus) {
+    // Add QA weight if present
+    if (tu.qa && tu.qa.w) {
+      totalWeight += tu.qa.w
+    }
+
+    // Count words in target
+    const targetWords = getWords(tu.ntgt)
+    totalWords += targetWords.length
+  }
+
+  // EPT = (total weight / total words) * 1000
+  return totalWords === 0 ? 0 : (totalWeight / totalWords) * 1000
+}
+
+export interface QASummary {
+  severityBreakdown: { [sevId: string]: number }
+  categoryBreakdown: { [catId: string]: number }
+  totalErrors: number
+  totalWeight: number
+  unassessedSeverity: number
+  unassessedCategory: number
+}
+
+/**
+ * Calculates QA error breakdown by severity and category
+ */
+export function calculateQASummary(
+  currentJobData: JobData | null,
+  originalJobData: JobData | null
+): QASummary {
+  const severityBreakdown: { [sevId: string]: number } = {}
+  const categoryBreakdown: { [catId: string]: number } = {}
+  let totalErrors = 0
+  let totalWeight = 0
+  let unassessedSeverity = 0
+  let unassessedCategory = 0
+
+  if (!currentJobData) {
+    return { severityBreakdown, categoryBreakdown, totalErrors, totalWeight, unassessedSeverity, unassessedCategory }
+  }
+
+  // Create a map of original TUs for quick lookup
+  const originalTusMap = originalJobData ? new Map<string, TranslationUnit>(
+    originalJobData.tus.map(tu => [tu.guid, tu])
+  ) : null
+
+  for (const tu of currentJobData.tus) {
+    // Skip selected candidates - they don't count as corrections/errors
+    if (tu.candidateSelected) continue
+
+    // Check if this segment has been corrected
+    const originalTu = originalTusMap?.get(tu.guid)
+    const isCorrected = originalTu && !isEqual(tu.ntgt, originalTu.ntgt)
+
+    if (tu.qa) {
+      totalErrors++
+      totalWeight += tu.qa.w || 0
+
+      // Count by severity
+      if (tu.qa.sev) {
+        severityBreakdown[tu.qa.sev] = (severityBreakdown[tu.qa.sev] || 0) + 1
+      } else if (isCorrected) {
+        // Corrected but no severity assigned
+        unassessedSeverity++
+      }
+
+      // Count by category
+      if (tu.qa.cat) {
+        categoryBreakdown[tu.qa.cat] = (categoryBreakdown[tu.qa.cat] || 0) + 1
+      } else if (isCorrected) {
+        // Corrected but no category assigned
+        unassessedCategory++
+      }
+    } else if (isCorrected) {
+      // Corrected but no QA assessment at all
+      unassessedSeverity++
+      unassessedCategory++
+    }
+  }
+
+  return { severityBreakdown, categoryBreakdown, totalErrors, totalWeight, unassessedSeverity, unassessedCategory }
 }

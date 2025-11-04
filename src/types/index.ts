@@ -53,6 +53,13 @@ export interface PlaceholderDescription {
   desc?: string
 }
 
+export interface QualityAssessment {
+  sev: string   // severity id
+  cat: string   // category id (with subcategory: "category.subcategory")
+  w: number     // weight
+  notes?: string // optional notes
+}
+
 export interface TranslationUnit {
   jobGuid: string
   guid: string       // matches 'g' property in flow_metadata segments
@@ -66,6 +73,9 @@ export interface TranslationUnit {
     ph?: { [key: string]: PlaceholderDescription }  // placeholder descriptions keyed by "{0}", "{1}", etc.
     desc?: string
   } | string     // optional notes - can be object with desc/ph or legacy string
+  qa?: QualityAssessment // quality assessment data
+  candidates?: NormalizedItem[][] // alternative translation candidates (for duplicate GUIDs)
+  candidateSelected?: boolean // true if a candidate was selected (not manually edited) - doesn't require QA
 }
 
 export interface JobData {

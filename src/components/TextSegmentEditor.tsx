@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useMemo, useCallback } from 'react'
-import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal, Tooltip } from '@chakra-ui/react'
-import { FiEdit, FiHome, FiRotateCcw, FiCopy, FiTarget } from 'react-icons/fi'
-import { Page, JobData, TranslationUnit, NormalizedItem, NormalizedPlaceholder, PlaceholderDescription } from '../types'
+import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal, Tooltip, Input } from '@chakra-ui/react'
+import { FiEdit, FiHome, FiRotateCcw, FiCopy, FiTarget, FiAlertTriangle } from 'react-icons/fi'
+import { Page, JobData, TranslationUnit, NormalizedItem, NormalizedPlaceholder, PlaceholderDescription, QualityAssessment } from '../types'
+import { QualityModel } from '../types/qualityModel'
 import NormalizedTextEditor, { NormalizedTextEditorRef } from './NormalizedTextEditor'
 import { normalizedToString } from '../utils/normalizedText'
 import { isEqual } from 'lodash'
@@ -101,8 +102,10 @@ interface TextSegmentEditorProps {
   originalJobData: JobData
   savedJobData: JobData
   onTranslationUnitChange: (tu: TranslationUnit) => void
+  onCandidateSelect: (guid: string, candidateIndex: number) => void
   activeSegmentIndex: number
   onSegmentFocus: (index: number) => void
+  qualityModel: QualityModel | null
 }
 
 const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
@@ -111,8 +114,10 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   originalJobData,
   savedJobData,
   onTranslationUnitChange,
+  onCandidateSelect,
   activeSegmentIndex,
   onSegmentFocus,
+  qualityModel,
 }) => {
   const editorRefs = useRef<{ [key: number]: HTMLDivElement }>({})
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -196,26 +201,72 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     }
   }, [tusByGuid])
 
-  // Three-state system for segment colors
+  const handleQAChange = useCallback((guid: string, qa: QualityAssessment | undefined) => {
+    const tu = tusByGuid.get(guid)
+    if (tu) {
+      onTranslationUnitChange({ ...tu, qa })
+    }
+  }, [tusByGuid, onTranslationUnitChange])
+
+  // Three-state system for segment colors - only based on ntgt changes
   const getSegmentState = (guid: string): 'original' | 'saved' | 'modified' => {
     const currentTu = tusByGuid.get(guid)
     const originalTu = originalTusByGuid.get(guid)
     const savedTu = savedTusByGuid.get(guid)
-    
+
     if (!currentTu || !originalTu || !savedTu) return 'original'
-    
+
     // Check if current matches original source text (green)
     if (isEqual(currentTu.ntgt, originalTu.ntgt)) {
       return 'original' // Green - matches original source text
     }
-    
-    // Check if current matches saved translation (yellow)  
+
+    // Check if current matches saved translation (yellow)
     if (isEqual(currentTu.ntgt, savedTu.ntgt)) {
       return 'saved' // Yellow - matches saved translation
     }
-    
+
     // Current differs from both original and saved
     return 'modified' // Red - has unsaved changes
+  }
+
+  // Validate QA assessment against quality model
+  const getQAValidationStatus = (guid: string): { isValid: boolean, message?: string } => {
+    if (!qualityModel) return { isValid: true }
+
+    const currentTu = tusByGuid.get(guid)
+    const originalTu = originalTusByGuid.get(guid)
+
+    if (!currentTu || !originalTu) return { isValid: true }
+
+    // Skip QA validation if this is a selected candidate (not manually edited)
+    if (currentTu.candidateSelected) return { isValid: true }
+
+    // Check if segment has been corrected
+    const isCorrected = !isEqual(currentTu.ntgt, originalTu.ntgt)
+    if (!isCorrected) return { isValid: true }
+
+    // Segment is corrected - check QA assessment
+    if (!currentTu.qa || !currentTu.qa.sev || !currentTu.qa.cat) {
+      return { isValid: false, message: 'Missing quality assessment. Please select severity and category.' }
+    }
+
+    // Check if severity exists in model
+    const severityExists = qualityModel.severities.some(s => s.id === currentTu.qa?.sev)
+    if (!severityExists) {
+      return { isValid: false, message: `Invalid severity "${currentTu.qa.sev}" - not found in current quality model.` }
+    }
+
+    // Check if category exists in model
+    const [catId, subId] = currentTu.qa.cat.split('.')
+    const categoryExists = qualityModel.errorCategories.some(c =>
+      c.id === catId && c.subcategories.some(s => s.id === subId)
+    )
+    if (!categoryExists) {
+      return { isValid: false, message: `Invalid category "${currentTu.qa.cat}" - not found in current quality model.` }
+    }
+
+    return { isValid: true }
   }
   
   const getSegmentBorderColor = (guid: string, isActive: boolean): string => {
@@ -313,9 +364,23 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         }
 
         const segmentState = getSegmentState(tu.guid)
+        const qaValidation = getQAValidationStatus(tu.guid)
 
         // Extract placeholders from source for mapping display
         const placeholders = tu.nsrc ? extractPlaceholders(tu.nsrc) : []
+
+        // Get background color based on whether segment has been corrected
+        const isCorrected = segmentState !== 'original'
+
+        const getInactiveBg = () => {
+          if (isCorrected) return 'rgba(251, 146, 60, 0.3)' // light orange for all corrected segments
+          return 'rgba(147, 197, 253, 0.3)' // light blue for unchanged
+        }
+
+        const getHoverBg = () => {
+          if (isCorrected) return 'rgba(251, 146, 60, 0.4)' // slightly darker orange on hover
+          return 'rgba(147, 197, 253, 0.4)' // slightly darker blue on hover
+        }
 
         return (
           <Box
@@ -323,8 +388,9 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             ref={(el: HTMLDivElement | null) => {
               if (el) editorRefs.current[index] = el
             }}
+            position="relative"
             p={isActive ? 6 : 4}
-            bg={isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 58, 138, 0.8)'}
+            bg={isActive ? 'rgba(255, 255, 255, 0.95)' : getInactiveBg()}
             css={{
               willChange: 'transform, background-color, border-color, box-shadow',
               backfaceVisibility: 'hidden',
@@ -343,15 +409,45 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             minWidth={0}
             maxW="100%"
             _hover={{
-              bg: isActive ? 'rgba(255, 255, 255, 1)' : 'rgba(30, 58, 138, 0.9)',
+              bg: isActive ? 'rgba(255, 255, 255, 1)' : getHoverBg(),
               borderColor: isActive ? 'rgba(59, 130, 246, 0.8)' : 'rgba(255, 255, 255, 0.3)',
               transform: isActive ? 'scale(1) translateY(-1px)' : 'scale(0.99) translateY(-1px)',
-              boxShadow: isActive ? '0 8px 16px 0 rgba(59, 130, 246, 0.4)' : '0 4px 8px 0 rgba(30, 58, 138, 0.4)',
+              boxShadow: isActive ? '0 8px 16px 0 rgba(59, 130, 246, 0.4)' : '0 4px 8px 0 rgba(0, 0, 0, 0.4)',
               filter: isActive ? 'none' : 'blur(0.2px)',
             }}
           >
+            {/* Warning Icon - Visible in all states */}
+            {!qaValidation.isValid && (
+              <Tooltip.Root openDelay={0} closeDelay={0}>
+                <Tooltip.Trigger asChild>
+                  <Box
+                    position="absolute"
+                    top="50%"
+                    right="8px"
+                    transform="translateY(-50%)"
+                    p={1}
+                    bg="yellow.400"
+                    borderRadius="sm"
+                    display="flex"
+                    alignItems="center"
+                    zIndex={10}
+                    onClick={(e) => e.stopPropagation()}
+                    boxShadow="0 2px 4px rgba(0,0,0,0.2)"
+                  >
+                    <FiAlertTriangle size={18} color="black" />
+                  </Box>
+                </Tooltip.Trigger>
+                <Portal>
+                  <Tooltip.Positioner>
+                    <Tooltip.Content>
+                      <Text fontSize="xs">{qaValidation.message}</Text>
+                    </Tooltip.Content>
+                  </Tooltip.Positioner>
+                </Portal>
+              </Tooltip.Root>
+            )}
             {isActive ? (
-              <VStack align="stretch" gap={3}>
+              <VStack align="stretch" gap={3} pr={!qaValidation.isValid ? "48px" : undefined}>
                 <HStack justify="space-between">
                   <HStack>
                     <Box p={2} bg="gray.100" borderRadius="md" maxW="100%">
@@ -409,16 +505,198 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                     </Portal>
                   </Menu.Root>
                 </HStack>
-                <NormalizedTextEditor
-                  key={tu.guid}
-                  ref={(ref) => {
-                    normalizedEditorRefs.current[tu.guid] = ref
-                  }}
-                  normalizedContent={tu.ntgt || []}
-                  onChange={(newNtgt) => handleNormalizedChange(tu.guid, newNtgt)}
-                  isActive={isActive}
-                  placeholderDescriptions={placeholderDescriptions}
-                />
+                {/* Candidate Picker - shown when multiple translation candidates exist */}
+                {tu.candidates && tu.candidates.length > 0 ? (
+                  <Box
+                    p={4}
+                    bg="rgba(255, 193, 7, 0.15)"
+                    borderRadius="md"
+                    border="2px solid"
+                    borderColor="rgba(255, 193, 7, 0.5)"
+                  >
+                    <Text fontSize="sm" fontWeight="bold" color="orange.800" mb={3}>
+                      Multiple translation candidates found. Select one to continue:
+                    </Text>
+                    <VStack align="stretch" gap={2}>
+                      {tu.candidates.map((candidate, idx) => (
+                        <Box
+                          key={idx}
+                          p={3}
+                          bg="white"
+                          borderRadius="md"
+                          border="2px solid"
+                          borderColor="gray.300"
+                          cursor="pointer"
+                          _hover={{
+                            borderColor: 'blue.500',
+                            boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)'
+                          }}
+                          onClick={() => onCandidateSelect(tu.guid, idx)}
+                        >
+                          <HStack gap={2}>
+                            <Text fontSize="xs" fontWeight="bold" color="gray.600" minW="fit-content">
+                              Candidate {idx + 1}:
+                            </Text>
+                            <Text fontSize="sm" color="gray.800">
+                              <NormalizedTextDisplay items={candidate} placeholderDescriptions={placeholderDescriptions} />
+                            </Text>
+                          </HStack>
+                        </Box>
+                      ))}
+                    </VStack>
+                  </Box>
+                ) : (
+                  <NormalizedTextEditor
+                    key={tu.guid}
+                    ref={(ref) => {
+                      normalizedEditorRefs.current[tu.guid] = ref
+                    }}
+                    normalizedContent={tu.ntgt || []}
+                    onChange={(newNtgt) => handleNormalizedChange(tu.guid, newNtgt)}
+                    isActive={isActive}
+                    placeholderDescriptions={placeholderDescriptions}
+                    segmentState={segmentState}
+                  />
+                )}
+                {/* QA Fields */}
+                {qualityModel && segmentState !== 'original' && (
+                  <VStack align="stretch" gap={2}>
+                    {!qaValidation.isValid && (
+                      <Box
+                        p={2}
+                        bg="rgba(251, 146, 60, 0.1)"
+                        borderRadius="md"
+                        border="1px solid"
+                        borderColor="orange.400"
+                      >
+                        <HStack gap={2}>
+                          <FiAlertTriangle color="orange" />
+                          <Text fontSize="xs" color="orange.700" fontWeight="semibold">
+                            {qaValidation.message}
+                          </Text>
+                        </HStack>
+                      </Box>
+                    )}
+                    <HStack
+                      gap={2}
+                      p={2}
+                      bg={isCorrected ? 'rgba(251, 146, 60, 0.15)' : 'rgba(147, 197, 253, 0.15)'}
+                      borderRadius="md"
+                      border="1px solid"
+                      borderColor={isCorrected ? 'rgba(251, 146, 60, 0.4)' : 'rgba(147, 197, 253, 0.4)'}
+                      flexWrap="wrap"
+                      alignItems="center"
+                    >
+                    <HStack flex="0 1 auto" minW="fit-content" gap={2} alignItems="center">
+                      {qualityModel.severities.map(severity => (
+                        <Tooltip.Root key={severity.id} openDelay={300} closeDelay={0}>
+                          <Tooltip.Trigger asChild>
+                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                              <input
+                                type="radio"
+                                name={`severity-${tu.guid}`}
+                                value={severity.id}
+                                checked={tu.qa?.sev === severity.id}
+                                onChange={(e) => {
+                                  const sev = e.target.value
+                                  const weight = severity.weight
+                                  const currentQa = tu.qa || { sev: '', cat: '', w: 0 }
+                                  const newQa = { ...currentQa, sev, w: weight }
+                                  handleQAChange(tu.guid, (sev || newQa.cat) ? newQa : undefined)
+                                }}
+                                style={{ marginRight: '4px' }}
+                              />
+                              {severity.label}
+                            </label>
+                          </Tooltip.Trigger>
+                          <Portal>
+                            <Tooltip.Positioner>
+                              <Tooltip.Content>
+                                <Text fontSize="xs" whiteSpace="pre-line">
+                                  Weight: {severity.weight}
+                                  {severity.description && `\n\n${severity.description}`}
+                                </Text>
+                              </Tooltip.Content>
+                            </Tooltip.Positioner>
+                          </Portal>
+                        </Tooltip.Root>
+                      ))}
+                    </HStack>
+                    <Box flex="1" minW="150px">
+                      <Tooltip.Root openDelay={300} closeDelay={0}>
+                        <Tooltip.Trigger asChild>
+                          <select
+                            key={`cat-${tu.guid}`}
+                            value={tu.qa?.cat || ''}
+                            onChange={(e) => {
+                              const cat = e.target.value
+                              const currentQa = tu.qa || { sev: '', cat: '', w: 0 }
+                              const newQa = { ...currentQa, cat }
+                              // Only clear qa if both sev and cat are empty
+                              handleQAChange(tu.guid, (newQa.sev || cat) ? newQa : undefined)
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #E2E8F0',
+                              fontSize: '12px',
+                              color: '#1A202C',
+                              backgroundColor: 'white'
+                            }}
+                          >
+                            <option value="">-- Select Category --</option>
+                            {qualityModel.errorCategories.map(category => (
+                              <React.Fragment key={category.id}>
+                                {category.subcategories.map(sub => (
+                                  <option key={`${category.id}.${sub.id}`} value={`${category.id}.${sub.id}`}>
+                                    {category.label} → {sub.label}
+                                  </option>
+                                ))}
+                              </React.Fragment>
+                            ))}
+                          </select>
+                        </Tooltip.Trigger>
+                        <Portal>
+                          <Tooltip.Positioner>
+                            <Tooltip.Content>
+                              <Text fontSize="xs" whiteSpace="pre-line">
+                                {tu.qa?.cat && (() => {
+                                  const [catId, subId] = tu.qa.cat.split('.')
+                                  const category = qualityModel.errorCategories.find(c => c.id === catId)
+                                  const subcategory = category?.subcategories.find(s => s.id === subId)
+                                  return subcategory?.description || ''
+                                })()}
+                              </Text>
+                            </Tooltip.Content>
+                          </Tooltip.Positioner>
+                        </Portal>
+                      </Tooltip.Root>
+                    </Box>
+                    <Box flex="2" minW="200px">
+                      <Input
+                        size="xs"
+                        value={tu.qa?.notes || ''}
+                        onChange={(e) => {
+                          const notes = e.target.value
+                          const currentQa = tu.qa || { sev: '', cat: '', w: 0 }
+                          const newQa = notes ? { ...currentQa, notes } : { ...currentQa }
+                          // Remove notes property if empty to keep data clean
+                          if (!notes && 'notes' in newQa) {
+                            delete newQa.notes
+                          }
+                          // Only clear qa if both sev and cat are empty
+                          handleQAChange(tu.guid, (newQa.sev || newQa.cat) ? newQa : undefined)
+                        }}
+                        placeholder="Notes (optional)"
+                        fontSize="xs"
+                        color="gray.900"
+                        bg="white"
+                      />
+                    </Box>
+                  </HStack>
+                  </VStack>
+                )}
                 {/* Placeholder Mapping */}
                 {placeholders.length > 0 && (
                   <Box
@@ -502,9 +780,28 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                 </Flex>
               </VStack>
             ) : (
-              <Text color="gray.200" fontSize="sm" lineHeight="1.4" fontWeight="normal">
-                {tu.ntgt ? <NormalizedTextDisplay items={tu.ntgt} showSample={true} placeholderDescriptions={placeholderDescriptions} /> : '(no target text)'}
-              </Text>
+              <Box pr={!qaValidation.isValid ? "48px" : undefined}>
+                {tu.candidates && tu.candidates.length > 0 ? (
+                  <HStack gap={2} align="center">
+                    <Box
+                      p={1}
+                      bg="rgba(255, 193, 7, 0.2)"
+                      borderRadius="sm"
+                      display="flex"
+                      alignItems="center"
+                    >
+                      <FiAlertTriangle size={16} color="orange" />
+                    </Box>
+                    <Text color="orange.700" fontSize="sm" lineHeight="1.4" fontWeight="semibold">
+                      Multiple translation candidates available ({tu.candidates.length} options)
+                    </Text>
+                  </HStack>
+                ) : (
+                  <Text color="gray.700" fontSize="sm" lineHeight="1.4" fontWeight="normal">
+                    {tu.ntgt ? <NormalizedTextDisplay items={tu.ntgt} showSample={true} placeholderDescriptions={placeholderDescriptions} /> : '(no target text)'}
+                  </Text>
+                )}
+              </Box>
             )}
           </Box>
         )

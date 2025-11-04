@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import JSZip from 'jszip'
-import { FlowData, JobData } from '../types'
+import { FlowData, JobData, TranslationUnit, NormalizedItem } from '../types'
+import { QualityModel } from '../types/qualityModel'
+import { isEqual } from 'lodash'
 
 export interface LoadResult {
   flowData: FlowData | null
   jobData: JobData
   zipFile: JSZip
+  qualityModel: QualityModel | null
 }
 
 export const useFileLoader = () => {
@@ -16,7 +19,7 @@ export const useFileLoader = () => {
   const loadLqaBossFile = async (file: File): Promise<LoadResult> => {
     const arrayBuffer = await file.arrayBuffer()
     const zip = await JSZip.loadAsync(arrayBuffer)
-    
+
     // Try to load flow_metadata.json, but don't fail if it's missing
     const metadataFile = zip.file("flow_metadata.json")
     let parsedFlowData: FlowData | null = null
@@ -38,8 +41,59 @@ export const useFileLoader = () => {
     const jobContent = await jobFile.async("string")
     const parsedJobData: JobData = JSON.parse(jobContent)
 
-    // Populate missing ntgt with nsrc content
+    // Detect and consolidate duplicate GUIDs as candidates
+    const tusByGuid = new Map<string, TranslationUnit>()
+    const duplicateCount = new Map<string, number>()
+
+    for (const tu of parsedJobData.tus) {
+      const existing = tusByGuid.get(tu.guid)
+
+      if (existing) {
+        // Duplicate GUID found - add as candidate
+        if (!existing.candidates) {
+          existing.candidates = [existing.ntgt] // First candidate is the original ntgt
+        }
+        existing.candidates.push(tu.ntgt)
+
+        // Track duplicate count
+        duplicateCount.set(tu.guid, (duplicateCount.get(tu.guid) || 1) + 1)
+      } else {
+        tusByGuid.set(tu.guid, { ...tu })
+      }
+    }
+
+    // De-duplicate identical candidates
+    for (const [, tu] of tusByGuid.entries()) {
+      if (tu.candidates) {
+        // Remove duplicate candidates using deep equality
+        const uniqueCandidates: NormalizedItem[][] = []
+        for (const candidate of tu.candidates) {
+          const isDuplicate = uniqueCandidates.some(unique => isEqual(unique, candidate))
+          if (!isDuplicate) {
+            uniqueCandidates.push(candidate)
+          }
+        }
+
+        // If only 1 unique candidate remains, use it as ntgt and clear candidates
+        if (uniqueCandidates.length === 1) {
+          tu.ntgt = uniqueCandidates[0]
+          tu.candidates = undefined
+        } else {
+          tu.candidates = uniqueCandidates
+        }
+      }
+    }
+
+    // Convert back to array
+    parsedJobData.tus = Array.from(tusByGuid.values())
+
+    // Populate missing ntgt with nsrc content (only for TUs without candidates)
     parsedJobData.tus = parsedJobData.tus.map(tu => {
+      if (tu.candidates) {
+        // Has candidates - set ntgt to empty, user must pick
+        return { ...tu, ntgt: [] }
+      }
+
       if (!tu.ntgt || (Array.isArray(tu.ntgt) && tu.ntgt.length === 0)) {
         // Create a deep copy of nsrc to avoid reference issues
         const nsrcCopy = tu.nsrc ? JSON.parse(JSON.stringify(tu.nsrc)) : []
@@ -47,16 +101,31 @@ export const useFileLoader = () => {
       }
       return tu
     })
-    
+
+    // Try to load quality.json, but don't fail if it's missing
+    const qualityFile = zip.file("quality.json")
+    let parsedQualityModel: QualityModel | null = null
+
+    if (qualityFile) {
+      try {
+        const qualityContent = await qualityFile.async("string")
+        parsedQualityModel = JSON.parse(qualityContent)
+      } catch (error) {
+        console.warn('Warning: Failed to parse quality.json:', error)
+        parsedQualityModel = null
+      }
+    }
+
     // Update state
     setZipFile(zip)
     setFlowData(parsedFlowData)
     setFileName(file.name)
-    
+
     return {
       flowData: parsedFlowData,
       jobData: parsedJobData,
-      zipFile: zip
+      zipFile: zip,
+      qualityModel: parsedQualityModel
     }
   }
   

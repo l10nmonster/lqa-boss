@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Flex, Button, HStack, Image, Text, Menu, Portal, Separator } from '@chakra-ui/react'
-import { FiInfo, FiChevronDown, FiFolder, FiSave, FiLogOut, FiFilePlus } from 'react-icons/fi'
+import { FiInfo, FiChevronDown, FiFolder, FiSave, FiLogOut, FiFilePlus, FiEdit2, FiBarChart2, FiX } from 'react-icons/fi'
 import GlassBox from '../GlassBox'
 import { StatusBadge, FileStatus } from '../StatusBadge'
 import { IPersistencePlugin } from '../../plugins/types'
+import { QualityModel } from '../../types/qualityModel'
 
 interface UnifiedHeaderProps {
   plugins: IPersistencePlugin[]
@@ -13,6 +14,13 @@ interface UnifiedHeaderProps {
   fileStatus: FileStatus
   onShowInstructions?: () => void
   ter?: number | null
+  ept?: number | null
+  qualityModel?: QualityModel | null
+  onNewModel?: () => void
+  onLoadModel?: () => void
+  onEditModel?: () => void
+  onUnloadModel?: () => void
+  onShowSummary?: () => void
 }
 
 export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
@@ -23,6 +31,13 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   fileStatus,
   onShowInstructions,
   ter,
+  ept,
+  qualityModel,
+  onNewModel,
+  onLoadModel,
+  onEditModel,
+  onUnloadModel,
+  onShowSummary,
 }) => {
   // Get plugins by ID for easy lookup
   const extensionPlugin = plugins.find(p => p.metadata.id === 'extension')
@@ -146,21 +161,83 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
             </Menu.Positioner>
           </Portal>
         </Menu.Root>
+
+        {/* Quality Menu */}
+        <Menu.Root>
+          <Menu.Trigger asChild>
+            <Button variant="ghost" size="sm">
+              Quality
+              <FiChevronDown />
+            </Button>
+          </Menu.Trigger>
+          <Portal>
+            <Menu.Positioner>
+              <Menu.Content>
+                <Menu.Item
+                  value="new-model"
+                  onClick={onNewModel}
+                >
+                  <FiFilePlus /> New Model…
+                </Menu.Item>
+                <Menu.Item
+                  value="load-model"
+                  onClick={onLoadModel}
+                >
+                  <FiFolder /> Load Model…
+                </Menu.Item>
+                <Menu.Item
+                  value="edit-model"
+                  onClick={onEditModel}
+                  disabled={!qualityModel}
+                >
+                  <FiEdit2 /> Edit Model…
+                </Menu.Item>
+                <Menu.Item
+                  value="unload-model"
+                  onClick={onUnloadModel}
+                  disabled={!qualityModel}
+                >
+                  <FiX /> Unload Model
+                </Menu.Item>
+                <Separator />
+                <Menu.Item
+                  value="summary"
+                  onClick={onShowSummary}
+                >
+                  <FiBarChart2 /> Summary…
+                </Menu.Item>
+                <Separator />
+                {/* Model Info */}
+                <Text fontSize="sm" color="gray.600" px={3} py={1}>
+                  Model: <Text as="span" fontWeight="semibold" color="gray.800">{qualityModel ? `${qualityModel.name} v${qualityModel.version}` : 'None'}</Text>
+                </Text>
+                {/* TER Score */}
+                <Text
+                  fontSize="sm"
+                  color="gray.600"
+                  px={3}
+                  py={1}
+                  data-testid="ter-label"
+                >
+                  TER: <Text as="span" fontWeight="semibold" color="gray.800">{typeof ter === 'number' ? `${(ter * 100).toFixed(0)}%` : 'N/A'}</Text>
+                </Text>
+                {/* EPT Score */}
+                <Text
+                  fontSize="sm"
+                  color="gray.600"
+                  px={3}
+                  py={1}
+                  data-testid="ept-label"
+                >
+                  EPT: <Text as="span" fontWeight="semibold" color="gray.800">{typeof ept === 'number' ? `${ept.toFixed(1)}` : 'N/A'}</Text>
+                </Text>
+              </Menu.Content>
+            </Menu.Positioner>
+          </Portal>
+        </Menu.Root>
       </HStack>
 
       <HStack gap={2}>
-        {/* TER Label */}
-        {typeof ter === 'number' && (
-          <Text
-            fontSize="sm"
-            fontWeight="semibold"
-            color="gray.700"
-            px={2}
-            data-testid="ter-label"
-          >
-            TER: {(ter * 100).toFixed(0)}%
-          </Text>
-        )}
         {/* Job Info Button */}
         {hasData && onShowInstructions && (
           <Button

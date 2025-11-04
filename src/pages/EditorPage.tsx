@@ -5,6 +5,7 @@ import { TranslationEditor, TranslationEditorRef } from '../components/Translati
 import { ClientIdPrompt } from '../components/prompts/ClientIdPrompt'
 import { AuthPrompt } from '../components/prompts/AuthPrompt'
 import GCSFilePicker from '../components/GCSFilePicker'
+import { ModelEditor } from '../components/ModelEditor'
 
 import { useTranslationData } from '../hooks/useTranslationData'
 import { useFileLoader } from '../hooks/useFileLoader'
@@ -12,9 +13,11 @@ import { pluginRegistry } from '../plugins/PluginRegistry'
 import { IPersistencePlugin, FileIdentifier } from '../plugins/types'
 import { toaster } from '../components/ui/toaster'
 import { JobData } from '../types'
+import { QualityModel } from '../types/qualityModel'
 import { GCSFile } from '../utils/gcsOperations'
 import { useNavigate } from 'react-router-dom'
-import { calculateTER } from '../utils/metrics'
+import { calculateTER, calculateEPT, calculateQASummary, calculateTERStatistics } from '../utils/metrics'
+import QASummaryModal from '../components/QASummaryModal'
 
 // Track processed URLs during this session (not persisted)
 let processedUrl: string | null = null
@@ -35,6 +38,12 @@ export const EditorPage: React.FC = () => {
   const [fileList, setFileList] = useState<GCSFile[]>([])
   const [pendingFileId, setPendingFileId] = useState<FileIdentifier | null>(null)
 
+  // Quality model state
+  const [qualityModel, setQualityModel] = useState<QualityModel | null>(null)
+  const [showModelEditor, setShowModelEditor] = useState(false)
+  const [editingModel, setEditingModel] = useState<QualityModel | null>(null)
+  const [showQASummary, setShowQASummary] = useState(false)
+
   const translationEditorRef = useRef<TranslationEditorRef>(null)
   const fileLoader = useFileLoader()
   const translationData = useTranslationData()
@@ -46,6 +55,23 @@ export const EditorPage: React.FC = () => {
   // Calculate TER (Translation Error Rate)
   const ter = useMemo(() => {
     return calculateTER(translationData.jobData, translationData.originalJobData)
+  }, [translationData.jobData, translationData.originalJobData])
+
+  // Calculate EPT (Error Per Thousand words)
+  const ept = useMemo(() => {
+    // EPT only makes sense when a quality model is loaded
+    if (!qualityModel) return null
+    return calculateEPT(translationData.jobData)
+  }, [translationData.jobData, qualityModel])
+
+  // Calculate QA Summary
+  const qaSummary = useMemo(() => {
+    return calculateQASummary(translationData.jobData, translationData.originalJobData)
+  }, [translationData.jobData, translationData.originalJobData])
+
+  // Calculate TER statistics for summary modal
+  const terStats = useMemo(() => {
+    return calculateTERStatistics(translationData.jobData, translationData.originalJobData)
   }, [translationData.jobData, translationData.originalJobData])
 
   // URL parsing for deep links (only on initial mount)
@@ -262,6 +288,12 @@ export const EditorPage: React.FC = () => {
       setSourceFileId(fileId)
       setCurrentPlugin(plugin)
       setSourcePlugin(plugin)
+
+      // Set quality model if one was found in the .lqaboss file
+      if (result.qualityModel) {
+        setQualityModel(result.qualityModel)
+        console.log('Quality model loaded:', result.qualityModel.name)
+      }
 
       toaster.create({
         title: 'File loaded',
@@ -796,6 +828,99 @@ export const EditorPage: React.FC = () => {
     translationEditorRef.current?.openInstructions()
   }
 
+  /**
+   * Create a new quality model with empty structure
+   */
+  const handleNewModel = () => {
+    const newModel: QualityModel = {
+      id: '',
+      name: '',
+      version: '',
+      description: '',
+      severities: [],
+      errorCategories: []
+    }
+    setEditingModel(newModel)
+    setShowModelEditor(true)
+  }
+
+  /**
+   * Load a quality model from a local file and make it current
+   */
+  const handleLoadModel = async () => {
+    try {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.json'
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0]
+        if (!file) return
+
+        const text = await file.text()
+        const loadedModel = JSON.parse(text) as QualityModel
+        setQualityModel(loadedModel)
+        toaster.create({
+          title: 'Model loaded',
+          description: `Quality model "${loadedModel.name}" is now active`,
+          type: 'success',
+          duration: 4000,
+        })
+      }
+      input.click()
+    } catch (error) {
+      console.error('Error loading model:', error)
+      toaster.create({
+        title: 'Failed to load model',
+        description: 'Invalid model file format',
+        type: 'error',
+        duration: 6000,
+      })
+    }
+  }
+
+  /**
+   * Edit the current quality model
+   */
+  const handleEditModel = () => {
+    if (qualityModel) {
+      setEditingModel(qualityModel)
+      setShowModelEditor(true)
+    }
+  }
+
+  /**
+   * Unload the current quality model
+   */
+  const handleUnloadModel = () => {
+    setQualityModel(null)
+    toaster.create({
+      title: 'Model unloaded',
+      description: 'Quality model has been unloaded',
+      type: 'info',
+      duration: 3000,
+    })
+  }
+
+  /**
+   * Save the quality model and close the editor
+   */
+  const handleSaveModel = (model: QualityModel) => {
+    setQualityModel(model)
+    toaster.create({
+      title: 'Model saved',
+      description: `Quality model "${model.name}" is now active`,
+      type: 'success',
+      duration: 4000,
+    })
+  }
+
+  /**
+   * Show the QA summary modal
+   */
+  const handleShowSummary = () => {
+    setShowQASummary(true)
+  }
+
   // Helper function to format source location
   const getSourceLocation = (): string | undefined => {
     if (!sourceFileId) return undefined
@@ -829,6 +954,13 @@ export const EditorPage: React.FC = () => {
             fileStatus={translationData.fileStatus}
             onShowInstructions={handleShowInstructions}
             ter={ter}
+            ept={ept}
+            qualityModel={qualityModel}
+            onNewModel={handleNewModel}
+            onLoadModel={handleLoadModel}
+            onEditModel={handleEditModel}
+            onUnloadModel={handleUnloadModel}
+            onShowSummary={handleShowSummary}
           />
         }
       >
@@ -850,6 +982,13 @@ export const EditorPage: React.FC = () => {
             fileStatus={translationData.fileStatus}
             onShowInstructions={handleShowInstructions}
             ter={ter}
+            ept={ept}
+            qualityModel={qualityModel}
+            onNewModel={handleNewModel}
+            onLoadModel={handleLoadModel}
+            onEditModel={handleEditModel}
+            onUnloadModel={handleUnloadModel}
+            onShowSummary={handleShowSummary}
           />
         }
       >
@@ -884,6 +1023,26 @@ export const EditorPage: React.FC = () => {
         onClose={handleFilePickerClose}
       />
 
+      <ModelEditor
+        isOpen={showModelEditor}
+        onClose={() => {
+          setShowModelEditor(false)
+          setEditingModel(null)
+        }}
+        model={editingModel}
+        onSave={handleSaveModel}
+      />
+
+      <QASummaryModal
+        isOpen={showQASummary}
+        onClose={() => setShowQASummary(false)}
+        qualityModel={qualityModel}
+        qaSummary={qaSummary}
+        terStats={terStats}
+        ter={ter}
+        ept={ept}
+      />
+
     <EditorLayout
       header={
         <UnifiedHeader
@@ -894,6 +1053,13 @@ export const EditorPage: React.FC = () => {
           fileStatus={translationData.fileStatus}
           onShowInstructions={handleShowInstructions}
           ter={ter}
+          ept={ept}
+          qualityModel={qualityModel}
+          onNewModel={handleNewModel}
+          onLoadModel={handleLoadModel}
+          onEditModel={handleEditModel}
+          onUnloadModel={handleUnloadModel}
+          onShowSummary={handleShowSummary}
         />
       }
     >
@@ -905,9 +1071,12 @@ export const EditorPage: React.FC = () => {
         savedJobData={translationData.savedJobData}
         zipFile={fileLoader.zipFile}
         onTranslationUnitChange={translationData.updateTranslationUnit}
+        onCandidateSelect={translationData.selectCandidate}
         onInstructionsOpen={() => {}}
         sourcePluginName={sourcePlugin?.metadata.name}
         sourceLocation={getSourceLocation()}
+        qualityModel={qualityModel}
+        ept={ept}
       />
     </EditorLayout>
     </>

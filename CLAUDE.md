@@ -99,6 +99,89 @@ This is a React 19 PWA for editing LQA Boss (.lqaboss) files, which are ZIP arch
 ### Change Detection & Export
 The app tracks modifications by comparing current `ntgt` arrays with original data using `isEqual()` from lodash. Only changed translation units are exported via `saveChangedTus()` in `src/utils/saveHandler.ts:10`.
 
+### Three-State System (CRITICAL - READ CAREFULLY)
+
+**IMPORTANT**: Understanding this system is critical for working with translation state management.
+
+The application uses a **three-state system** to track translation changes:
+
+1. **`originalJobData`**: The **ORIGINAL TRANSLATION** from the loaded .lqaboss file
+   - Contains the `ntgt` values as they were in job.json
+   - **NOT the source text (nsrc)** - this is the target language translation
+   - Used for the "Original" button (FiHome icon) to restore the file's original translation
+   - Visual indicator: GREEN border (segment matches original translation from file)
+
+2. **`savedJobData`**: The auto-saved translation (three-state mode) or same as original (two-state mode)
+   - In three-state mode: Contains translations from a previous editing session (auto-save)
+   - In two-state mode: Initially identical to originalJobData
+   - Used for the "Undo" button (FiRotateCcw icon) to revert recent edits
+   - Visual indicator: YELLOW border (segment matches saved translation)
+
+3. **`jobData` (current)**: The working copy being actively edited
+   - Contains the current state with user's edits
+   - Visual indicator: RED border when modified (different from both original and saved)
+   - Visual indicator: BLUE border when active/selected
+
+**Common Mistake to Avoid**:
+- ❌ **NEVER** set `originalJobData.ntgt` to `nsrc` (source text)
+- ✅ **ALWAYS** preserve `originalJobData.ntgt` as the translation from the file
+- The "original" is the original **translation** (target language), NOT the source text
+
+**When Operating Modes**:
+- **Two-State System** (status "NEW"): Used for local files without auto-save
+  - `originalJobData` = `savedJobData` = copy of loaded `jobData`
+  - All three have identical ntgt values initially
+
+- **Three-State System** (status "LOADED"): Used when auto-save data exists
+  - `originalJobData` = translations from the originally loaded file
+  - `savedJobData` = translations from auto-save (previous editing session)
+  - `jobData` = current working copy (starts as copy of savedJobData)
+
+**State Setup Functions** (`src/hooks/useTranslationData.ts`):
+- `setupTwoStateSystem()`: Creates three identical copies of job data
+- `setupThreeStateSystem()`: Sets up original/saved/current with different translations
+
+### Quality Model System
+
+The application supports configurable quality models for translation quality assessment, following standards like MQM (Multidimensional Quality Metrics).
+
+**Quality Menu** (`src/components/headers/UnifiedHeader.tsx:158`):
+- Located next to the File menu in the header
+- **New Model…**: Creates a new empty quality model
+- **Load Model…**: Loads a quality model from a local JSON file
+- **Edit Model…**: Opens editor for the current model (disabled when no model loaded)
+- Displays current model name with version (e.g., "Model: MQM Standard v1.0")
+- Shows TER (Translation Error Rate) score
+
+**Quality Model Structure** (`src/types/qualityModel.ts`):
+- `QualityModel`: Top-level model definition with id, name, version, description
+- `Severity`: Error severity levels with weights (e.g., Minor: 1, Major: 5, Critical: 10)
+- `ErrorCategory`: Main error categories with subcategories (two-level hierarchy)
+- `ErrorSubcategory`: Specific error types within categories
+
+**Model Editor** (`src/components/ModelEditor.tsx`):
+- Full-featured modal editor for creating/editing quality models
+- Validates all required fields before saving
+- Features:
+  - Basic info: Model ID, name, version, description (all in one row)
+  - Severities: ID, label, weight (accepts 0+), description
+  - Categories: ID, label, description with nested subcategories
+  - Subcategories: Indented layout showing hierarchy
+  - Add/remove items with trash icons inline with fields
+  - Export: Saves as `{model-id}-{version}.json`
+
+**Example Model**: See `mqm.json` for a complete MQM standard model with:
+- 3 severity levels (Minor/Major/Critical)
+- 6 error categories (Accuracy, Fluency, Terminology, Style, Locale Convention, Other)
+- Multiple subcategories per category
+
+**State Management** (`src/pages/EditorPage.tsx`):
+- `qualityModel`: Currently loaded model
+- `editingModel`: Model being edited in the modal
+- `showModelEditor`: Controls modal visibility
+- Models persist in memory during the session
+- Load/save operations use local file system only
+
 ### Plugin System Architecture
 
 The application uses a plugin-based architecture for file persistence and loading, supporting multiple sources:

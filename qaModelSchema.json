@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Translation QA Model Definition (Two-Level)",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "severities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "weight": { "type": "number", "minimum": 0 },
+          "description": { "type": "string" }
+        },
+        "required": ["id", "label", "weight"]
+      }
+    },
+    "errorCategories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "subcategories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" },
+                "description": { "type": "string" }
+              },
+              "required": ["id", "label", "description"]
+            }
+          }
+        },
+        "required": ["id", "label", "description"]
+      }
+    }
+  },
+  "required": ["id", "name", "version", "severities", "errorCategories"]
+}
