@@ -7,6 +7,14 @@ import NormalizedTextEditor, { NormalizedTextEditorRef } from './NormalizedTextE
 import { normalizedToString } from '../utils/normalizedText'
 import { isEqual } from 'lodash'
 
+// Helper function to detect RTL languages
+function isRTLLanguage(langCode: string | undefined): boolean {
+  if (!langCode) return false
+  const rtlLangs = ['ar', 'he', 'fa', 'ur', 'yi', 'ps', 'sd', 'ug', 'ku', 'ckb']
+  const lang = langCode.toLowerCase().split('-')[0] // Handle locales like 'ar-SA'
+  return rtlLangs.includes(lang)
+}
+
 // Helper to extract placeholders with their indices
 function extractPlaceholders(items: NormalizedItem[]): Array<{ index: number, placeholder: NormalizedPlaceholder }> {
   const placeholders: Array<{ index: number, placeholder: NormalizedPlaceholder }> = []
@@ -532,15 +540,11 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                             boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.5)'
                           }}
                           onClick={() => onCandidateSelect(tu.guid, idx)}
+                          dir={isRTLLanguage(jobData.targetLang) ? 'rtl' : 'ltr'}
                         >
-                          <HStack gap={2}>
-                            <Text fontSize="xs" fontWeight="bold" color="gray.600" minW="fit-content">
-                              Candidate {idx + 1}:
-                            </Text>
-                            <Text fontSize="sm" color="gray.800">
-                              <NormalizedTextDisplay items={candidate} placeholderDescriptions={placeholderDescriptions} />
-                            </Text>
-                          </HStack>
+                          <Text fontSize="sm" color="gray.800">
+                            <NormalizedTextDisplay items={candidate} placeholderDescriptions={placeholderDescriptions} />
+                          </Text>
                         </Box>
                       ))}
                     </VStack>
@@ -797,7 +801,13 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                     </Text>
                   </HStack>
                 ) : (
-                  <Text color="gray.700" fontSize="sm" lineHeight="1.4" fontWeight="normal">
+                  <Text
+                    color="gray.700"
+                    fontSize="sm"
+                    lineHeight="1.4"
+                    fontWeight="normal"
+                    dir={isRTLLanguage(jobData.targetLang) ? 'rtl' : 'ltr'}
+                  >
                     {tu.ntgt ? <NormalizedTextDisplay items={tu.ntgt} showSample={true} placeholderDescriptions={placeholderDescriptions} /> : '(no target text)'}
                   </Text>
                 )}
