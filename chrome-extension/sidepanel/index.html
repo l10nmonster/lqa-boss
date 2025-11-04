@@ -143,8 +143,21 @@
           </div>
         </div>
 
-        <!-- URL Rewrite Section -->
+        <!-- Quality Model Section -->
         <div class="settings-section">
+          <h4 id="quality-model-header" style="margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--gray-900);">Quality Model: <span id="quality-model-status" style="color: var(--gray-500);">none</span></h4>
+          <div class="quality-model-controls">
+            <div style="display: flex; gap: 8px;">
+              <input type="file" id="quality-model-upload" accept=".json" style="display: none;">
+              <button id="upload-quality-model-btn" class="btn btn-primary" style="flex: 1;">Upload Model</button>
+              <button id="clear-quality-model-btn" class="btn btn-secondary" style="flex: 1;" disabled>Clear Model</button>
+            </div>
+            <div id="quality-model-error" class="error-message" style="display: none; color: var(--danger); font-size: 12px; margin-top: 8px;"></div>
+          </div>
+        </div>
+
+        <!-- URL Rewrite Section -->
+        <div class="settings-section" style="margin-top: 24px;">
           <h4 style="margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--gray-900);">URL Rewrite Rules</h4>
           <div class="rewrite-form">
             <div class="form-group">

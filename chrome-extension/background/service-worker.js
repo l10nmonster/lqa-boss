@@ -439,6 +439,11 @@ async function createFlowZIP(capturedPages, instructions, settings) {
     zip.file('job.json', JSON.stringify(job, null, 2));
   }
 
+  // Add quality model if configured
+  if (settings.qualityModel) {
+    zip.file('quality.json', JSON.stringify(settings.qualityModel, null, 2));
+  }
+
   // Generate ZIP as arraybuffer (for message passing compatibility)
   const zipArrayBuffer = await zip.generateAsync({
     type: 'arraybuffer',
