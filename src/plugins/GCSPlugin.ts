@@ -5,7 +5,8 @@ import {
   AuthState,
   PluginMetadata,
   PluginCapabilities,
-  LocationPromptProps
+  LocationPromptProps,
+  PluginSetting
 } from './types'
 import { JobData, TranslationUnit } from '../types'
 import { GCSOperations, GCSFile } from '../utils/gcsOperations'
@@ -47,7 +48,15 @@ export class GCSPlugin implements IPersistencePlugin {
   }
 
   private loadSavedCredentials(): void {
-    const savedClientId = localStorage.getItem('gcs-client-id')
+    // Migrate old key to new key (one-time migration)
+    const oldClientId = localStorage.getItem('gcs-client-id')
+    if (oldClientId && !localStorage.getItem('plugin-gcs-clientId')) {
+      localStorage.setItem('plugin-gcs-clientId', oldClientId)
+      localStorage.removeItem('gcs-client-id')
+    }
+
+    // Load from settings system keys
+    const savedClientId = localStorage.getItem('plugin-gcs-clientId')
     const savedAccessToken = localStorage.getItem('gcs-access-token')
     const tokenExpiry = localStorage.getItem('gcs-token-expiry')
 
@@ -98,7 +107,8 @@ export class GCSPlugin implements IPersistencePlugin {
    */
   setClientId(clientId: string): void {
     this.clientId = clientId
-    localStorage.setItem('gcs-client-id', clientId)
+    // Use settings system key
+    localStorage.setItem('plugin-gcs-clientId', clientId)
   }
 
   /**
@@ -375,7 +385,9 @@ export class GCSPlugin implements IPersistencePlugin {
    */
   getConfig(): Record<string, any> {
     return {
-      clientId: this.clientId
+      clientId: this.clientId,
+      defaultBucket: localStorage.getItem('plugin-gcs-defaultBucket') || '',
+      defaultPrefix: localStorage.getItem('plugin-gcs-defaultPrefix') || '',
     }
   }
 
@@ -386,6 +398,40 @@ export class GCSPlugin implements IPersistencePlugin {
     if (config.clientId) {
       this.setClientId(config.clientId)
     }
+    // defaultBucket and defaultPrefix are now managed by the settings system
+    // They will be stored directly to localStorage by usePluginSettings
+  }
+
+  /**
+   * Get plugin settings definition
+   */
+  getSettings(): PluginSetting[] {
+    return [
+      {
+        key: 'clientId',
+        label: 'Client ID',
+        type: 'text',
+        placeholder: 'your-client-id.apps.googleusercontent.com',
+        description: 'Google OAuth 2.0 Client ID for authentication',
+        required: true,
+      },
+      {
+        key: 'defaultBucket',
+        label: 'Default Bucket',
+        type: 'text',
+        placeholder: 'my-bucket',
+        description: 'Default GCS bucket to use',
+        required: false,
+      },
+      {
+        key: 'defaultPrefix',
+        label: 'Default Prefix',
+        type: 'text',
+        placeholder: 'path/to/folder',
+        description: 'Default prefix (folder path) within the bucket',
+        required: false,
+      },
+    ]
   }
 
   /**
@@ -437,10 +483,10 @@ export class GCSPlugin implements IPersistencePlugin {
   /**
    * Location prompt component for collecting GCS parameters
    */
-  LocationPromptComponent: React.FC<LocationPromptProps> = ({ currentIdentifier, fileName, operation, onSubmit, onCancel }) => {
-    // Load last used bucket/prefix from localStorage if not provided
-    const bucket = currentIdentifier?.bucket || localStorage.getItem('gcs-last-bucket') || ''
-    const prefix = currentIdentifier?.prefix || localStorage.getItem('gcs-last-prefix') || ''
+  LocationPromptComponent: React.FC<LocationPromptProps> = ({ fileName, operation, onSubmit, onCancel }) => {
+    // Always use settings values, not currentIdentifier (which may have old URL values)
+    const bucket = localStorage.getItem('plugin-gcs-defaultBucket') || ''
+    const prefix = localStorage.getItem('plugin-gcs-defaultPrefix') || ''
 
     return React.createElement(GCSLocationPrompt, {
       currentBucket: bucket,

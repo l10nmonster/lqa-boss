@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Flex, Button, HStack, Image, Text, Menu, Portal, Separator } from '@chakra-ui/react'
-import { FiInfo, FiChevronDown, FiFolder, FiSave, FiLogOut, FiFilePlus, FiEdit2, FiBarChart2, FiX } from 'react-icons/fi'
+import { FiInfo, FiChevronDown, FiFolder, FiSave, FiLogOut, FiFilePlus, FiEdit2, FiBarChart2, FiX, FiSettings } from 'react-icons/fi'
 import GlassBox from '../GlassBox'
 import { StatusBadge, FileStatus } from '../StatusBadge'
 import { IPersistencePlugin } from '../../plugins/types'
@@ -21,6 +21,7 @@ interface UnifiedHeaderProps {
   onEditModel?: () => void
   onUnloadModel?: () => void
   onShowSummary?: () => void
+  onShowPluginSettings?: (pluginId: string) => void
 }
 
 export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
@@ -38,6 +39,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   onEditModel,
   onUnloadModel,
   onShowSummary,
+  onShowPluginSettings,
 }) => {
   // Get plugins by ID for easy lookup
   const extensionPlugin = plugins.find(p => p.metadata.id === 'extension')
@@ -49,6 +51,9 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 
   // Check extension availability
   const [extensionAvailable, setExtensionAvailable] = useState(false)
+
+  // Get plugins with settings
+  const pluginsWithSettings = plugins.filter(p => p.getSettings && p.getSettings().length > 0)
 
   useEffect(() => {
     if (extensionPlugin?.isAvailable) {
@@ -235,6 +240,33 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
             </Menu.Positioner>
           </Portal>
         </Menu.Root>
+
+        {/* Settings Menu */}
+        {onShowPluginSettings && pluginsWithSettings.length > 0 && (
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <Button variant="ghost" size="sm">
+                Settings
+                <FiChevronDown />
+              </Button>
+            </Menu.Trigger>
+            <Portal>
+              <Menu.Positioner>
+                <Menu.Content>
+                  {pluginsWithSettings.map(plugin => (
+                    <Menu.Item
+                      key={plugin.metadata.id}
+                      value={`settings-${plugin.metadata.id}`}
+                      onClick={() => onShowPluginSettings(plugin.metadata.id)}
+                    >
+                      <FiSettings /> {plugin.metadata.name}…
+                    </Menu.Item>
+                  ))}
+                </Menu.Content>
+              </Menu.Positioner>
+            </Portal>
+          </Menu.Root>
+        )}
       </HStack>
 
       <HStack gap={2}>

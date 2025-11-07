@@ -88,6 +88,21 @@ export interface LocationPromptProps {
 }
 
 /**
+ * Plugin setting definition
+ */
+export interface PluginSetting {
+  key: string                    // Unique key for this setting (used in localStorage)
+  label: string                  // Display label
+  type: 'text' | 'password' | 'number' | 'checkbox' | 'select'
+  defaultValue?: any             // Default value if not set
+  placeholder?: string           // Placeholder text for input fields
+  description?: string           // Help text
+  required?: boolean             // Whether this setting is required
+  options?: Array<{ value: string, label: string }>  // For select type
+  validation?: (value: any) => string | null  // Custom validation function
+}
+
+/**
  * Main plugin interface that all persistence plugins must implement
  */
 export interface IPersistencePlugin {
@@ -126,6 +141,9 @@ export interface IPersistencePlugin {
   getConfig?: () => Record<string, any>
   setConfig?: (config: Record<string, any>) => Promise<void>
   needsSetup?: () => boolean
+
+  // Settings definition
+  getSettings?: () => PluginSetting[]
 
   // File identifier validation
   validateIdentifier?: (identifier: FileIdentifier, operation: 'load' | 'save') => { valid: boolean, missing?: string[] }

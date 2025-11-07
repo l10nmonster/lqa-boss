@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react'
+import React, { useRef, useEffect, useMemo, useState } from 'react'
 import { EditorLayout } from '../components/layout/EditorLayout'
 import { UnifiedHeader } from '../components/headers/UnifiedHeader'
 import { TranslationEditor, TranslationEditorRef } from '../components/TranslationEditor'
@@ -11,10 +11,12 @@ import QASummaryModal from '../components/QASummaryModal'
 import { usePluginAuth } from '../hooks/usePluginAuth'
 import { useQualityModel } from '../hooks/useQualityModel'
 import { useFileOperations } from '../hooks/useFileOperations'
+import { usePluginSettings } from '../hooks/usePluginSettings'
 import { pluginRegistry } from '../plugins/PluginRegistry'
 import { IPersistencePlugin, FileIdentifier } from '../plugins/types'
 import { useNavigate } from 'react-router-dom'
 import { calculateTER, calculateEPT, calculateQASummary, calculateTERStatistics } from '../utils/metrics'
+import { SettingsModal } from '../components/SettingsModal'
 
 // Track processed URLs during this session (not persisted)
 let processedUrl: string | null = null
@@ -25,6 +27,10 @@ export const EditorPage: React.FC = () => {
 
   // Get all available plugins
   const plugins = pluginRegistry.getAllPlugins()
+
+  // Initialize plugin settings hook
+  const pluginSettings = usePluginSettings(plugins)
+  const [showSettingsForPlugin, setShowSettingsForPlugin] = useState<string | null>(null)
 
   // Initialize quality model hook
   const qualityModelHook = useQualityModel()
@@ -187,6 +193,10 @@ export const EditorPage: React.FC = () => {
     translationEditorRef.current?.openInstructions()
   }
 
+  const handleShowPluginSettings = (pluginId: string) => {
+    setShowSettingsForPlugin(pluginId)
+  }
+
   // Memoize header props to avoid re-renders
   const headerProps = useMemo(() => ({
     plugins,
@@ -203,6 +213,7 @@ export const EditorPage: React.FC = () => {
     onEditModel: qualityModelHook.handleEditModel,
     onUnloadModel: qualityModelHook.handleUnloadModel,
     onShowSummary: qualityModelHook.handleShowSummary,
+    onShowPluginSettings: handleShowPluginSettings,
   }), [
     plugins,
     fileOps.handleSave,
@@ -264,6 +275,12 @@ export const EditorPage: React.FC = () => {
         bucket={fileOps.sourceFileId?.bucket || ''}
         prefix={fileOps.sourceFileId?.prefix || ''}
         onFileSelect={fileOps.handleFileSelect}
+        onReloadWithLocation={async (bucket: string, prefix: string) => {
+          const gcsPlugin = plugins.find(p => p.metadata.id === 'gcs')
+          if (gcsPlugin) {
+            await fileOps.showFileListBrowser(gcsPlugin, { bucket, prefix })
+          }
+        }}
         isOpen={fileOps.showFilePicker}
         onClose={fileOps.handleFilePickerClose}
       />
@@ -283,6 +300,18 @@ export const EditorPage: React.FC = () => {
         terStats={terStats}
         ter={ter}
         ept={ept}
+      />
+
+      <SettingsModal
+        isOpen={!!showSettingsForPlugin}
+        onClose={() => setShowSettingsForPlugin(null)}
+        pluginsWithSettings={
+          showSettingsForPlugin
+            ? pluginSettings.getPluginsWithSettings().filter(p => p.plugin.metadata.id === showSettingsForPlugin)
+            : []
+        }
+        currentSettings={pluginSettings.settings}
+        onSave={pluginSettings.setPluginSettings}
       />
 
       <EditorLayout header={header}>

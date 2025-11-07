@@ -9,8 +9,10 @@ import {
   Grid,
   Checkbox,
   Portal,
+  IconButton,
+  Input,
 } from '@chakra-ui/react'
-import { FiX } from 'react-icons/fi'
+import { FiX, FiEdit2, FiCheck } from 'react-icons/fi'
 import { GCSFile } from '../utils/gcsOperations'
 
 interface GCSFilePickerProps {
@@ -18,6 +20,7 @@ interface GCSFilePickerProps {
   bucket: string
   prefix: string
   onFileSelect: (filename: string) => void
+  onReloadWithLocation?: (bucket: string, prefix: string) => Promise<void>
   onLoadFileList?: () => Promise<void>
   disabled?: boolean
   isOpen: boolean
@@ -39,12 +42,54 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
   bucket,
   prefix,
   onFileSelect,
+  onReloadWithLocation,
   onLoadFileList,
   disabled = false,
   isOpen,
   onClose
 }) => {
   const [showDoneJobs, setShowDoneJobs] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editBucket, setEditBucket] = useState(bucket)
+  const [editPrefix, setEditPrefix] = useState(prefix)
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Update edit values when props change
+  useEffect(() => {
+    setEditBucket(bucket)
+    setEditPrefix(prefix)
+  }, [bucket, prefix])
+
+  const handleStartEdit = () => {
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setEditBucket(bucket)
+    setEditPrefix(prefix)
+    setIsEditing(false)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!onReloadWithLocation) return
+
+    const trimmedBucket = editBucket.trim()
+    const trimmedPrefix = editPrefix.trim()
+
+    if (!trimmedBucket || !trimmedPrefix) {
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      await onReloadWithLocation(trimmedBucket, trimmedPrefix)
+      setIsEditing(false)
+    } catch (error) {
+      // Error is handled by parent
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Load file list when modal opens and files array is empty
   useEffect(() => {
@@ -65,9 +110,9 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
       return !isJobDone(files, jobId)
     })
   }
-  
-  // Limit to maximum 10 jobs
-  lqabossFiles = lqabossFiles.slice(0, 10)
+
+  // Limit to maximum 100 jobs
+  lqabossFiles = lqabossFiles.slice(0, 100)
 
   const handleFileSelect = (filename: string) => {
     onFileSelect(filename)
@@ -145,20 +190,74 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
           justifyContent="space-between"
           bg="gray.50"
         >
-          <Text fontSize="sm" color="gray.600">
-            {bucket}/{prefix}
-          </Text>
-          <Checkbox.Root
-            checked={showDoneJobs}
-            onCheckedChange={(details) => setShowDoneJobs(!!details.checked)}
-            colorPalette="green"
-          >
-            <Checkbox.HiddenInput />
-            <Checkbox.Control>
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-            <Checkbox.Label>Show DONE jobs</Checkbox.Label>
-          </Checkbox.Root>
+          {isEditing ? (
+            <HStack gap={2} flex={1}>
+              <Input
+                size="sm"
+                value={editBucket}
+                onChange={(e) => setEditBucket(e.target.value)}
+                placeholder="bucket-name"
+                width="200px"
+              />
+              <Text fontSize="sm" color="gray.600">/</Text>
+              <Input
+                size="sm"
+                value={editPrefix}
+                onChange={(e) => setEditPrefix(e.target.value)}
+                placeholder="path/to/folder"
+                width="300px"
+              />
+              <IconButton
+                onClick={handleSaveEdit}
+                colorScheme="blue"
+                size="sm"
+                aria-label="Save location"
+                title="Save and reload"
+                loading={isLoading}
+                disabled={!editBucket.trim() || !editPrefix.trim()}
+              >
+                <FiCheck />
+              </IconButton>
+              <Button
+                onClick={handleCancelEdit}
+                variant="ghost"
+                size="sm"
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+            </HStack>
+          ) : (
+            <HStack gap={2}>
+              <Text fontSize="sm" color="gray.600">
+                {bucket}/{prefix}
+              </Text>
+              {onReloadWithLocation && (
+                <IconButton
+                  onClick={handleStartEdit}
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Edit location"
+                  title="Edit bucket and prefix"
+                >
+                  <FiEdit2 />
+                </IconButton>
+              )}
+            </HStack>
+          )}
+          {!isEditing && (
+            <Checkbox.Root
+              checked={showDoneJobs}
+              onCheckedChange={(details) => setShowDoneJobs(!!details.checked)}
+              colorPalette="green"
+            >
+              <Checkbox.HiddenInput />
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              <Checkbox.Label>Show DONE jobs</Checkbox.Label>
+            </Checkbox.Root>
+          )}
         </Box>
         
         {/* Body */}

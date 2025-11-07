@@ -1,4 +1,4 @@
-import { IPersistencePlugin, FileIdentifier, PluginMetadata, PluginCapabilities } from './types'
+import { IPersistencePlugin, FileIdentifier, PluginMetadata, PluginCapabilities, PluginSetting } from './types'
 import { JobData } from '../types'
 import JSZip from 'jszip'
 import { generateJobGuid } from '../utils/idGenerator'
@@ -15,15 +15,12 @@ declare const chrome: {
   }
 }
 
-// Extension ID - update this with your actual extension ID
-// You can find it in chrome://extensions when developer mode is enabled
-const EXTENSION_ID = 'kikdgalghgdmaabcjbbkdbjchmnonlhb'
-
 /**
  * Chrome Extension plugin for receiving .lqaboss files from a Chrome extension
  * Uses chrome.runtime messaging API for cross-origin communication
  */
 export class ChromeExtensionPlugin implements IPersistencePlugin {
+  private extensionId: string = ''
 
   readonly metadata: PluginMetadata = {
     id: 'extension',
@@ -38,6 +35,11 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
     canSave: false,  // Extension creates files, doesn't receive them back
     canList: false,
     requiresAuth: false
+  }
+
+  constructor() {
+    // Load extension ID from localStorage
+    this.extensionId = localStorage.getItem('plugin-extension-extensionId') || ''
   }
 
   /**
@@ -63,13 +65,18 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
       return false
     }
 
+    // Extension ID must be configured
+    if (!this.extensionId) {
+      return false
+    }
+
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         resolve(false)
       }, 1000)
 
       chrome.runtime.sendMessage(
-        EXTENSION_ID,
+        this.extensionId,
         { action: 'ping' },
         (_response: any) => {
           clearTimeout(timeout)
@@ -97,21 +104,26 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
       throw new Error('Chrome extension API not available. Please use Chrome or Edge browser.')
     }
 
+    // Extension ID must be configured
+    if (!this.extensionId) {
+      throw new Error('Extension ID not configured. Please set the Extension ID in Settings.')
+    }
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error(`Timeout waiting for extension response (30s). Extension ID: ${EXTENSION_ID}. Check chrome://extensions for the correct ID.`))
+        reject(new Error(`Timeout waiting for extension response (30s). Extension ID: ${this.extensionId}. Check chrome://extensions for the correct ID.`))
       }, 30000)
 
       // Request flow from extension
       chrome.runtime.sendMessage(
-        EXTENSION_ID,
+        this.extensionId,
         { action: 'requestFlow' },
         async (response: any) => {
           clearTimeout(timeout)
 
           // Check for Chrome runtime errors
           if (chrome.runtime.lastError) {
-            reject(new Error(`Extension communication failed: ${chrome.runtime.lastError.message}. Current extension ID: ${EXTENSION_ID}. Check chrome://extensions for the correct ID.`))
+            reject(new Error(`Extension communication failed: ${chrome.runtime.lastError.message}. Current extension ID: ${this.extensionId}. Check chrome://extensions for the correct ID.`))
             return
           }
 
@@ -216,5 +228,40 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
    */
   validateIdentifier(_identifier: FileIdentifier, _operation: 'load' | 'save'): { valid: boolean } {
     return { valid: true }
+  }
+
+  /**
+   * Get plugin configuration
+   */
+  getConfig(): Record<string, any> {
+    return {
+      extensionId: this.extensionId
+    }
+  }
+
+  /**
+   * Set plugin configuration
+   */
+  async setConfig(config: Record<string, any>): Promise<void> {
+    if (config.extensionId !== undefined) {
+      this.extensionId = config.extensionId
+    }
+  }
+
+  /**
+   * Get plugin settings definition
+   */
+  getSettings(): PluginSetting[] {
+    return [
+      {
+        key: 'extensionId',
+        label: 'Extension ID',
+        type: 'text',
+        placeholder: 'abc...xyz',
+        description: 'Chrome Extension ID (find it at chrome://extensions with Developer mode enabled)',
+        required: true,
+        defaultValue: 'kikdgalghgdmaabcjbbkdbjchmnonlhb',
+      },
+    ]
   }
 }

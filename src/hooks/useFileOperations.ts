@@ -46,6 +46,10 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
         updated: f.updated || new Date().toISOString()
       }))
 
+      // Update sourceFileId so the picker shows the correct location
+      setSourceFileId(fileId)
+      setCurrentFileId(fileId)
+
       setFileList(gcsFiles)
       setShowFilePicker(true)
     } catch (error: any) {
@@ -278,32 +282,60 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
 
     // Check if plugin has a LocationPromptComponent and needs location info
     if (plugin.LocationPromptComponent && plugin.validateIdentifier) {
-      // Validate current sourceFileId (or empty object if none)
-      const validation = plugin.validateIdentifier(sourceFileId || {}, 'load')
+      // For GCS plugin, use settings instead of last used location
+      let identifierToValidate: FileIdentifier
+
+      if (plugin.metadata.id === 'gcs') {
+        // Read from settings
+        const defaultBucket = localStorage.getItem('plugin-gcs-defaultBucket') || ''
+        const defaultPrefix = localStorage.getItem('plugin-gcs-defaultPrefix') || ''
+
+        identifierToValidate = {
+          bucket: defaultBucket,
+          prefix: defaultPrefix
+        }
+      } else {
+        // For other plugins, use sourceFileId
+        identifierToValidate = sourceFileId || {}
+      }
+
+      // Validate the identifier
+      const validation = plugin.validateIdentifier(identifierToValidate, 'load')
 
       if (!validation.valid) {
-        // Need to prompt for location info
+        // For GCS, show error instead of prompt if settings are not configured
+        if (plugin.metadata.id === 'gcs') {
+          toaster.create({
+            title: 'GCS settings not configured',
+            description: `Please configure ${validation.missing?.join(', ')} in Settings → Google Cloud Storage`,
+            type: 'error',
+            duration: 8000,
+          })
+          return
+        }
+
+        // For other plugins, show location prompt
         setShowLocationPrompt('load')
         return
       }
 
       // Has valid location (bucket/prefix) - show file browser
-      if (sourceFileId && sourceFileId.bucket && sourceFileId.prefix && plugin.listFiles) {
+      if (identifierToValidate.bucket && identifierToValidate.prefix && plugin.listFiles) {
         try {
           // Check authentication
           if (plugin.capabilities.requiresAuth && !plugin.getAuthState?.().isAuthenticated) {
             if (options?.onAuthRequired) {
               // Remove filename from pending ID so we just show browser after auth
               await options.onAuthRequired(plugin, {
-                bucket: sourceFileId.bucket,
-                prefix: sourceFileId.prefix
+                bucket: identifierToValidate.bucket,
+                prefix: identifierToValidate.prefix
               })
               return
             }
           }
 
           // Show file browser
-          await showFileListBrowser(plugin, sourceFileId)
+          await showFileListBrowser(plugin, identifierToValidate)
           return
         } catch (error: any) {
           toaster.create({
@@ -349,10 +381,10 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
       // Save with the provided identifier
       await performSave(currentPlugin, identifier)
     } else if (operation === 'load') {
-      // Save bucket/prefix to localStorage for next time
+      // Save bucket/prefix to settings for next time
       if (identifier.bucket && identifier.prefix) {
-        localStorage.setItem('gcs-last-bucket', identifier.bucket)
-        localStorage.setItem('gcs-last-prefix', identifier.prefix)
+        localStorage.setItem('plugin-gcs-defaultBucket', identifier.bucket)
+        localStorage.setItem('plugin-gcs-defaultPrefix', identifier.prefix)
       }
 
       // Update the source file ID
