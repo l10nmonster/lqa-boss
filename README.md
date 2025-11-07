@@ -66,7 +66,7 @@ npm run preview
 5. **Use the search filter** to quickly find specific segments by typing in the filter box or pressing Cmd+K
 6. **Customize filter fields** using the sliders menu to search in source, target, notes, or IDs
 7. Edit text in the Lexical editor on the right
-8. Use Tab/Shift+Tab to navigate between segments
+8. Use CMD+Enter (Mac) / Ctrl+Enter (Windows) to navigate to the next segment
 9. Click "Save Changes" to download a JSON file with all modifications
 10. Monitor file status via the colored badge in the header (NEW/SAVED/CHANGED/LOADED)
 
@@ -113,7 +113,7 @@ The app features a modern, space-efficient layout with intelligent status tracki
 ### Editor Panel Controls
 - **Search Filter**: Real-time text filter with keyboard shortcut (Cmd+K/Ctrl+K)
 - **Filter Settings Menu**: Customizable field selection (⚙️ sliders icon)
-- **Segment Navigation**: Tab/Shift+Tab for moving between filtered results
+- **Segment Navigation**: CMD+Enter (Mac) / Ctrl+Enter (Windows) for moving to next segment
 
 ### Layout Features
 - **Full-width interface**: Uses the entire screen width for maximum workspace
@@ -125,8 +125,6 @@ The app features a modern, space-efficient layout with intelligent status tracki
 
 ## Keyboard Shortcuts
 
-- **Tab**: Next segment
-- **Shift+Tab**: Previous segment
 - **CMD+Enter** (Mac) / **Ctrl+Enter** (Windows): Next segment
 - **Ctrl+Left**: Previous page
 - **Ctrl+Right**: Next page
