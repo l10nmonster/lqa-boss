@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, forwardRef } from 'react'
-import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getNodeByKey, COMMAND_PRIORITY_HIGH, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, $getSelection, $isRangeSelection, KEY_ARROW_UP_COMMAND, KEY_ARROW_DOWN_COMMAND, $setSelection, $createRangeSelection } from 'lexical'
+import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getNodeByKey, COMMAND_PRIORITY_HIGH, $getSelection, $isRangeSelection, KEY_ARROW_UP_COMMAND, KEY_ARROW_DOWN_COMMAND, $setSelection, $createRangeSelection } from 'lexical'
 import {
   HeadingNode,
   QuoteNode
@@ -40,13 +40,25 @@ class PlaceholderNode extends DecoratorNode<React.ReactNode> {
     this.__index = index
   }
 
-  // Make placeholder inline and non-selectable via keyboard
+  // Make placeholder inline
   isInline(): boolean {
     return true
   }
 
+  // Make placeholders non-selectable - cursor jumps over them
   isKeyboardSelectable(): boolean {
     return false
+  }
+
+  // Make placeholder act as a word boundary for double-click selection
+  isSegmented(): boolean {
+    return true
+  }
+
+  // Prevent removal of placeholder nodes
+  remove(): this {
+    // Placeholders cannot be removed - return this unchanged
+    return this
   }
 
   createDOM(): HTMLElement {
@@ -126,8 +138,8 @@ class PlaceholderNode extends DecoratorNode<React.ReactNode> {
   }
 
   decorate(): React.ReactNode {
-    // Return just the content - styling and tooltip are handled by createDOM()
-    return this.__index
+    // Return wrapped in span - plain primitives don't work correctly with Lexical
+    return <span>{this.__index}</span>
   }
 
   static importJSON(serializedNode: any): PlaceholderNode {
@@ -593,161 +605,11 @@ function DragDropPlugin(): null {
   return null
 }
 
-// Plugin to handle focus and cursor positioning
-function FocusPlugin(): null {
+// Plugin to handle arrow key navigation between paragraphs
+function ArrowNavigationPlugin(): null {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      // Don't interfere with placeholder clicks
-      if ((e.target as HTMLElement).closest('[data-lexical-decorator="true"]')) {
-        return
-      }
-
-      // Focus the editor to ensure proper cursor behavior
-      editor.focus()
-    }
-
-    const editorElement = editor.getRootElement()
-    if (editorElement) {
-      editorElement.addEventListener('click', handleClick)
-
-      return () => {
-        editorElement.removeEventListener('click', handleClick)
-      }
-    }
-  }, [editor])
-
-  return null
-}
-
-
-// Plugin to prevent deletion of placeholders via keyboard
-function KeyboardProtectionPlugin(): null {
-  const [editor] = useLexicalComposerContext()
-
-  useEffect(() => {
-    const removeBackspaceCommand = editor.registerCommand(
-      KEY_BACKSPACE_COMMAND,
-      (event) => {
-        const selection = $getSelection()
-        if (!$isRangeSelection(selection)) return false
-
-        // If selection is not collapsed, check if it contains placeholders
-        if (!selection.isCollapsed()) {
-          const nodes = selection.getNodes()
-          const hasPlaceholder = nodes.some(node => node instanceof PlaceholderNode)
-          if (hasPlaceholder) {
-            event?.preventDefault()
-            return true
-          }
-        } else {
-          // Selection is collapsed (just a cursor)
-          const anchor = selection.anchor
-          let anchorNode = anchor.getNode()
-          const offset = anchor.offset
-
-          // If anchor is a PlaceholderNode itself, prevent deletion
-          if (anchorNode instanceof PlaceholderNode) {
-            event?.preventDefault()
-            return true
-          }
-
-          // Case 1: Cursor in a TextNode
-          if (anchorNode instanceof TextNode) {
-            // Check if cursor is at the beginning of the text node
-            if (offset === 0) {
-              const parent = anchorNode.getParent()
-              if ($isElementNode(parent)) {
-                const prevSibling = anchorNode.getPreviousSibling()
-                if (prevSibling instanceof PlaceholderNode) {
-                  event?.preventDefault()
-                  return true
-                }
-              }
-            }
-          }
-          // Case 2: Cursor in an ElementNode (e.g., paragraph)
-          else if ($isElementNode(anchorNode)) {
-            const children = anchorNode.getChildren()
-            // Check if there's a placeholder right before the cursor position
-            if (offset > 0 && offset <= children.length) {
-              const prevChild = children[offset - 1]
-              if (prevChild instanceof PlaceholderNode) {
-                event?.preventDefault()
-                return true
-              }
-            }
-          }
-        }
-
-        return false
-      },
-      COMMAND_PRIORITY_HIGH
-    )
-
-    const removeDeleteCommand = editor.registerCommand(
-      KEY_DELETE_COMMAND,
-      (event) => {
-        const selection = $getSelection()
-        if (!$isRangeSelection(selection)) return false
-
-        // If selection is not collapsed, check if it contains placeholders
-        if (!selection.isCollapsed()) {
-          const nodes = selection.getNodes()
-          const hasPlaceholder = nodes.some(node => node instanceof PlaceholderNode)
-          if (hasPlaceholder) {
-            event?.preventDefault()
-            return true
-          }
-        } else {
-          // Selection is collapsed (just a cursor)
-          const anchor = selection.anchor
-          let anchorNode = anchor.getNode()
-          const offset = anchor.offset
-
-          // If anchor is a PlaceholderNode itself, prevent deletion
-          if (anchorNode instanceof PlaceholderNode) {
-            event?.preventDefault()
-            return true
-          }
-
-          // Case 1: Cursor in a TextNode
-          if (anchorNode instanceof TextNode) {
-            const text = anchorNode.getTextContent()
-            const textLength = text.length
-
-            // Check if cursor is at the end of the text node
-            if (offset === textLength) {
-              const parent = anchorNode.getParent()
-              if ($isElementNode(parent)) {
-                const nextSibling = anchorNode.getNextSibling()
-                if (nextSibling instanceof PlaceholderNode) {
-                  event?.preventDefault()
-                  return true
-                }
-              }
-            }
-          }
-          // Case 2: Cursor in an ElementNode (e.g., paragraph)
-          else if ($isElementNode(anchorNode)) {
-            const children = anchorNode.getChildren()
-            // Check if there's a placeholder right at the cursor position
-            if (offset < children.length) {
-              const nextChild = children[offset]
-              if (nextChild instanceof PlaceholderNode) {
-                event?.preventDefault()
-                return true
-              }
-            }
-          }
-        }
-
-        return false
-      },
-      COMMAND_PRIORITY_HIGH
-    )
-
     // Handle up arrow - move to end of previous paragraph
     const removeUpArrowCommand = editor.registerCommand(
       KEY_ARROW_UP_COMMAND,
@@ -850,8 +712,6 @@ function KeyboardProtectionPlugin(): null {
     )
 
     return () => {
-      removeBackspaceCommand()
-      removeDeleteCommand()
       removeUpArrowCommand()
       removeDownArrowCommand()
     }
@@ -1181,8 +1041,7 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
         />
         <OnChangePlugin onChange={handleChange} />
         <HistoryPlugin />
-        <FocusPlugin />
-        <KeyboardProtectionPlugin />
+        <ArrowNavigationPlugin />
         <InitializePlugin normalizedContent={normalizedContent} />
         <DragDropPlugin />
         <EditorRefPlugin editorRef={editorRef} />
