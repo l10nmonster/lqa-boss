@@ -1,3 +1,16 @@
+## [2.1.2](https://github.com/l10nmonster/lqa-boss/compare/v2.1.1...v2.1.2) (2025-11-07)
+
+
+### Bug Fixes
+
+* Auto-focus on editor when going to next segment ([af6bd48](https://github.com/l10nmonster/lqa-boss/commit/af6bd48545311a46ce4bc6678a8cca7693ce88e7))
+* Move settings to new menu ([243d469](https://github.com/l10nmonster/lqa-boss/commit/243d4697c724b18dba54a2209097d8dc7bdab07e))
+* Placeholder deletion and selection ([71fa843](https://github.com/l10nmonster/lqa-boss/commit/71fa8438d615a9a34a37a18db4eabcec3164f0bf))
+* Remove custom Tab key behavior ([03cfd72](https://github.com/l10nmonster/lqa-boss/commit/03cfd7298bd876baefd2ff6a71fc1f2bfa38063e))
+* Render source newlines as newlines ([d236f8e](https://github.com/l10nmonster/lqa-boss/commit/d236f8e9e955f66a4c14fe9c977e0a22c7fb699e))
+* Show updatedAt and provider if available ([0abeb8d](https://github.com/l10nmonster/lqa-boss/commit/0abeb8d3a6297a69df8c95f2f224954cc19ba50c))
+* Strip styling from pasted text ([4526cc9](https://github.com/l10nmonster/lqa-boss/commit/4526cc96c90a1158173590348422aeae41a1519b))
+
 ## [2.1.1](https://github.com/l10nmonster/lqa-boss/compare/v2.1.0...v2.1.1) (2025-11-04)
 
 
