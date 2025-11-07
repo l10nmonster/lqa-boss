@@ -871,6 +871,7 @@ interface NormalizedTextEditorProps {
 
 export interface NormalizedTextEditorRef {
   blur: () => void
+  focus: () => void
   forceUpdate: (content: NormalizedItem[]) => void
 }
 
@@ -881,6 +882,9 @@ function EditorRefPlugin({ editorRef }: { editorRef: React.RefObject<NormalizedT
   React.useImperativeHandle(editorRef, () => ({
     blur: () => {
       editor.blur()
+    },
+    focus: () => {
+      editor.focus()
     },
     forceUpdate: (content: NormalizedItem[]) => {
       editor.update(() => {
@@ -1045,6 +1049,7 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
   // Connect the forwarded ref to our internal ref
   React.useImperativeHandle(ref, () => ({
     blur: () => editorRef.current?.blur(),
+    focus: () => editorRef.current?.focus(),
     forceUpdate: (content: NormalizedItem[]) => editorRef.current?.forceUpdate(content)
   }), [])
 

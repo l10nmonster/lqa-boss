@@ -177,6 +177,24 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     }
   }, [activeSegmentIndex])
 
+  // Focus the editor when active segment changes
+  useEffect(() => {
+    if (activeSegmentIndex >= 0) {
+      const translationUnitsToShow = page
+        ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
+        : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
+
+      const activeItem = translationUnitsToShow[activeSegmentIndex]
+      if (activeItem?.tu) {
+        const guid = activeItem.tu.guid
+        // Small delay to ensure the editor is ready after scroll
+        setTimeout(() => {
+          normalizedEditorRefs.current[guid]?.focus()
+        }, 100)
+      }
+    }
+  }, [activeSegmentIndex, page, jobData.tus, tusByGuid])
+
   const handleNormalizedChange = useCallback((guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
     if (tu) {
