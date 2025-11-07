@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, forwardRef } from 'react'
-import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getNodeByKey, COMMAND_PRIORITY_HIGH, $getSelection, $isRangeSelection, KEY_ARROW_UP_COMMAND, KEY_ARROW_DOWN_COMMAND, $setSelection, $createRangeSelection } from 'lexical'
+import { $getRoot, $createParagraphNode, $createTextNode, $isElementNode, LexicalNode, EditorState, LexicalEditor as Editor, $getNodeByKey, COMMAND_PRIORITY_HIGH, $getSelection, $isRangeSelection, KEY_ARROW_UP_COMMAND, KEY_ARROW_DOWN_COMMAND, $setSelection, $createRangeSelection, PASTE_COMMAND } from 'lexical'
 import {
   HeadingNode,
   QuoteNode
@@ -605,6 +605,35 @@ function DragDropPlugin(): null {
   return null
 }
 
+// Plugin to strip formatting on paste
+function PlainTextPastePlugin(): null {
+  const [editor] = useLexicalComposerContext()
+
+  useEffect(() => {
+    return editor.registerCommand(
+      PASTE_COMMAND,
+      (event: ClipboardEvent) => {
+        event.preventDefault()
+
+        // Get plain text from clipboard
+        const text = event.clipboardData?.getData('text/plain')
+        if (!text) return false
+
+        // Insert as plain text
+        const selection = $getSelection()
+        if ($isRangeSelection(selection)) {
+          selection.insertText(text)
+        }
+
+        return true // Prevent default Lexical paste handling
+      },
+      COMMAND_PRIORITY_HIGH
+    )
+  }, [editor])
+
+  return null
+}
+
 // Plugin to handle arrow key navigation between paragraphs
 function ArrowNavigationPlugin(): null {
   const [editor] = useLexicalComposerContext()
@@ -1041,6 +1070,7 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
         />
         <OnChangePlugin onChange={handleChange} />
         <HistoryPlugin />
+        <PlainTextPastePlugin />
         <ArrowNavigationPlugin />
         <InitializePlugin normalizedContent={normalizedContent} />
         <DragDropPlugin />
