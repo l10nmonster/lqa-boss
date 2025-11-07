@@ -101,8 +101,17 @@ export const useTranslationData = () => {
       return tu
     })
 
+    const resultJobData = {
+      ...baseJobData,
+      tus: updatedTus,
+      // updatedAt comes from the companion file (savedTranslations)
+      updatedAt: savedTranslations.updatedAt || baseJobData.updatedAt,
+      // translationProvider always comes from baseJobData (the original .lqaboss file)
+      translationProvider: baseJobData.translationProvider
+    }
+
     return {
-      jobData: { ...baseJobData, tus: updatedTus },
+      jobData: resultJobData,
       editedCount
     }
   }

@@ -54,7 +54,7 @@ function parseTextWithLinks(text: string): React.ReactNode {
   return parts.length > 0 ? parts : text
 }
 
-interface InstructionsModalProps {
+interface InfoModalProps {
   isOpen: boolean
   onClose: () => void
   instructions?: string
@@ -70,7 +70,7 @@ interface InstructionsModalProps {
   ept?: number | null
 }
 
-const InstructionsModal: React.FC<InstructionsModalProps> = ({
+const InfoModal: React.FC<InfoModalProps> = ({
   isOpen,
   onClose,
   instructions,
@@ -116,7 +116,7 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
         boxShadow="xl"
         borderRadius="xl"
         overflow="hidden"
-        data-testid="instructions-modal"
+        data-testid="info-modal"
       >
         {/* Header */}
         <Box
@@ -217,7 +217,13 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
                 Last Updated
               </Text>
               <Text fontSize="sm" color="gray.700">
-                {new Date(updatedAt).toLocaleString()}
+                {new Date(updatedAt).toLocaleDateString(undefined, {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
               </Text>
             </Box>
           )}
@@ -254,4 +260,4 @@ const InstructionsModal: React.FC<InstructionsModalProps> = ({
   )
 }
 
-export default InstructionsModal 
+export default InfoModal 

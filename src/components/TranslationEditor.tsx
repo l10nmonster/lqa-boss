@@ -8,7 +8,7 @@ import ScreenshotViewer from './ScreenshotViewer'
 import TextSegmentEditor from './TextSegmentEditor'
 import GlassBox from './GlassBox'
 import ResizablePane from './ResizablePane'
-import InstructionsModal from './InstructionsModal'
+import InfoModal from './InfoModal'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
 import { calculateTER } from '../utils/metrics'
@@ -48,11 +48,11 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
 }, ref) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
-  const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false)
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
 
-  // Expose openInstructions method via ref
+  // Expose openInstructions method via ref (keeping method name for backward compatibility)
   useImperativeHandle(ref, () => ({
-    openInstructions: () => setIsInstructionsModalOpen(true)
+    openInstructions: () => setIsInfoModalOpen(true)
   }), [])
   const [filterText, setFilterText] = useState('')
   const filterInputRef = useRef<HTMLInputElement>(null)
@@ -86,7 +86,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
       // Use jobGuid to detect new file loads since it's unique per job
       // and doesn't change when translation units are edited
       if (currentJobGuidRef.current !== jobData.jobGuid && onInstructionsOpen) {
-        setIsInstructionsModalOpen(true)
+        setIsInfoModalOpen(true)
         onInstructionsOpen()
         currentJobGuidRef.current = jobData.jobGuid
       }
@@ -474,11 +474,11 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
         </GlassBox>
       )}
       
-      {/* Instructions Modal */}
+      {/* Info Modal */}
       {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourcePluginName || ter !== null || ept !== null) && (
-        <InstructionsModal
-          isOpen={isInstructionsModalOpen}
-          onClose={() => setIsInstructionsModalOpen(false)}
+        <InfoModal
+          isOpen={isInfoModalOpen}
+          onClose={() => setIsInfoModalOpen(false)}
           instructions={jobData.instructions}
           sourceLang={jobData.sourceLang}
           targetLang={jobData.targetLang}

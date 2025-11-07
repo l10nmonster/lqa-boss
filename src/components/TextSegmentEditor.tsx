@@ -489,13 +489,37 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                     <Portal>
                       <Menu.Positioner zIndex={9999}>
                         <Menu.Content>
+                          {/* Informational labels */}
+                          {(tu.translationProvider || tu.ts) && (
+                            <>
+                              <Box px={3} py={2} fontSize="xs" color="gray.600">
+                                {tu.translationProvider && (
+                                  <Text fontWeight="medium">
+                                    Provider: {tu.translationProvider}
+                                  </Text>
+                                )}
+                                {tu.ts && (
+                                  <Text>
+                                    Updated: {new Date(tu.ts).toLocaleDateString(undefined, {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </Text>
+                                )}
+                              </Box>
+                              <Menu.Separator />
+                            </>
+                          )}
                           <Menu.Item
                             value="original"
                             disabled={segmentState === 'original'}
                             onClick={() => handleOriginal(tu.guid)}
                           >
                             <FiHome />
-                            Original
+                            Reset to original
                           </Menu.Item>
                           <Menu.Item
                             value="undo"
@@ -503,7 +527,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                             onClick={() => handleUndo(tu.guid)}
                           >
                             <FiRotateCcw />
-                            Undo
+                            Reset to saved
                           </Menu.Item>
                           <Menu.Item
                             value="copy-source"
