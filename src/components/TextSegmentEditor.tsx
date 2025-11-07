@@ -46,7 +46,18 @@ function NormalizedTextDisplay({
     <>
       {items.map((item, idx) => {
         if (typeof item === 'string') {
-          return <React.Fragment key={idx}>{item}</React.Fragment>
+          // Handle newlines in the text by splitting and inserting <br> elements
+          const lines = item.split('\n')
+          return (
+            <React.Fragment key={idx}>
+              {lines.map((line, lineIdx) => (
+                <React.Fragment key={lineIdx}>
+                  {line}
+                  {lineIdx < lines.length - 1 && <br />}
+                </React.Fragment>
+              ))}
+            </React.Fragment>
+          )
         }
 
         const placeholder = item as NormalizedPlaceholder
