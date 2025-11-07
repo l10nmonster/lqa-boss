@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react'
+import React, { useRef, useEffect, useMemo } from 'react'
 import { EditorLayout } from '../components/layout/EditorLayout'
 import { UnifiedHeader } from '../components/headers/UnifiedHeader'
 import { TranslationEditor, TranslationEditorRef } from '../components/TranslationEditor'
@@ -6,81 +6,106 @@ import { ClientIdPrompt } from '../components/prompts/ClientIdPrompt'
 import { AuthPrompt } from '../components/prompts/AuthPrompt'
 import GCSFilePicker from '../components/GCSFilePicker'
 import { ModelEditor } from '../components/ModelEditor'
+import QASummaryModal from '../components/QASummaryModal'
 
-import { useTranslationData } from '../hooks/useTranslationData'
-import { useFileLoader } from '../hooks/useFileLoader'
+import { usePluginAuth } from '../hooks/usePluginAuth'
+import { useQualityModel } from '../hooks/useQualityModel'
+import { useFileOperations } from '../hooks/useFileOperations'
 import { pluginRegistry } from '../plugins/PluginRegistry'
 import { IPersistencePlugin, FileIdentifier } from '../plugins/types'
-import { toaster } from '../components/ui/toaster'
-import { JobData } from '../types'
-import { QualityModel } from '../types/qualityModel'
-import { GCSFile } from '../utils/gcsOperations'
 import { useNavigate } from 'react-router-dom'
 import { calculateTER, calculateEPT, calculateQASummary, calculateTERStatistics } from '../utils/metrics'
-import QASummaryModal from '../components/QASummaryModal'
 
 // Track processed URLs during this session (not persisted)
 let processedUrl: string | null = null
 
 export const EditorPage: React.FC = () => {
-
-  // Initialize with local plugin as default
-  const [currentPlugin, setCurrentPlugin] = useState<IPersistencePlugin | null>(
-    () => pluginRegistry.getPlugin('local') || null
-  )
-  const [currentFileId, setCurrentFileId] = useState<FileIdentifier | null>(null)
-  const [sourcePlugin, setSourcePlugin] = useState<IPersistencePlugin | null>(null)
-  const [sourceFileId, setSourceFileId] = useState<FileIdentifier | null>(null)
-  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
-  const [showClientIdPrompt, setShowClientIdPrompt] = useState(false)
-  const [showLocationPrompt, setShowLocationPrompt] = useState<'load' | 'save' | null>(null)
-  const [showFilePicker, setShowFilePicker] = useState(false)
-  const [fileList, setFileList] = useState<GCSFile[]>([])
-  const [pendingFileId, setPendingFileId] = useState<FileIdentifier | null>(null)
-
-  // Quality model state
-  const [qualityModel, setQualityModel] = useState<QualityModel | null>(null)
-  const [showModelEditor, setShowModelEditor] = useState(false)
-  const [editingModel, setEditingModel] = useState<QualityModel | null>(null)
-  const [showQASummary, setShowQASummary] = useState(false)
-
   const translationEditorRef = useRef<TranslationEditorRef>(null)
-  const fileLoader = useFileLoader()
-  const translationData = useTranslationData()
   const navigate = useNavigate()
 
   // Get all available plugins
   const plugins = pluginRegistry.getAllPlugins()
 
-  // Calculate TER (Translation Error Rate)
+  // Initialize quality model hook
+  const qualityModelHook = useQualityModel()
+
+  // Initialize file operations hook with callbacks
+  const fileOps = useFileOperations({
+    onAuthRequired: async (plugin: IPersistencePlugin, fileId: FileIdentifier) => {
+      auth.setPendingFileId(fileId)
+      auth.setCurrentPlugin(plugin)
+      auth.setShowAuthPrompt(true)
+      return true
+    },
+    onQualityModelLoaded: (model) => {
+      if (model) {
+        qualityModelHook.setQualityModel(model)
+        console.log('Quality model loaded:', model.name)
+      }
+    }
+  })
+
+  // Initialize auth hook with post-auth callback
+  const auth = usePluginAuth({
+    onAuthComplete: async (plugin: IPersistencePlugin, fileId: FileIdentifier | null) => {
+      if (!fileId) return
+
+      // Determine if this is a save operation
+      const isSaveOperation = !!fileOps.translationData.jobData && !!(fileId as any).fileName
+
+      if (isSaveOperation) {
+        // Continue with save flow
+        if (plugin.validateIdentifier) {
+          const validation = plugin.validateIdentifier(fileId, 'save')
+
+          if (!validation.valid) {
+            if (plugin.LocationPromptComponent) {
+              fileOps.setShowLocationPrompt('save')
+              auth.setPendingFileId(null)
+              return
+            }
+          }
+        }
+        await fileOps.performSave(plugin, fileId)
+        auth.setPendingFileId(null)
+      } else {
+        // Load flow
+        fileOps.setSourceFileId(fileId)
+        fileOps.setCurrentFileId(fileId)
+
+        if (fileId.filename) {
+          await fileOps.loadFileFromPlugin(plugin, fileId)
+        } else {
+          await fileOps.showFileListBrowser(plugin, fileId)
+        }
+        auth.setPendingFileId(null)
+      }
+    }
+  })
+
+  // Calculate metrics
   const ter = useMemo(() => {
-    return calculateTER(translationData.jobData, translationData.originalJobData)
-  }, [translationData.jobData, translationData.originalJobData])
+    return calculateTER(fileOps.translationData.jobData, fileOps.translationData.originalJobData)
+  }, [fileOps.translationData.jobData, fileOps.translationData.originalJobData])
 
-  // Calculate EPT (Error Per Thousand words)
   const ept = useMemo(() => {
-    // EPT only makes sense when a quality model is loaded
-    if (!qualityModel) return null
-    return calculateEPT(translationData.jobData)
-  }, [translationData.jobData, qualityModel])
+    if (!qualityModelHook.qualityModel) return null
+    return calculateEPT(fileOps.translationData.jobData)
+  }, [fileOps.translationData.jobData, qualityModelHook.qualityModel])
 
-  // Calculate QA Summary
   const qaSummary = useMemo(() => {
-    return calculateQASummary(translationData.jobData, translationData.originalJobData)
-  }, [translationData.jobData, translationData.originalJobData])
+    return calculateQASummary(fileOps.translationData.jobData, fileOps.translationData.originalJobData)
+  }, [fileOps.translationData.jobData, fileOps.translationData.originalJobData])
 
-  // Calculate TER statistics for summary modal
   const terStats = useMemo(() => {
-    return calculateTERStatistics(translationData.jobData, translationData.originalJobData)
-  }, [translationData.jobData, translationData.originalJobData])
+    return calculateTERStatistics(fileOps.translationData.jobData, fileOps.translationData.originalJobData)
+  }, [fileOps.translationData.jobData, fileOps.translationData.originalJobData])
 
   // URL parsing for deep links (only on initial mount)
   useEffect(() => {
     const currentUrl = window.location.pathname + window.location.search
 
     // Skip if this URL was already processed in this session
-    // This prevents duplicate loads from React StrictMode
-    // Note: processedUrl resets on page refresh (it's a module variable, not persisted)
     if (processedUrl === currentUrl) return
 
     // Check for path-based GCS URLs first (e.g., /gcs/bucket/prefix/file.lqaboss)
@@ -90,10 +115,9 @@ export const EditorPage: React.FC = () => {
       if (gcsPlugin && gcsPlugin.parsePathUrl) {
         const fileId = gcsPlugin.parsePathUrl(pathSegments)
         if (fileId) {
-          // Mark as processed immediately
           processedUrl = currentUrl
-          setCurrentPlugin(gcsPlugin)
-          handleAutoLoad(gcsPlugin, fileId)
+          fileOps.setCurrentPlugin(gcsPlugin)
+          fileOps.handleAutoLoad(gcsPlugin, fileId)
           return
         }
       }
@@ -106,24 +130,22 @@ export const EditorPage: React.FC = () => {
     if (pluginId) {
       const plugin = pluginRegistry.getPlugin(pluginId)
       if (plugin) {
-        // Mark as processed immediately to prevent duplicate loads
         processedUrl = currentUrl
-        setCurrentPlugin(plugin)
+        fileOps.setCurrentPlugin(plugin)
 
         // Extension plugin: immediately load file
         if (pluginId === 'extension') {
-          loadFileFromPlugin(plugin, {})
+          fileOps.loadFileFromPlugin(plugin, {})
           return
         }
 
         // Other plugins: Let plugin parse URL for file identifier
         const fileId = plugin.parseUrl?.(params)
         if (fileId) {
-          handleAutoLoad(plugin, fileId)
+          fileOps.handleAutoLoad(plugin, fileId)
         }
       }
     }
-    // If no plugin specified in URL, keep the default (local) already set in state
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -136,867 +158,90 @@ export const EditorPage: React.FC = () => {
           const fileHandle = launchParams.files[0]
           try {
             const file = await fileHandle.getFile()
-
-            // Use local plugin for PWA-launched files
             const localPlugin = pluginRegistry.getPlugin('local')
             if (localPlugin) {
-              setCurrentPlugin(localPlugin)
-              await loadFileFromPlugin(localPlugin, { file })
+              fileOps.setCurrentPlugin(localPlugin)
+              await fileOps.loadFileFromPlugin(localPlugin, { file })
             }
           } catch (err) {
             console.error('Error processing launched file:', err)
-            toaster.create({
-              title: 'Error',
-              description: 'Could not open the launched file',
-              type: 'error',
-              duration: 6000,
-            })
           }
         }
       })
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * Auto-load file from URL or show auth prompt if needed
-   */
-  const handleAutoLoad = async (plugin: IPersistencePlugin, fileId: FileIdentifier) => {
-    try {
-      // Check if plugin needs setup (e.g., client ID for GCS)
-      if (plugin.needsSetup?.()) {
-        setPendingFileId(fileId)
-        setShowClientIdPrompt(true)
-        return
-      }
+  // Update URL when file is loaded
+  useEffect(() => {
+    if (fileOps.currentPlugin && fileOps.currentFileId && fileOps.currentPlugin.buildUrl) {
+      const newUrl = fileOps.currentPlugin.buildUrl(fileOps.currentFileId)
+      const currentPath = window.location.pathname + window.location.search
 
-      // Check if auth is required
-      if (plugin.capabilities.requiresAuth && !plugin.getAuthState?.().isAuthenticated) {
-        // Not authenticated - save fileId and show auth prompt
-        setPendingFileId(fileId)
-        setShowAuthPrompt(true)
-        return
-      }
-
-      // Update source file ID for future operations
-      setSourceFileId(fileId)
-      setCurrentFileId(fileId)
-
-      // Check if we have a specific filename to load
-      if (fileId.filename) {
-        // Load the specific file
-        await loadFileFromPlugin(plugin, fileId)
-      } else {
-        // No filename - show file browser for the bucket/prefix
-        if (plugin.listFiles && fileId.bucket && fileId.prefix) {
-          try {
-            const location = `${fileId.bucket}/${fileId.prefix}`
-            const files = await plugin.listFiles(location)
-
-            // Convert FileInfo[] to GCSFile[] format
-            const gcsFiles: GCSFile[] = files.map(f => ({
-              name: f.name,
-              fullName: f.name,
-              size: f.size || '0',
-              updated: f.updated || new Date().toISOString()
-            }))
-
-            setFileList(gcsFiles)
-            setShowFilePicker(true)
-          } catch (error: any) {
-            toaster.create({
-              title: 'Failed to list files',
-              description: error.message,
-              type: 'error',
-              duration: 6000,
-            })
-          }
-        }
-      }
-    } catch (error: any) {
-      console.error('Auto-load failed:', error)
-      toaster.create({
-        title: 'Failed to load file',
-        description: error.message,
-        type: 'error',
-        duration: 6000,
-      })
-    }
-  }
-
-  /**
-   * Load saved translations using plugin auto-save support (three-state system)
-   */
-  const loadSavedTranslations = async (
-    plugin: IPersistencePlugin,
-    fileId: FileIdentifier,
-    filename: string,
-    jobData: JobData
-  ): Promise<{ foundEdited: boolean; editedCount: number }> => {
-    // Check if plugin supports auto-save
-    if (!plugin.loadAutoSaveData) {
-      translationData.setupTwoStateSystem(jobData)
-      return { foundEdited: false, editedCount: 0 }
-    }
-
-    try {
-      const savedJobData = await plugin.loadAutoSaveData(fileId, filename)
-
-      // Apply translations if there are any saved
-      if (savedJobData && savedJobData.tus && savedJobData.tus.length > 0) {
-        const result = translationData.applyLoadedTranslations(jobData, savedJobData)
-
-        // Set up three-state system
-        translationData.setupThreeStateSystem(jobData, result.jobData)
-
-        return { foundEdited: true, editedCount: result.editedCount }
-      } else {
-        // No saved translations
-        translationData.setupTwoStateSystem(jobData)
-        return { foundEdited: false, editedCount: 0 }
-      }
-    } catch (error) {
-      console.log(`Error loading auto-save data: ${error}`)
-      translationData.setupTwoStateSystem(jobData)
-      return { foundEdited: false, editedCount: 0 }
-    }
-  }
-
-  /**
-   * Load a file from a plugin
-   */
-  const loadFileFromPlugin = async (plugin: IPersistencePlugin, fileId: FileIdentifier) => {
-    try {
-      // Check auth if needed
-      if (plugin.capabilities.requiresAuth && !plugin.getAuthState?.().isAuthenticated) {
-        setPendingFileId(fileId)
-        setShowAuthPrompt(true)
-        return
-      }
-
-      const file = await plugin.loadFile(fileId)
-      const result = await fileLoader.loadLqaBossFile(file)
-
-      // Load saved translations (this will set up either two-state or three-state system)
-      const translationResult = await loadSavedTranslations(
-        plugin,
-        fileId,
-        file.name,
-        result.jobData
-      )
-
-      setCurrentFileId(fileId)
-      setSourceFileId(fileId)
-      setCurrentPlugin(plugin)
-      setSourcePlugin(plugin)
-
-      // Set quality model if one was found in the .lqaboss file
-      if (result.qualityModel) {
-        setQualityModel(result.qualityModel)
-        console.log('Quality model loaded:', result.qualityModel.name)
-      }
-
-      toaster.create({
-        title: 'File loaded',
-        description: translationResult.foundEdited
-          ? `Found ${translationResult.editedCount} edited translation${translationResult.editedCount === 1 ? '' : 's'}`
-          : `Loaded via ${plugin.metadata.name}`,
-        type: 'success',
-        duration: 4000,
-      })
-
-      // Update URL if plugin supports it (only if it's different from current)
-      if (plugin.buildUrl) {
-        const newUrl = plugin.buildUrl(fileId)
-        const currentPath = window.location.pathname + window.location.search
-
-        // Only navigate if URL is actually changing
-        if (newUrl !== currentPath) {
-          navigate(newUrl, { replace: true })
-        }
-      }
-    } catch (error: any) {
-      console.error('Error loading file:', error)
-
-      // Special handling for extension plugin "no flow available" error
-      if (plugin.metadata.id === 'extension' && error.message.includes('No flow available')) {
-        toaster.create({
-          title: 'No pages captured',
-          description: 'Open the LQA Boss Capture extension and capture at least one page',
-          type: 'info',
-          duration: 8000,
-        })
-        return
-      }
-
-      toaster.create({
-        title: 'Load failed',
-        description: error.message,
-        type: 'error',
-        duration: 6000,
-      })
-    }
-  }
-
-  /**
-   * Handle auth prompt acceptance
-   */
-  const handleAuthPromptAccept = async () => {
-    if (!currentPlugin) return
-
-    // Check if plugin needs setup before authentication
-    if (currentPlugin.needsSetup?.()) {
-      setShowAuthPrompt(false)
-      setShowClientIdPrompt(true)
-      return
-    }
-
-    setShowAuthPrompt(false)
-
-    try {
-      await currentPlugin.authenticate?.()
-
-      // If we have a pending file ID
-      if (pendingFileId) {
-        // Determine if this is a save operation (we have jobData and fileName)
-        const isSaveOperation = !!translationData.jobData && !!(pendingFileId as any).fileName
-
-        if (isSaveOperation) {
-          // Continue with save flow
-          // Check if plugin can validate identifiers
-          if (currentPlugin.validateIdentifier) {
-            const validation = currentPlugin.validateIdentifier(pendingFileId, 'save')
-
-            if (!validation.valid) {
-              // Need to prompt for missing information
-              if (currentPlugin.LocationPromptComponent) {
-                setShowLocationPrompt('save')
-                setPendingFileId(null)
-                return
-              } else {
-                toaster.create({
-                  title: 'Missing information',
-                  description: `Cannot save: missing ${validation.missing?.join(', ')}`,
-                  type: 'error',
-                  duration: 6000,
-                })
-                setPendingFileId(null)
-                return
-              }
-            }
-          }
-
-          // Proceed with save
-          await performSave(currentPlugin, pendingFileId)
-          setPendingFileId(null)
-        } else {
-          // Load flow
-          // Update source file ID for future operations
-          setSourceFileId(pendingFileId)
-          setCurrentFileId(pendingFileId)
-
-          // Check if we have a specific filename to load
-          if (pendingFileId.filename) {
-            // Load the specific file
-            await loadFileFromPlugin(currentPlugin, pendingFileId)
-          } else {
-            // No filename - show file browser for the bucket/prefix
-            if (currentPlugin.listFiles && pendingFileId.bucket && pendingFileId.prefix) {
-              try {
-                const location = `${pendingFileId.bucket}/${pendingFileId.prefix}`
-                const files = await currentPlugin.listFiles(location)
-
-                // Convert FileInfo[] to GCSFile[] format
-                const gcsFiles: GCSFile[] = files.map(f => ({
-                  name: f.name,
-                  fullName: f.name,
-                  size: f.size || '0',
-                  updated: f.updated || new Date().toISOString()
-                }))
-
-                setFileList(gcsFiles)
-                setShowFilePicker(true)
-              } catch (error: any) {
-                toaster.create({
-                  title: 'Failed to list files',
-                  description: error.message,
-                  type: 'error',
-                  duration: 6000,
-                })
-              }
-            }
-          }
-          setPendingFileId(null)
-        }
-      }
-    } catch (error: any) {
-      console.error('Authentication failed:', error)
-      toaster.create({
-        title: 'Authentication failed',
-        description: error.message,
-        type: 'error',
-        duration: 6000,
-      })
-    }
-  }
-
-  /**
-   * Handle client ID submission (plugin setup)
-   */
-  const handleClientIdSubmit = async (clientId: string) => {
-    if (!currentPlugin) return
-
-    try {
-      // Save configuration
-      await currentPlugin.setConfig?.({ clientId })
-
-      // Attempt authentication
-      await currentPlugin.authenticate?.()
-
-      setShowClientIdPrompt(false)
-
-      // If we have a pending file ID
-      if (pendingFileId) {
-        // Determine if this is a save operation (we have jobData and fileName)
-        const isSaveOperation = !!translationData.jobData && !!(pendingFileId as any).fileName
-
-        if (isSaveOperation) {
-          // Continue with save flow
-          // Check if plugin can validate identifiers
-          if (currentPlugin.validateIdentifier) {
-            const validation = currentPlugin.validateIdentifier(pendingFileId, 'save')
-
-            if (!validation.valid) {
-              // Need to prompt for missing information
-              if (currentPlugin.LocationPromptComponent) {
-                setShowLocationPrompt('save')
-                setPendingFileId(null)
-                return
-              } else {
-                toaster.create({
-                  title: 'Missing information',
-                  description: `Cannot save: missing ${validation.missing?.join(', ')}`,
-                  type: 'error',
-                  duration: 6000,
-                })
-                setPendingFileId(null)
-                return
-              }
-            }
-          }
-
-          // Proceed with save
-          await performSave(currentPlugin, pendingFileId)
-          setPendingFileId(null)
-        } else {
-          // Load flow
-          // Update source file ID for future operations
-          setSourceFileId(pendingFileId)
-          setCurrentFileId(pendingFileId)
-
-          // Check if we have a specific filename to load
-          if (pendingFileId.filename) {
-            // Load the specific file
-            await loadFileFromPlugin(currentPlugin, pendingFileId)
-          } else {
-            // No filename - show file browser for the bucket/prefix
-            if (currentPlugin.listFiles && pendingFileId.bucket && pendingFileId.prefix) {
-              try {
-                const location = `${pendingFileId.bucket}/${pendingFileId.prefix}`
-                const files = await currentPlugin.listFiles(location)
-
-                // Convert FileInfo[] to GCSFile[] format
-                const gcsFiles: GCSFile[] = files.map(f => ({
-                  name: f.name,
-                  fullName: f.name,
-                  size: f.size || '0',
-                  updated: f.updated || new Date().toISOString()
-                }))
-
-                setFileList(gcsFiles)
-                setShowFilePicker(true)
-              } catch (error: any) {
-                toaster.create({
-                  title: 'Failed to list files',
-                  description: error.message,
-                  type: 'error',
-                  duration: 6000,
-                })
-              }
-            }
-          }
-          setPendingFileId(null)
-        }
-      }
-    } catch (error: any) {
-      console.error('Setup/Authentication failed:', error)
-      toaster.create({
-        title: 'Setup failed',
-        description: error.message,
-        type: 'error',
-        duration: 6000,
-      })
-    }
-  }
-
-  const handleClientIdCancel = () => {
-    setShowClientIdPrompt(false)
-    setPendingFileId(null)
-  }
-
-  /**
-   * Handle save via specified plugin
-   */
-  const handleSave = async (plugin: IPersistencePlugin) => {
-    if (!translationData.jobData) return
-
-    // Switch to the specified plugin for saving
-    setCurrentPlugin(plugin)
-
-    if (!plugin.capabilities.canSave) {
-      toaster.create({
-        title: 'Cannot save',
-        description: `${plugin.metadata.name} does not support saving`,
-        type: 'error',
-        duration: 6000,
-      })
-      return
-    }
-
-    // Check auth if needed
-    if (plugin.capabilities.requiresAuth && !plugin.getAuthState?.().isAuthenticated) {
-      // Build save identifier to pass through auth flow
-      const saveIdentifier = {
-        ...currentFileId,
-        fileName: fileLoader.fileName,
-        filename: fileLoader.fileName
-      }
-      setPendingFileId(saveIdentifier)
-      setShowAuthPrompt(true)
-      return
-    }
-
-    // Build file identifier for save
-    const saveIdentifier = {
-      ...currentFileId,
-      fileName: fileLoader.fileName,
-      filename: fileLoader.fileName // Some plugins use 'filename', some use 'fileName'
-    }
-
-    // Check if plugin can validate identifiers
-    if (plugin.validateIdentifier) {
-      const validation = plugin.validateIdentifier(saveIdentifier, 'save')
-
-      if (!validation.valid) {
-        // Need to prompt for missing information
-        if (plugin.LocationPromptComponent) {
-          setShowLocationPrompt('save')
-          return
-        } else {
-          toaster.create({
-            title: 'Missing information',
-            description: `Cannot save: missing ${validation.missing?.join(', ')}`,
-            type: 'error',
-            duration: 6000,
-          })
-          return
-        }
+      if (newUrl !== currentPath) {
+        navigate(newUrl, { replace: true })
       }
     }
-
-    // Proceed with save
-    await performSave(plugin, saveIdentifier)
-  }
-
-  /**
-   * Perform the actual save operation
-   */
-  const performSave = async (plugin: IPersistencePlugin, fileId: FileIdentifier | null) => {
-    if (!translationData.jobData) return
-
-    try {
-      // Build save identifier - plugins may need different data
-      const saveFileId = {
-        ...fileId,
-        fileName: fileLoader.fileName,
-        originalJobData: translationData.originalJobData,
-        zipFile: fileLoader.zipFile, // Include original ZIP for plugins that can save both .lqaboss and .json
-      }
-
-      await plugin.saveFile(saveFileId, translationData.jobData)
-      translationData.markAsSaved()
-
-      // Update source tracking if we saved to a different location
-      if (plugin !== sourcePlugin) {
-        setSourcePlugin(plugin)
-        setSourceFileId(saveFileId)
-        setCurrentFileId(saveFileId)
-      }
-
-      toaster.create({
-        title: 'Saved',
-        description: `Saved via ${plugin.metadata.name}`,
-        type: 'success',
-        duration: 4000,
-      })
-    } catch (error: any) {
-      toaster.create({
-        title: 'Save failed',
-        description: error.message,
-        type: 'error',
-        duration: 6000,
-      })
-    }
-  }
-
-  /**
-   * Handle load button click - trigger file picker from specified plugin
-   * This always opens the dialog/picker, never reloads current file
-   */
-  const handleLoad = async (plugin: IPersistencePlugin) => {
-    // Switch to the specified plugin
-    setCurrentPlugin(plugin)
-
-    // Check if plugin has a LocationPromptComponent and needs location info
-    if (plugin.LocationPromptComponent && plugin.validateIdentifier) {
-      // Validate current sourceFileId (or empty object if none)
-      const validation = plugin.validateIdentifier(sourceFileId || {}, 'load')
-
-      if (!validation.valid) {
-        // Need to prompt for location info
-        setShowLocationPrompt('load')
-        return
-      }
-
-      // Has valid location (bucket/prefix) - show file browser
-      if (sourceFileId && sourceFileId.bucket && sourceFileId.prefix && plugin.listFiles) {
-        try {
-          // Check authentication
-          if (plugin.capabilities.requiresAuth && !plugin.getAuthState?.().isAuthenticated) {
-            // Remove filename from pending ID so we just show browser after auth
-            setPendingFileId({ bucket: sourceFileId.bucket, prefix: sourceFileId.prefix })
-            setShowAuthPrompt(true)
-            return
-          }
-
-          // List files using plugin's listFiles method
-          const location = `${sourceFileId.bucket}/${sourceFileId.prefix}`
-          const files = await plugin.listFiles(location)
-
-          // Convert FileInfo[] to GCSFile[] format
-          const gcsFiles: GCSFile[] = files.map(f => ({
-            name: f.name,
-            fullName: f.name,
-            size: f.size || '0',
-            updated: f.updated || new Date().toISOString()
-          }))
-
-          setFileList(gcsFiles)
-          setShowFilePicker(true)
-          return
-        } catch (error: any) {
-          toaster.create({
-            title: 'Failed to list files',
-            description: error.message,
-            type: 'error',
-            duration: 6000,
-          })
-          return
-        }
-      }
-    }
-
-    // Local plugin: trigger file picker
-    try {
-      await loadFileFromPlugin(plugin, {})
-    } catch (error: any) {
-      // User cancelled or error
-      if (error.message !== 'No file selected') {
-        console.error('Load error:', error)
-      }
-    }
-  }
-
-  /**
-   * Handle location prompt submission (generic for all plugins)
-   */
-  const handleLocationPromptSubmit = async (identifier: FileIdentifier) => {
-    if (!currentPlugin) return
-
-    const operation = showLocationPrompt
-    setShowLocationPrompt(null)
-
-    // Check authentication if required
-    if (currentPlugin.capabilities.requiresAuth && !currentPlugin.getAuthState?.().isAuthenticated) {
-      setPendingFileId(identifier)
-      setShowAuthPrompt(true)
-      return
-    }
-
-    if (operation === 'save') {
-      // Save with the provided identifier
-      await performSave(currentPlugin, identifier)
-    } else if (operation === 'load') {
-      // Save bucket/prefix to localStorage for next time
-      if (identifier.bucket && identifier.prefix) {
-        localStorage.setItem('gcs-last-bucket', identifier.bucket)
-        localStorage.setItem('gcs-last-prefix', identifier.prefix)
-      }
-
-      // Update the source file ID
-      setSourceFileId(identifier)
-      setCurrentFileId(identifier)
-
-      // If identifier includes filename, load it directly
-      if (identifier.filename) {
-        await loadFileFromPlugin(currentPlugin, identifier)
-      } else {
-        // No filename - show file browser to select a file
-        if (currentPlugin.listFiles) {
-          try {
-            const location = `${identifier.bucket}/${identifier.prefix}`
-            const files = await currentPlugin.listFiles(location)
-
-            // Convert FileInfo[] to GCSFile[] format
-            const gcsFiles: GCSFile[] = files.map(f => ({
-              name: f.name,
-              fullName: f.name,
-              size: f.size || '0',
-              updated: f.updated || new Date().toISOString()
-            }))
-
-            setFileList(gcsFiles)
-            setShowFilePicker(true)
-          } catch (error: any) {
-            toaster.create({
-              title: 'Failed to list files',
-              description: error.message,
-              type: 'error',
-              duration: 6000,
-            })
-          }
-        } else {
-          // Plugin doesn't support file listing
-          toaster.create({
-            title: 'Location saved',
-            description: 'Click Load File again to continue',
-            type: 'info',
-            duration: 3000,
-          })
-        }
-      }
-    }
-  }
-
-  const handleLocationPromptCancel = () => {
-    setShowLocationPrompt(null)
-  }
-
-  /**
-   * Handle file selection from file picker
-   */
-  const handleFileSelect = async (filename: string) => {
-    if (!currentPlugin || !sourceFileId) return
-
-    // Ensure we have all required fields for GCS
-    if (!sourceFileId.bucket || !sourceFileId.prefix) {
-      console.error('Missing bucket or prefix in sourceFileId:', sourceFileId)
-      toaster.create({
-        title: 'Configuration error',
-        description: 'Missing bucket or prefix information',
-        type: 'error',
-        duration: 4000,
-      })
-      setShowFilePicker(false)
-      return
-    }
-
-    const fileId: FileIdentifier = {
-      bucket: sourceFileId.bucket,
-      prefix: sourceFileId.prefix,
-      filename
-    }
-
-    setShowFilePicker(false)
-    await loadFileFromPlugin(currentPlugin, fileId)
-  }
-
-  const handleFilePickerClose = () => {
-    setShowFilePicker(false)
-  }
+  }, [fileOps.currentPlugin, fileOps.currentFileId, navigate])
 
   const handleShowInstructions = () => {
     translationEditorRef.current?.openInstructions()
   }
 
-  /**
-   * Create a new quality model with empty structure
-   */
-  const handleNewModel = () => {
-    const newModel: QualityModel = {
-      id: '',
-      name: '',
-      version: '',
-      description: '',
-      severities: [],
-      errorCategories: []
-    }
-    setEditingModel(newModel)
-    setShowModelEditor(true)
-  }
+  // Memoize header props to avoid re-renders
+  const headerProps = useMemo(() => ({
+    plugins,
+    onSave: fileOps.handleSave,
+    onLoad: fileOps.handleLoad,
+    hasData: !!fileOps.translationData.jobData,
+    fileStatus: fileOps.translationData.fileStatus,
+    onShowInstructions: handleShowInstructions,
+    ter,
+    ept,
+    qualityModel: qualityModelHook.qualityModel,
+    onNewModel: qualityModelHook.handleNewModel,
+    onLoadModel: qualityModelHook.handleLoadModel,
+    onEditModel: qualityModelHook.handleEditModel,
+    onUnloadModel: qualityModelHook.handleUnloadModel,
+    onShowSummary: qualityModelHook.handleShowSummary,
+  }), [
+    plugins,
+    fileOps.handleSave,
+    fileOps.handleLoad,
+    fileOps.translationData.jobData,
+    fileOps.translationData.fileStatus,
+    ter,
+    ept,
+    qualityModelHook.qualityModel,
+    qualityModelHook.handleNewModel,
+    qualityModelHook.handleLoadModel,
+    qualityModelHook.handleEditModel,
+    qualityModelHook.handleUnloadModel,
+    qualityModelHook.handleShowSummary,
+  ])
 
-  /**
-   * Load a quality model from a local file and make it current
-   */
-  const handleLoadModel = async () => {
-    try {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = '.json'
-      input.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0]
-        if (!file) return
-
-        const text = await file.text()
-        const loadedModel = JSON.parse(text) as QualityModel
-        setQualityModel(loadedModel)
-        toaster.create({
-          title: 'Model loaded',
-          description: `Quality model "${loadedModel.name}" is now active`,
-          type: 'success',
-          duration: 4000,
-        })
-      }
-      input.click()
-    } catch (error) {
-      console.error('Error loading model:', error)
-      toaster.create({
-        title: 'Failed to load model',
-        description: 'Invalid model file format',
-        type: 'error',
-        duration: 6000,
-      })
-    }
-  }
-
-  /**
-   * Edit the current quality model
-   */
-  const handleEditModel = () => {
-    if (qualityModel) {
-      setEditingModel(qualityModel)
-      setShowModelEditor(true)
-    }
-  }
-
-  /**
-   * Unload the current quality model
-   */
-  const handleUnloadModel = () => {
-    setQualityModel(null)
-    toaster.create({
-      title: 'Model unloaded',
-      description: 'Quality model has been unloaded',
-      type: 'info',
-      duration: 3000,
-    })
-  }
-
-  /**
-   * Save the quality model and close the editor
-   */
-  const handleSaveModel = (model: QualityModel) => {
-    setQualityModel(model)
-    toaster.create({
-      title: 'Model saved',
-      description: `Quality model "${model.name}" is now active`,
-      type: 'success',
-      duration: 4000,
-    })
-  }
-
-  /**
-   * Show the QA summary modal
-   */
-  const handleShowSummary = () => {
-    setShowQASummary(true)
-  }
-
-  // Helper function to format source location
-  const getSourceLocation = (): string | undefined => {
-    if (!sourceFileId) return undefined
-
-    // For GCS plugin, show bucket/prefix
-    if (sourcePlugin?.metadata.id === 'gcs' && sourceFileId.bucket) {
-      return sourceFileId.prefix
-        ? `${sourceFileId.bucket}/${sourceFileId.prefix}`
-        : sourceFileId.bucket
-    }
-
-    // For local file plugin, show filename
-    if (sourcePlugin?.metadata.id === 'local' && sourceFileId.fileName) {
-      return sourceFileId.fileName
-    }
-
-    // For other plugins or no specific location info
-    return undefined
-  }
+  const header = <UnifiedHeader {...headerProps} />
 
   // Show client ID prompt if needed
-  if (showClientIdPrompt) {
+  if (auth.showClientIdPrompt) {
     return (
-      <EditorLayout
-        header={
-          <UnifiedHeader
-            plugins={plugins}
-            onSave={handleSave}
-            onLoad={handleLoad}
-            hasData={!!translationData.jobData}
-            fileStatus={translationData.fileStatus}
-            onShowInstructions={handleShowInstructions}
-            ter={ter}
-            ept={ept}
-            qualityModel={qualityModel}
-            onNewModel={handleNewModel}
-            onLoadModel={handleLoadModel}
-            onEditModel={handleEditModel}
-            onUnloadModel={handleUnloadModel}
-            onShowSummary={handleShowSummary}
-          />
-        }
-      >
-        <ClientIdPrompt onSubmit={handleClientIdSubmit} onCancel={handleClientIdCancel} />
+      <EditorLayout header={header}>
+        <ClientIdPrompt
+          onSubmit={auth.handleClientIdSubmit}
+          onCancel={auth.handleClientIdCancel}
+        />
       </EditorLayout>
     )
   }
 
   // Show auth prompt if needed
-  if (showAuthPrompt) {
+  if (auth.showAuthPrompt) {
     return (
-      <EditorLayout
-        header={
-          <UnifiedHeader
-            plugins={plugins}
-            onSave={handleSave}
-            onLoad={handleLoad}
-            hasData={!!translationData.jobData}
-            fileStatus={translationData.fileStatus}
-            onShowInstructions={handleShowInstructions}
-            ter={ter}
-            ept={ept}
-            qualityModel={qualityModel}
-            onNewModel={handleNewModel}
-            onLoadModel={handleLoadModel}
-            onEditModel={handleEditModel}
-            onUnloadModel={handleUnloadModel}
-            onShowSummary={handleShowSummary}
-          />
-        }
-      >
+      <EditorLayout header={header}>
         <AuthPrompt
-          bucket={(pendingFileId as any)?.bucket || ''}
-          prefix={(pendingFileId as any)?.prefix || ''}
-          filename={(pendingFileId as any)?.filename}
-          onAccept={handleAuthPromptAccept}
+          bucket={(auth.pendingFileId as any)?.bucket || ''}
+          prefix={(auth.pendingFileId as any)?.prefix || ''}
+          filename={(auth.pendingFileId as any)?.filename}
+          onAccept={auth.handleAuthPromptAccept}
         />
       </EditorLayout>
     )
@@ -1004,81 +249,59 @@ export const EditorPage: React.FC = () => {
 
   return (
     <>
-      {showLocationPrompt && currentPlugin?.LocationPromptComponent && (
-        <currentPlugin.LocationPromptComponent
-          currentIdentifier={sourceFileId || undefined}
-          fileName={fileLoader.fileName}
-          operation={showLocationPrompt}
-          onSubmit={handleLocationPromptSubmit}
-          onCancel={handleLocationPromptCancel}
+      {fileOps.showLocationPrompt && fileOps.currentPlugin?.LocationPromptComponent && (
+        <fileOps.currentPlugin.LocationPromptComponent
+          currentIdentifier={fileOps.sourceFileId || undefined}
+          fileName={fileOps.fileLoader.fileName}
+          operation={fileOps.showLocationPrompt}
+          onSubmit={fileOps.handleLocationPromptSubmit}
+          onCancel={fileOps.handleLocationPromptCancel}
         />
       )}
 
       <GCSFilePicker
-        files={fileList}
-        bucket={sourceFileId?.bucket || ''}
-        prefix={sourceFileId?.prefix || ''}
-        onFileSelect={handleFileSelect}
-        isOpen={showFilePicker}
-        onClose={handleFilePickerClose}
+        files={fileOps.fileList}
+        bucket={fileOps.sourceFileId?.bucket || ''}
+        prefix={fileOps.sourceFileId?.prefix || ''}
+        onFileSelect={fileOps.handleFileSelect}
+        isOpen={fileOps.showFilePicker}
+        onClose={fileOps.handleFilePickerClose}
       />
 
       <ModelEditor
-        isOpen={showModelEditor}
-        onClose={() => {
-          setShowModelEditor(false)
-          setEditingModel(null)
-        }}
-        model={editingModel}
-        onSave={handleSaveModel}
+        isOpen={qualityModelHook.showModelEditor}
+        onClose={qualityModelHook.handleCloseModelEditor}
+        model={qualityModelHook.editingModel}
+        onSave={qualityModelHook.handleSaveModel}
       />
 
       <QASummaryModal
-        isOpen={showQASummary}
-        onClose={() => setShowQASummary(false)}
-        qualityModel={qualityModel}
+        isOpen={qualityModelHook.showQASummary}
+        onClose={qualityModelHook.handleCloseQASummary}
+        qualityModel={qualityModelHook.qualityModel}
         qaSummary={qaSummary}
         terStats={terStats}
         ter={ter}
         ept={ept}
       />
 
-    <EditorLayout
-      header={
-        <UnifiedHeader
-          plugins={plugins}
-          onSave={handleSave}
-          onLoad={handleLoad}
-          hasData={!!translationData.jobData}
-          fileStatus={translationData.fileStatus}
-          onShowInstructions={handleShowInstructions}
-          ter={ter}
+      <EditorLayout header={header}>
+        <TranslationEditor
+          ref={translationEditorRef}
+          flowData={fileOps.fileLoader.flowData}
+          jobData={fileOps.translationData.jobData}
+          originalJobData={fileOps.translationData.originalJobData}
+          savedJobData={fileOps.translationData.savedJobData}
+          zipFile={fileOps.fileLoader.zipFile}
+          onTranslationUnitChange={fileOps.translationData.updateTranslationUnit}
+          onCandidateSelect={fileOps.translationData.selectCandidate}
+          onInstructionsOpen={() => {}}
+          sourcePluginName={fileOps.sourcePlugin?.metadata.name}
+          sourceLocation={fileOps.getSourceLocation()}
+          qualityModel={qualityModelHook.qualityModel}
           ept={ept}
-          qualityModel={qualityModel}
-          onNewModel={handleNewModel}
-          onLoadModel={handleLoadModel}
-          onEditModel={handleEditModel}
-          onUnloadModel={handleUnloadModel}
-          onShowSummary={handleShowSummary}
         />
-      }
-    >
-      <TranslationEditor
-        ref={translationEditorRef}
-        flowData={fileLoader.flowData}
-        jobData={translationData.jobData}
-        originalJobData={translationData.originalJobData}
-        savedJobData={translationData.savedJobData}
-        zipFile={fileLoader.zipFile}
-        onTranslationUnitChange={translationData.updateTranslationUnit}
-        onCandidateSelect={translationData.selectCandidate}
-        onInstructionsOpen={() => {}}
-        sourcePluginName={sourcePlugin?.metadata.name}
-        sourceLocation={getSourceLocation()}
-        qualityModel={qualityModel}
-        ept={ept}
-      />
-    </EditorLayout>
+      </EditorLayout>
     </>
   )
 }
