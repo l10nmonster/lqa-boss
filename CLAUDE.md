@@ -65,6 +65,53 @@ This is a React 19 PWA for editing LQA Boss (.lqaboss) files, which are ZIP arch
 - Core editing interface using Lexical editor
 - Visual indicators: green (unmodified), red (modified), blue (active)
 - Handles both flow segments and standalone translation units
+- **Keyboard Navigation** (`src/hooks/useKeyboardNavigation.ts`):
+  - `Command+Enter` (or `Ctrl+Enter`): Move to next segment with auto-focus
+  - Up/Down arrows: Navigate between segments
+  - Tab key: Normal browser behavior (no custom handling) - does NOT navigate segments
+  - Auto-focuses editor with cursor active after navigation (100ms delay)
+
+**NormalizedTextEditor** (`src/components/NormalizedTextEditor.tsx`):
+- Modular Lexical-based editor for normalized translation content (reduced from 1000+ to 320 lines)
+- **Architecture**: Plugin-based with separated concerns into `nodes/` and `plugins/` subdirectories
+- **Core Component**: Manages editor configuration, change handling, tooltip display, and rendering
+- **File Structure**:
+  ```
+  src/components/editor/
+  ├── nodes/
+  │   └── PlaceholderNode.tsx         # Custom Lexical decorator node
+  └── plugins/
+      ├── PlainTextPastePlugin.tsx    # Strips formatting on paste
+      ├── ArrowNavigationPlugin.tsx   # Multi-paragraph navigation
+      ├── EditorRefPlugin.tsx         # Exposes blur/focus/forceUpdate methods
+      ├── InitializePlugin.tsx        # Content initialization & updates
+      └── DragDropPlugin.tsx          # Drag-and-drop with visual indicators
+  ```
+
+**PlaceholderNode** (`src/components/editor/nodes/PlaceholderNode.tsx:6`):
+- Custom DecoratorNode for non-editable placeholders (tags/variables)
+- **Protection mechanisms**:
+  - `remove(): this` - Returns self unchanged, preventing deletion
+  - `isKeyboardSelectable(): false` - Cursor jumps over placeholders
+  - `isSegmented(): true` - Acts as word boundary for double-click selection
+- **Key requirements**:
+  - `clone()` must pass `node.__key` to preserve Lexical node identity
+  - `decorate()` must return React element (not primitive) - wrapping in `<span>` required
+- Supports drag-and-drop with transparent drag image and visual feedback
+- Displays tooltips with code, sample, and optional description
+
+**Editor Plugins**:
+- **PlainTextPastePlugin**: Intercepts `PASTE_COMMAND` with `COMMAND_PRIORITY_HIGH`, strips all formatting
+- **ArrowNavigationPlugin**: Handles `KEY_ARROW_UP/DOWN_COMMAND` for paragraph-level navigation
+- **InitializePlugin**: Prevents update loops by comparing content with `arraysEqual()`, tags updates to avoid triggering onChange
+- **DragDropPlugin**: Complex coordinate-based insertion with text node splitting, cursor positioning after drop
+- **EditorRefPlugin**: Exposes methods via `React.useImperativeHandle` for external control
+
+**Editor Change Detection**:
+- Uses tags (`initial-load`, `content-update`, `drop-placeholder`, `force-update`) to prevent onChange loops
+- Converts Lexical editor state to NormalizedItem[] by traversing paragraphs and nodes
+- Appends newlines between paragraphs (embedded in last text item or as separate item)
+- Only emits onChange when content genuinely differs (using `arraysEqual()`)
 
 **ScreenshotViewer.tsx**:
 - Displays screenshots with clickable segment overlays
