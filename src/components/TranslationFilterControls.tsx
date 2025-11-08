@@ -18,6 +18,7 @@ interface TranslationFilterControlsProps {
   onFilterTextChange: (text: string) => void
   searchableFields: SearchableFields
   onSearchableFieldsChange: (fields: SearchableFields) => void
+  onFilterFocus?: () => void
 }
 
 export const TranslationFilterControls: React.FC<TranslationFilterControlsProps> = ({
@@ -27,6 +28,7 @@ export const TranslationFilterControls: React.FC<TranslationFilterControlsProps>
   onFilterTextChange,
   searchableFields,
   onSearchableFieldsChange,
+  onFilterFocus,
 }) => {
   const filterInputRef = useRef<HTMLInputElement>(null)
 
@@ -69,6 +71,7 @@ export const TranslationFilterControls: React.FC<TranslationFilterControlsProps>
           size="sm"
           value={filterText}
           onChange={(e) => onFilterTextChange(e.target.value)}
+          onFocus={onFilterFocus}
           bg="rgba(255, 255, 255, 0.9)"
           borderColor="rgba(0, 0, 0, 0.2)"
           _focus={{

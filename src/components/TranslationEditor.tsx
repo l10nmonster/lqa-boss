@@ -298,6 +298,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
                 onFilterTextChange={setFilterText}
                 searchableFields={searchableFields}
                 onSearchableFieldsChange={setSearchableFields}
+                onFilterFocus={() => handleSetActiveSegmentIndex(-1)}
               />
             </HStack>
             <TextSegmentEditor
@@ -328,6 +329,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               onFilterTextChange={setFilterText}
               searchableFields={searchableFields}
               onSearchableFieldsChange={setSearchableFields}
+              onFilterFocus={() => handleSetActiveSegmentIndex(-1)}
             />
           </HStack>
           <Box flex="1" minHeight={0}>
