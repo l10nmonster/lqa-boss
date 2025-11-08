@@ -21,6 +21,7 @@ import { ArrowNavigationPlugin } from './editor/plugins/ArrowNavigationPlugin'
 import { InitializePlugin } from './editor/plugins/InitializePlugin'
 import { DragDropPlugin } from './editor/plugins/DragDropPlugin'
 import { EditorRefPlugin, NormalizedTextEditorRef } from './editor/plugins/EditorRefPlugin'
+import { KeyboardShortcutPlugin } from './editor/plugins/KeyboardShortcutPlugin'
 
 // Re-export NormalizedTextEditorRef for consumers
 export type { NormalizedTextEditorRef }
@@ -311,6 +312,7 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
         <HistoryPlugin />
         <PlainTextPastePlugin />
         <ArrowNavigationPlugin />
+        <KeyboardShortcutPlugin />
         <InitializePlugin normalizedContent={normalizedContent} />
         <DragDropPlugin />
         <EditorRefPlugin editorRef={editorRef} />
