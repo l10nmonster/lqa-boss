@@ -1,3 +1,15 @@
+# [2.2.0](https://github.com/l10nmonster/lqa-boss/compare/v2.1.2...v2.2.0) (2025-11-08)
+
+
+### Bug Fixes
+
+* Show filename in info modal ([6ade8af](https://github.com/l10nmonster/lqa-boss/commit/6ade8afcc93e0be86d475607fad25d4b1e716c20))
+
+
+### Features
+
+* Track job completion ([1ce66ce](https://github.com/l10nmonster/lqa-boss/commit/1ce66ce2015b1e055b2030af9e8d1edff777bb83))
+
 ## [2.1.2](https://github.com/l10nmonster/lqa-boss/compare/v2.1.1...v2.1.2) (2025-11-07)
 
 
