@@ -22,27 +22,13 @@ import { InitializePlugin } from './editor/plugins/InitializePlugin'
 import { DragDropPlugin } from './editor/plugins/DragDropPlugin'
 import { EditorRefPlugin, NormalizedTextEditorRef } from './editor/plugins/EditorRefPlugin'
 import { KeyboardShortcutPlugin } from './editor/plugins/KeyboardShortcutPlugin'
+import { normalizedArraysEqual } from '../utils/normalizedComparison'
 
 // Re-export NormalizedTextEditorRef for consumers
 export type { NormalizedTextEditorRef }
 
 // Global store for placeholder descriptions
 let globalPlaceholderDescriptions: { [key: string]: PlaceholderDescription } | undefined
-
-// Helper function to compare normalized content arrays
-const arraysEqual = (a: NormalizedItem[], b: NormalizedItem[]): boolean => {
-  if (a.length !== b.length) return false
-  return a.every((item, index) => {
-    const bItem = b[index]
-    if (typeof item === 'string' && typeof bItem === 'string') {
-      return item === bItem
-    }
-    if (typeof item === 'object' && typeof bItem === 'object') {
-      return JSON.stringify(item) === JSON.stringify(bItem)
-    }
-    return false
-  })
-}
 
 interface NormalizedTextEditorProps {
   normalizedContent: NormalizedItem[]
@@ -217,7 +203,7 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
 
       if (paragraphs.length === 0) {
         const emptyContent: NormalizedItem[] = []
-        if (!arraysEqual(emptyContent, lastEmittedContentRef.current)) {
+        if (!normalizedArraysEqual(emptyContent, lastEmittedContentRef.current)) {
           lastEmittedContentRef.current = emptyContent
           onChange(emptyContent)
         }
@@ -254,7 +240,7 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
       })
 
       // Only emit onChange if content has actually changed
-      if (!arraysEqual(newNormalized, lastEmittedContentRef.current)) {
+      if (!normalizedArraysEqual(newNormalized, lastEmittedContentRef.current)) {
         lastEmittedContentRef.current = [...newNormalized]
         onChange(newNormalized)
       }

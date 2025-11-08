@@ -5,7 +5,7 @@ import { Page, JobData, TranslationUnit, NormalizedItem, NormalizedPlaceholder, 
 import { QualityModel } from '../types/qualityModel'
 import NormalizedTextEditor, { NormalizedTextEditorRef } from './NormalizedTextEditor'
 import { normalizedToString } from '../utils/normalizedText'
-import { isEqual } from 'lodash'
+import { normalizedArraysEqual } from '../utils/normalizedComparison'
 
 // Helper function to detect RTL languages
 function isRTLLanguage(langCode: string | undefined): boolean {
@@ -203,8 +203,8 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
 
     if (tu && originalTu) {
       // Check if content differs from original (in both old and new states)
-      const wasOriginal = isEqual(tu.ntgt, originalTu.ntgt)
-      const isOriginal = isEqual(newNtgt, originalTu.ntgt)
+      const wasOriginal = normalizedArraysEqual(tu.ntgt || [], originalTu.ntgt || [])
+      const isOriginal = normalizedArraysEqual(newNtgt, originalTu.ntgt || [])
 
       // Determine new reviewedTs value
       let newReviewedTs: number | undefined
@@ -285,12 +285,12 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     if (!currentTu || !originalTu || !savedTu) return 'original'
 
     // Check if current matches original translation
-    if (isEqual(currentTu.ntgt, originalTu.ntgt)) {
+    if (normalizedArraysEqual(currentTu.ntgt || [], originalTu.ntgt || [])) {
       return 'original' // Matches original translation from file
     }
 
     // Check if current matches saved translation
-    if (isEqual(currentTu.ntgt, savedTu.ntgt)) {
+    if (normalizedArraysEqual(currentTu.ntgt || [], savedTu.ntgt || [])) {
       return 'saved' // Matches saved translation (auto-save)
     }
 
@@ -311,7 +311,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     if (currentTu.candidateSelected) return { isValid: true }
 
     // Check if segment has been corrected
-    const isCorrected = !isEqual(currentTu.ntgt, originalTu.ntgt)
+    const isCorrected = !normalizedArraysEqual(currentTu.ntgt || [], originalTu.ntgt || [])
     if (!isCorrected) return { isValid: true }
 
     // Segment is corrected - check QA assessment

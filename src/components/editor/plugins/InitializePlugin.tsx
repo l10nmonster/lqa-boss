@@ -10,21 +10,7 @@ import {
 } from 'lexical'
 import { NormalizedItem } from '../../../types'
 import { PlaceholderNode, $createPlaceholderNode } from '../nodes/PlaceholderNode'
-
-// Helper function to compare normalized content arrays
-const arraysEqual = (a: NormalizedItem[], b: NormalizedItem[]): boolean => {
-  if (a.length !== b.length) return false
-  return a.every((item, index) => {
-    const bItem = b[index]
-    if (typeof item === 'string' && typeof bItem === 'string') {
-      return item === bItem
-    }
-    if (typeof item === 'object' && typeof bItem === 'object') {
-      return JSON.stringify(item) === JSON.stringify(bItem)
-    }
-    return false
-  })
-}
+import { normalizedArraysEqual } from '../../../utils/normalizedComparison'
 
 // Plugin to initialize editor with normalized content
 interface InitializePluginProps {
@@ -86,8 +72,8 @@ export function InitializePlugin({ normalizedContent }: InitializePluginProps): 
       const currentContent = getCurrentContent()
 
       // Check if this is genuinely new external content
-      const isNewExternalContent = !arraysEqual(normalizedContent, lastExternalContentRef.current)
-      const isDifferentFromCurrent = !arraysEqual(normalizedContent, currentContent)
+      const isNewExternalContent = !normalizedArraysEqual(normalizedContent, lastExternalContentRef.current)
+      const isDifferentFromCurrent = !normalizedArraysEqual(normalizedContent, currentContent)
 
       if (!isInitializedRef.current || (isNewExternalContent && isDifferentFromCurrent)) {
         editor.update(() => {
