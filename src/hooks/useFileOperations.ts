@@ -124,8 +124,14 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
         result.jobData
       )
 
-      setCurrentFileId(fileId)
-      setSourceFileId(fileId)
+      // Update fileId to include filename for tracking source location
+      const updatedFileId = {
+        ...fileId,
+        fileName: file.name
+      }
+
+      setCurrentFileId(updatedFileId)
+      setSourceFileId(updatedFileId)
       setCurrentPlugin(plugin)
       setSourcePlugin(plugin)
 
@@ -490,11 +496,12 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
   const getSourceLocation = (): string | undefined => {
     if (!sourceFileId) return undefined
 
-    // For GCS plugin, show bucket/prefix
+    // For GCS plugin, show gcs://bucket/prefix/filename
     if (sourcePlugin?.metadata.id === 'gcs' && sourceFileId.bucket) {
-      return sourceFileId.prefix
-        ? `${sourceFileId.bucket}/${sourceFileId.prefix}`
-        : sourceFileId.bucket
+      const parts = [sourceFileId.bucket]
+      if (sourceFileId.prefix) parts.push(sourceFileId.prefix)
+      if (sourceFileId.filename) parts.push(sourceFileId.filename)
+      return `gcs://${parts.join('/')}`
     }
 
     // For local file plugin, show filename
