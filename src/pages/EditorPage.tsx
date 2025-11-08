@@ -107,6 +107,19 @@ export const EditorPage: React.FC = () => {
     return calculateTERStatistics(fileOps.translationData.jobData, fileOps.translationData.originalJobData)
   }, [fileOps.translationData.jobData, fileOps.translationData.originalJobData])
 
+  // Calculate review completion statistics
+  const reviewStats = useMemo(() => {
+    if (!fileOps.translationData.jobData) {
+      return { reviewed: 0, total: 0, percentage: 0 }
+    }
+
+    const total = fileOps.translationData.jobData.tus.length
+    const reviewed = fileOps.translationData.jobData.tus.filter(tu => tu.reviewedTs).length
+    const percentage = total > 0 ? Math.round((reviewed / total) * 100) : 0
+
+    return { reviewed, total, percentage }
+  }, [fileOps.translationData.jobData])
+
   // URL parsing for deep links (only on initial mount)
   useEffect(() => {
     const currentUrl = window.location.pathname + window.location.search
@@ -197,6 +210,20 @@ export const EditorPage: React.FC = () => {
     setShowSettingsForPlugin(pluginId)
   }
 
+  const handleReviewToggle = (guid: string, reviewed: boolean) => {
+    if (!fileOps.translationData.jobData) return
+
+    const tu = fileOps.translationData.jobData.tus.find(t => t.guid === guid)
+    if (!tu) return
+
+    const updatedTu = {
+      ...tu,
+      reviewedTs: reviewed ? Date.now() : undefined
+    }
+
+    fileOps.translationData.updateTranslationUnit(updatedTu)
+  }
+
   // Memoize header props to avoid re-renders
   const headerProps = useMemo(() => ({
     plugins,
@@ -207,6 +234,7 @@ export const EditorPage: React.FC = () => {
     onShowInstructions: handleShowInstructions,
     ter,
     ept,
+    reviewStats,
     qualityModel: qualityModelHook.qualityModel,
     onNewModel: qualityModelHook.handleNewModel,
     onLoadModel: qualityModelHook.handleLoadModel,
@@ -222,6 +250,7 @@ export const EditorPage: React.FC = () => {
     fileOps.translationData.fileStatus,
     ter,
     ept,
+    reviewStats,
     qualityModelHook.qualityModel,
     qualityModelHook.handleNewModel,
     qualityModelHook.handleLoadModel,
@@ -329,6 +358,7 @@ export const EditorPage: React.FC = () => {
           sourceLocation={fileOps.getSourceLocation()}
           qualityModel={qualityModelHook.qualityModel}
           ept={ept}
+          onReviewToggle={handleReviewToggle}
         />
       </EditorLayout>
     </>

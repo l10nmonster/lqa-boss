@@ -79,8 +79,13 @@ export function calculateTERStatistics(
   let totalEditDistance = 0
   const changedGuids: string[] = []
 
-  // Iterate through current TUs
+  // Iterate through current TUs (only reviewed ones)
   for (const currentTu of currentJobData.tus) {
+    // Only consider reviewed segments
+    if (!currentTu.reviewedTs) {
+      continue
+    }
+
     totalSegments++
 
     // Skip TUs with unresolved candidates (no original to compare to)
@@ -157,6 +162,11 @@ export function calculateEPT(
   let totalWords = 0
 
   for (const tu of currentJobData.tus) {
+    // Only consider reviewed segments
+    if (!tu.reviewedTs) {
+      continue
+    }
+
     // Add QA weight if present
     if (tu.qa && tu.qa.w) {
       totalWeight += tu.qa.w

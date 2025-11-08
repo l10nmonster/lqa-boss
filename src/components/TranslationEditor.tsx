@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef, useMemo } from 'react'
 import { Box, Heading, Text, Input, HStack, Kbd, InputGroup, Menu, IconButton } from '@chakra-ui/react'
+import { Checkbox } from '@chakra-ui/react'
 import { FiSearch, FiSliders } from 'react-icons/fi'
 import JSZip from 'jszip'
 import { FlowData, JobData, TranslationUnit } from '../types'
@@ -26,6 +27,7 @@ interface TranslationEditorProps {
   sourceLocation?: string
   qualityModel: QualityModel | null
   ept: number | null
+  onReviewToggle: (guid: string, reviewed: boolean) => void
 }
 
 export interface TranslationEditorRef {
@@ -45,10 +47,12 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   sourceLocation,
   qualityModel,
   ept,
+  onReviewToggle,
 }, ref) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
+  const [showOnlyNonReviewed, setShowOnlyNonReviewed] = useState(false)
 
   // Expose openInstructions method via ref (keeping method name for backward compatibility)
   useImperativeHandle(ref, () => ({
@@ -115,10 +119,18 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   
   // Filter function for translation units
   const filterTranslationUnits = (tus: TranslationUnit[]): TranslationUnit[] => {
-    if (!filterText.trim()) return tus
-    
+    let filtered = tus
+
+    // Apply review status filter first
+    if (showOnlyNonReviewed) {
+      filtered = filtered.filter(tu => !tu.reviewedTs)
+    }
+
+    // Then apply text search filter
+    if (!filterText.trim()) return filtered
+
     const searchText = filterText.toLowerCase()
-    return tus.filter(tu => {
+    return filtered.filter(tu => {
       // Search in source text
       if (searchableFields.source) {
         const sourceText = tu.nsrc ? normalizedToString(tu.nsrc).toLowerCase() : ''
@@ -177,7 +189,39 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   
   // Get filtered job data
   const filteredJobData = jobData ? { ...jobData, tus: filterTranslationUnits(jobData.tus) } : null
-  
+
+  // Handle marking current segment as reviewed before navigation
+  const handleBeforeNavigate = () => {
+    if (!jobData || activeSegmentIndex < 0) return
+
+    // Get the current segment's GUID
+    let currentGuid: string | undefined
+    if (flowData && currentPage) {
+      currentGuid = currentPage.segments?.[activeSegmentIndex]?.g
+    } else if (filteredJobData) {
+      currentGuid = filteredJobData.tus[activeSegmentIndex]?.guid
+    }
+
+    if (currentGuid) {
+      onReviewToggle(currentGuid, true)
+    }
+  }
+
+  // Mark all visible segments on current page as reviewed
+  const handleMarkAllVisibleAsReviewed = () => {
+    if (!currentPage || !currentPage.segments) return
+
+    // Filter for visible segments (width > 0 and height > 0)
+    const visibleSegments = currentPage.segments.filter(
+      segment => segment.width > 0 && segment.height > 0
+    )
+
+    // Mark all visible segments as reviewed
+    visibleSegments.forEach(segment => {
+      onReviewToggle(segment.g, true)
+    })
+  }
+
   // Setup keyboard navigation
   useKeyboardNavigation({
     currentPageIndex,
@@ -186,6 +230,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     totalSegments: flowData ? (currentPage?.segments.length || 0) : (filteredJobData?.tus.length || 0),
     navigatePage,
     setActiveSegmentIndex: handleSetActiveSegmentIndex,
+    onBeforeNavigate: handleBeforeNavigate,
   })
   
   // When navigating to a new page or when jobData loads without flowData, focus on the first segment
@@ -246,6 +291,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
                 currentPageIndex={currentPageIndex}
                 totalPages={flowData.pages.length}
                 onNavigatePage={navigatePage}
+                onMarkAllVisibleAsReviewed={handleMarkAllVisibleAsReviewed}
               />
             ) : (
               <Text color="gray.600" textAlign="center" py={20}>
@@ -261,6 +307,15 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
                 Editable Text Segments
               </Heading>
               <HStack gap={2}>
+                <Checkbox.Root
+                  checked={showOnlyNonReviewed}
+                  onCheckedChange={(e: any) => setShowOnlyNonReviewed(e.checked === true)}
+                  size="sm"
+                >
+                  <Checkbox.HiddenInput />
+                  <Checkbox.Control />
+                  <Checkbox.Label>Show only non-reviewed</Checkbox.Label>
+                </Checkbox.Root>
                 <InputGroup 
                   width="200px" 
                   startElement={<FiSearch color="gray.500" />} 
@@ -359,6 +414,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               activeSegmentIndex={activeSegmentIndex}
               onSegmentFocus={handleSetActiveSegmentIndex}
               qualityModel={qualityModel}
+              onReviewToggle={onReviewToggle}
             />
           </GlassBox>
         </ResizablePane>
@@ -370,6 +426,15 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               Editable Translation Units
             </Heading>
             <HStack gap={2}>
+              <Checkbox.Root
+                checked={showOnlyNonReviewed}
+                onCheckedChange={(e: any) => setShowOnlyNonReviewed(e.checked === true)}
+                size="sm"
+              >
+                <Checkbox.HiddenInput />
+                <Checkbox.Control />
+                <Checkbox.Label>Show only non-reviewed</Checkbox.Label>
+              </Checkbox.Root>
               <InputGroup 
                 width="200px" 
                 startElement={<FiSearch color="gray.500" />} 
@@ -469,6 +534,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               activeSegmentIndex={activeSegmentIndex}
               onSegmentFocus={handleSetActiveSegmentIndex}
               qualityModel={qualityModel}
+              onReviewToggle={onReviewToggle}
             />
           </Box>
         </GlassBox>

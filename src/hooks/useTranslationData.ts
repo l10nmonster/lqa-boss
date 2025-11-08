@@ -16,39 +16,47 @@ export const useTranslationData = () => {
   const [fileStatus, setFileStatus] = useState<FileStatus>('NEW')
   
   const updateTranslationUnit = (tu: TranslationUnit) => {
-    if (!jobData || !originalJobData) return
+    if (!originalJobData) return
 
-    // Find the current TU to compare
-    const currentTu = jobData.tus.find(t => t.guid === tu.guid)
-    if (!currentTu) return
+    // Use functional update to ensure we're working with the latest state
+    setJobData(prevJobData => {
+      if (!prevJobData) return prevJobData
 
-    // Only update if the content or QA actually changed
-    if (!isEqual(currentTu.ntgt, tu.ntgt) || !isEqual(currentTu.qa, tu.qa)) {
-      // If ntgt changed, clear candidateSelected flag (user is now manually editing)
-      const updatedTu = !isEqual(currentTu.ntgt, tu.ntgt)
-        ? { ...tu, candidateSelected: undefined }
-        : tu
+      // Find the current TU to compare
+      const currentTu = prevJobData.tus.find(t => t.guid === tu.guid)
+      if (!currentTu) return prevJobData
 
-      const newTus = jobData.tus.map(t => t.guid === tu.guid ? updatedTu : t)
-      setJobData({ ...jobData, tus: newTus })
+      // Only update if the content, QA, or review status actually changed
+      if (!isEqual(currentTu.ntgt, tu.ntgt) || !isEqual(currentTu.qa, tu.qa) || currentTu.reviewedTs !== tu.reviewedTs) {
+        // If ntgt changed, clear candidateSelected flag (user is now manually editing)
+        const updatedTu = !isEqual(currentTu.ntgt, tu.ntgt)
+          ? { ...tu, candidateSelected: undefined }
+          : tu
 
-      // Determine the correct status based on current state
-      if (fileStatus === 'LOADED' && savedJobData) {
-        // In LOADED state, compare against saved data
-        const hasChangesFromSaved = newTus.some(newTu => {
-          const savedTu = savedJobData.tus.find(t => t.guid === newTu.guid)
-          return savedTu && (!isEqual(newTu.ntgt, savedTu.ntgt) || !isEqual(newTu.qa, savedTu.qa))
-        })
-        setFileStatus(hasChangesFromSaved ? 'CHANGED' : 'LOADED')
-      } else {
-        // In NEW state, compare against original data
-        const hasChangesFromOriginal = newTus.some(newTu => {
-          const origTu = originalJobData.tus.find(t => t.guid === newTu.guid)
-          return origTu && (!isEqual(newTu.ntgt, origTu.ntgt) || !isEqual(newTu.qa, origTu.qa))
-        })
-        setFileStatus(hasChangesFromOriginal ? 'CHANGED' : 'NEW')
+        const newTus = prevJobData.tus.map(t => t.guid === tu.guid ? updatedTu : t)
+
+        // Determine the correct status based on current state
+        if (fileStatus === 'LOADED' && savedJobData) {
+          // In LOADED state, compare against saved data
+          const hasChangesFromSaved = newTus.some(newTu => {
+            const savedTu = savedJobData.tus.find(t => t.guid === newTu.guid)
+            return savedTu && (!isEqual(newTu.ntgt, savedTu.ntgt) || !isEqual(newTu.qa, savedTu.qa))
+          })
+          setFileStatus(hasChangesFromSaved ? 'CHANGED' : 'LOADED')
+        } else {
+          // In NEW state, compare against original data
+          const hasChangesFromOriginal = newTus.some(newTu => {
+            const origTu = originalJobData.tus.find(t => t.guid === newTu.guid)
+            return origTu && (!isEqual(newTu.ntgt, origTu.ntgt) || !isEqual(newTu.qa, origTu.qa))
+          })
+          setFileStatus(hasChangesFromOriginal ? 'CHANGED' : 'NEW')
+        }
+
+        return { ...prevJobData, tus: newTus }
       }
-    }
+
+      return prevJobData
+    })
   }
   
   const setupTwoStateSystem = (currentJobData: JobData) => {

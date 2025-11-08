@@ -205,7 +205,8 @@ const NormalizedTextEditor = forwardRef<NormalizedTextEditorRef, NormalizedTextE
   }
 
   const handleChange = useCallback((editorState: EditorState, _editor: Editor, tags: Set<string>) => {
-    if (tags.has('initial-load') || tags.has('content-update')) {
+    // Ignore programmatic updates (initialization, external updates, undo/reset operations)
+    if (tags.has('initial-load') || tags.has('content-update') || tags.has('force-update')) {
       return
     }
 

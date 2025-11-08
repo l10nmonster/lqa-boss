@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Box, Image, IconButton, Text, Stack } from '@chakra-ui/react'
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
+import { FiChevronLeft, FiChevronRight, FiCheckCircle } from 'react-icons/fi'
 import JSZip from 'jszip'
 import { Page } from '../types'
 
@@ -12,6 +12,7 @@ interface ScreenshotViewerProps {
   currentPageIndex: number
   totalPages: number
   onNavigatePage: (direction: number) => void
+  onMarkAllVisibleAsReviewed: () => void
 }
 
 const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
@@ -22,6 +23,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   currentPageIndex,
   totalPages,
   onNavigatePage,
+  onMarkAllVisibleAsReviewed,
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -86,12 +88,12 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   return (
     <Box position="relative" height="100%" display="flex" flexDirection="column" p={6}>
       {/* Navigation Controls */}
-      <Stack 
-        direction="row" 
-        position="absolute" 
-        top={10} 
-        left="50%" 
-        transform="translateX(-50%)" 
+      <Stack
+        direction="row"
+        position="absolute"
+        top={10}
+        left="50%"
+        transform="translateX(-50%)"
         zIndex={10}
         bg="rgba(255, 255, 255, 0.3)"
         borderRadius="full"
@@ -128,6 +130,17 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
           _hover={{ bg: 'gray.100' }}
         >
           <FiChevronRight />
+        </IconButton>
+        <IconButton
+          aria-label="Mark all visible segments as reviewed"
+          size="sm"
+          variant="solid"
+          onClick={onMarkAllVisibleAsReviewed}
+          colorScheme="blue"
+          ml={2}
+          borderRadius="full"
+        >
+          <FiCheckCircle />
         </IconButton>
       </Stack>
 

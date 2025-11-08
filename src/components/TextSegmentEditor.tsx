@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useCallback } from 'react'
-import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal, Tooltip, Input } from '@chakra-ui/react'
+import { Box, Stack, Text, VStack, HStack, Flex, Menu, IconButton, Portal, Tooltip, Input, Badge } from '@chakra-ui/react'
 import { FiEdit, FiHome, FiRotateCcw, FiCopy, FiTarget, FiAlertTriangle } from 'react-icons/fi'
 import { Page, JobData, TranslationUnit, NormalizedItem, NormalizedPlaceholder, PlaceholderDescription, QualityAssessment } from '../types'
 import { QualityModel } from '../types/qualityModel'
@@ -125,6 +125,7 @@ interface TextSegmentEditorProps {
   activeSegmentIndex: number
   onSegmentFocus: (index: number) => void
   qualityModel: QualityModel | null
+  onReviewToggle: (guid: string, reviewed: boolean) => void
 }
 
 const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
@@ -137,6 +138,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   activeSegmentIndex,
   onSegmentFocus,
   qualityModel,
+  onReviewToggle,
 }) => {
   const editorRefs = useRef<{ [key: number]: HTMLDivElement }>({})
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -197,10 +199,39 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
 
   const handleNormalizedChange = useCallback((guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
-    if (tu) {
-      onTranslationUnitChange({ ...tu, ntgt: newNtgt })
+    const originalTu = originalTusByGuid.get(guid)
+
+    if (tu && originalTu) {
+      // Check if content differs from original (in both old and new states)
+      const wasOriginal = isEqual(tu.ntgt, originalTu.ntgt)
+      const isOriginal = isEqual(newNtgt, originalTu.ntgt)
+
+      // Determine new reviewedTs value
+      let newReviewedTs: number | undefined
+
+      if (!wasOriginal && !isOriginal) {
+        // Content was modified and still is modified - mark as reviewed (or keep existing timestamp)
+        newReviewedTs = tu.reviewedTs || Date.now()
+      } else if (wasOriginal && !isOriginal) {
+        // Content is being edited away from original - mark as reviewed
+        newReviewedTs = Date.now()
+      } else if (!wasOriginal && isOriginal) {
+        // Content is being edited back to original - unmark as reviewed
+        newReviewedTs = undefined
+      } else {
+        // Content was original and still is original - preserve existing state
+        newReviewedTs = tu.reviewedTs
+      }
+
+      const updatedTu = {
+        ...tu,
+        ntgt: newNtgt,
+        reviewedTs: newReviewedTs
+      }
+
+      onTranslationUnitChange(updatedTu)
     }
-  }, [tusByGuid, onTranslationUnitChange])
+  }, [tusByGuid, originalTusByGuid, onTranslationUnitChange])
 
   const handleUndo = useCallback((guid: string) => {
     const savedTu = savedTusByGuid.get(guid)
@@ -245,7 +276,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     }
   }, [tusByGuid, onTranslationUnitChange])
 
-  // Three-state system for segment colors - only based on ntgt changes
+  // Three-state system for segment state - based on ntgt changes
   const getSegmentState = (guid: string): 'original' | 'saved' | 'modified' => {
     const currentTu = tusByGuid.get(guid)
     const originalTu = originalTusByGuid.get(guid)
@@ -253,18 +284,18 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
 
     if (!currentTu || !originalTu || !savedTu) return 'original'
 
-    // Check if current matches original source text (green)
+    // Check if current matches original translation
     if (isEqual(currentTu.ntgt, originalTu.ntgt)) {
-      return 'original' // Green - matches original source text
+      return 'original' // Matches original translation from file
     }
 
-    // Check if current matches saved translation (yellow)
+    // Check if current matches saved translation
     if (isEqual(currentTu.ntgt, savedTu.ntgt)) {
-      return 'saved' // Yellow - matches saved translation
+      return 'saved' // Matches saved translation (auto-save)
     }
 
     // Current differs from both original and saved
-    return 'modified' // Red - has unsaved changes
+    return 'modified' // Has unsaved changes
   }
 
   // Validate QA assessment against quality model
@@ -306,13 +337,21 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     return { isValid: true }
   }
   
-  const getSegmentBorderColor = (guid: string, isActive: boolean): string => {
+  const getSegmentBorderColor = (guid: string): string => {
+    const tu = tusByGuid.get(guid)
+
+    // Blue: Unreviewed segments
+    if (!tu?.reviewedTs) {
+      return 'blue.500'
+    }
+
+    // Reviewed segments - color based on state
     const state = getSegmentState(guid)
     switch (state) {
-      case 'original': return isActive ? 'blue.500' : 'green.300'
-      case 'saved': return isActive ? 'blue.500' : 'yellow.400' 
-      case 'modified': return isActive ? 'blue.500' : 'red.500'
-      default: return isActive ? 'blue.500' : 'green.300'
+      case 'original': return 'green.300'    // Green: Reviewed, unchanged from original
+      case 'saved': return 'yellow.400'      // Yellow: Reviewed, changed and saved
+      case 'modified': return 'red.500'      // Red: Reviewed, changed but not saved
+      default: return 'green.300'
     }
   }
 
@@ -437,7 +476,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             border="1px solid"
             borderColor={isActive ? 'rgba(59, 130, 246, 0.6)' : 'rgba(255, 255, 255, 0.2)'}
             borderLeftWidth="4px"
-            borderLeftColor={getSegmentBorderColor(tu.guid, isActive)}
+            borderLeftColor={getSegmentBorderColor(tu.guid)}
             boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.3)' : '0 2px 8px 0 rgba(0, 0, 0, 0.2)'}
             transform={isActive ? 'scale(1)' : 'scale(0.99)'}
             transition="transform 0.4s ease-in-out, background-color 0.4s ease-in-out, border-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out, filter 0.4s ease-in-out"
@@ -493,7 +532,27 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       </Text>
                     </Box>
                   </HStack>
-                  <Menu.Root>
+                  <HStack gap={2}>
+                    <Badge
+                      bg={tu.reviewedTs ? 'green.500' : 'orange.500'}
+                      color="white"
+                      px={2}
+                      py={1}
+                      borderRadius="md"
+                      fontSize="xs"
+                      fontWeight="bold"
+                      cursor="pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onReviewToggle(tu.guid, !tu.reviewedTs)
+                      }}
+                      _hover={{
+                        opacity: 0.8
+                      }}
+                    >
+                      {tu.reviewedTs ? 'REVIEWED' : 'TO REVIEW'}
+                    </Badge>
+                    <Menu.Root>
                     <Menu.Trigger asChild>
                       <IconButton
                         aria-label="Edit options"
@@ -565,6 +624,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       </Menu.Positioner>
                     </Portal>
                   </Menu.Root>
+                  </HStack>
                 </HStack>
                 {/* Candidate Picker - shown when multiple translation candidates exist */}
                 {tu.candidates && tu.candidates.length > 0 ? (

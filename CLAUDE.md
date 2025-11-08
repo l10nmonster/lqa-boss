@@ -63,10 +63,14 @@ This is a React 19 PWA for editing LQA Boss (.lqaboss) files, which are ZIP arch
 
 **TextSegmentEditor.tsx**:
 - Core editing interface using Lexical editor
-- Visual indicators: green (unmodified), red (modified), blue (active)
+- **Visual indicators** (left border colors):
+  - BLUE: Unreviewed segments
+  - GREEN: Reviewed, unchanged from original translation
+  - YELLOW: Reviewed, changed and saved
+  - RED: Reviewed, changed but not saved yet
 - Handles both flow segments and standalone translation units
 - **Keyboard Navigation** (`src/hooks/useKeyboardNavigation.ts`):
-  - `Command+Enter` (or `Ctrl+Enter`): Move to next segment with auto-focus
+  - `Command+Enter` (or `Ctrl+Enter`): Move to next segment with auto-focus AND mark current segment as reviewed
   - Up/Down arrows: Navigate between segments
   - Tab key: Normal browser behavior (no custom handling) - does NOT navigate segments
   - Auto-focuses editor with cursor active after navigation (100ms delay)
@@ -144,7 +148,11 @@ This is a React 19 PWA for editing LQA Boss (.lqaboss) files, which are ZIP arch
 - **React 19 RC**: Latest React with performance improvements
 
 ### Change Detection & Export
-The app tracks modifications by comparing current `ntgt` arrays with original data using `isEqual()` from lodash. Only changed translation units are exported via `saveChangedTus()` in `src/utils/saveHandler.ts:10`.
+The app tracks modifications by comparing current `ntgt` arrays with original data using `isEqual()` from lodash. Translation units are exported via `saveChangedTus()` in `src/utils/saveHandler.ts:10` if they meet either condition:
+1. Content has changed (`ntgt` differs from original)
+2. Segment has been marked as reviewed (`reviewedTs` exists)
+
+This ensures reviewed segments are saved even if unchanged, preserving review progress.
 
 ### Three-State System (CRITICAL - READ CAREFULLY)
 
@@ -228,6 +236,52 @@ The application supports configurable quality models for translation quality ass
 - `showModelEditor`: Controls modal visibility
 - Models persist in memory during the session
 - Load/save operations use local file system only
+
+### Review Completion Tracking
+
+The application tracks which segments have been reviewed with a timestamp-based system.
+
+**Review Status Field** (`src/types/index.ts`):
+- `TranslationUnit.reviewedTs?: number` - Timestamp when segment was marked as reviewed
+- Absence of this field indicates an unreviewed segment
+
+**Visual Indicators**:
+- **Badge** (next to segment menu): Clickable "REVIEWED" (green) or "TO REVIEW" (orange) badge
+- **Left Border Colors**:
+  - BLUE: Unreviewed segments
+  - GREEN: Reviewed, unchanged from original
+  - YELLOW: Reviewed, changed and saved
+  - RED: Reviewed, changed but not saved
+
+**Auto-Review Behavior** (`src/components/TextSegmentEditor.tsx:200-234`):
+- Segment is automatically marked as reviewed when edited (content differs from original)
+- Segment is automatically unmarked when reverted to original content (e.g., via "Reset to original")
+- `Cmd+Enter` (or `Ctrl+Enter`) always marks the current segment as reviewed before navigating to next
+- Preserves existing `reviewedTs` when segment gets focus (no spurious unmarking)
+
+**Batch Operations**:
+- **"Mark all as reviewed" button** (`src/components/ScreenshotViewer.tsx:134-144`):
+  - Circular blue button with checkmark icon next to pagination controls (screenshot pane only)
+  - Marks all visible segments on current page as reviewed
+  - Filters for segments with `width > 0` and `height > 0` (excludes invisible segments)
+
+**Filter & Display** (`src/components/TranslationEditor.tsx:310-318`):
+- "Show only non-reviewed" checkbox in text editor pane
+- Completion statistics in header: "X/Y (Z%)" format (no prefix)
+
+**Metrics Integration** (`src/utils/metrics.ts:85-87, 165-167`):
+- EPT (Errors Per Thousand) calculation only includes reviewed segments
+- TER (Translation Error Rate) calculation only includes reviewed segments
+- Ensures quality metrics reflect only reviewed work
+
+**State Management** (`src/hooks/useTranslationData.ts:18-60`):
+- Uses functional `setState` updates to handle batch review operations correctly
+- Prevents stale state issues when marking multiple segments simultaneously
+- Detects `reviewedTs` changes to trigger state updates
+
+**Save Behavior** (`src/utils/saveHandler.ts:17-28`):
+- Exports all segments that have `reviewedTs` set, even if content is unchanged
+- Preserves review progress across editing sessions
 
 ### Plugin System Architecture
 

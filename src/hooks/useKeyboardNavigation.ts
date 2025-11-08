@@ -7,6 +7,7 @@ interface UseKeyboardNavigationProps {
   totalSegments: number
   navigatePage: (direction: number) => void
   setActiveSegmentIndex: (index: number) => void
+  onBeforeNavigate?: () => void
 }
 
 export const useKeyboardNavigation = ({
@@ -16,15 +17,21 @@ export const useKeyboardNavigation = ({
   totalSegments,
   navigatePage,
   setActiveSegmentIndex,
+  onBeforeNavigate,
 }: UseKeyboardNavigationProps) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // CMD+Enter (or Ctrl+Enter on Windows): Go to next segment
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        
+
         if (totalSegments === 0) return
-        
+
+        // Call onBeforeNavigate to mark current segment as reviewed
+        if (onBeforeNavigate && activeSegmentIndex >= 0) {
+          onBeforeNavigate()
+        }
+
         // Move to next segment or page
         if (activeSegmentIndex >= totalSegments - 1) {
           if (currentPageIndex < totalPages - 1) {

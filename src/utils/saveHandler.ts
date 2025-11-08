@@ -2,7 +2,7 @@ import { JobData } from '../types';
 import { isEqual } from 'lodash';
 
 /**
- * Finds and saves only the translation units that have been modified.
+ * Finds and saves translation units that have been modified or reviewed.
  * @param jobData - The current job data with potential changes.
  * @param originalJobData - The original, unmodified job data.
  * @param fileName - The base name for the output file.
@@ -13,11 +13,15 @@ export const saveChangedTus = (
   fileName: string
 ) => {
   const originalTus = new Map(originalJobData.tus.map(tu => [tu.guid, tu]));
-  
+
   const changedTus = jobData.tus.filter(currentTu => {
     const originalTu = originalTus.get(currentTu.guid);
     if (!originalTu) {
       // TU was added, should not happen in this context but good to handle
+      return true;
+    }
+    // Include if reviewed OR if content has changed
+    if (currentTu.reviewedTs) {
       return true;
     }
     return !isEqual(currentTu.ntgt, originalTu.ntgt);

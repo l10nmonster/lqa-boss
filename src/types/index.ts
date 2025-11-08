@@ -69,6 +69,7 @@ export interface TranslationUnit {
   ntgt: NormalizedItem[]  // normalized target
   q: number
   ts: number
+  reviewedTs?: number // timestamp when segment was marked as reviewed
   translationProvider?: string // provider that generated this translation
   notes?: {
     ph?: { [key: string]: PlaceholderDescription }  // placeholder descriptions keyed by "{0}", "{1}", etc.

@@ -15,6 +15,7 @@ interface UnifiedHeaderProps {
   onShowInstructions?: () => void
   ter?: number | null
   ept?: number | null
+  reviewStats?: { reviewed: number; total: number; percentage: number }
   qualityModel?: QualityModel | null
   onNewModel?: () => void
   onLoadModel?: () => void
@@ -33,6 +34,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   onShowInstructions,
   ter,
   ept,
+  reviewStats,
   qualityModel,
   onNewModel,
   onLoadModel,
@@ -282,6 +284,17 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           >
             <FiInfo />
           </Button>
+        )}
+        {/* Review Completion */}
+        {reviewStats && reviewStats.total > 0 && (
+          <Text
+            fontSize="sm"
+            color="gray.700"
+            fontWeight="semibold"
+            data-testid="review-completion-label"
+          >
+            {reviewStats.reviewed}/{reviewStats.total} ({reviewStats.percentage}%)
+          </Text>
         )}
         {/* Status Badge */}
         <StatusBadge status={fileStatus} />
