@@ -1,3 +1,11 @@
+## [2.2.1](https://github.com/l10nmonster/lqa-boss/compare/v2.2.0...v2.2.1) (2025-11-08)
+
+
+### Bug Fixes
+
+* Don't insert a newline in Chrome after Cmd+Enter ([6721d34](https://github.com/l10nmonster/lqa-boss/commit/6721d34b6591ae8c9b1fc50018df7753dd91df8a))
+* Keep color consistent on mouseover ([028903d](https://github.com/l10nmonster/lqa-boss/commit/028903d329ae9aabd4177c617a1ee687b6758ba7))
+
 # [2.2.0](https://github.com/l10nmonster/lqa-boss/compare/v2.1.2...v2.2.0) (2025-11-08)
 
 
