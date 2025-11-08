@@ -486,7 +486,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             maxW="100%"
             _hover={{
               bg: isActive ? 'rgba(255, 255, 255, 1)' : getHoverBg(),
-              borderColor: isActive ? 'rgba(59, 130, 246, 0.8)' : 'rgba(255, 255, 255, 0.3)',
+              borderColor: getSegmentBorderColor(tu.guid),
               transform: isActive ? 'scale(1) translateY(-1px)' : 'scale(0.99) translateY(-1px)',
               boxShadow: isActive ? '0 8px 16px 0 rgba(59, 130, 246, 0.4)' : '0 4px 8px 0 rgba(0, 0, 0, 0.4)',
               filter: isActive ? 'none' : 'blur(0.2px)',
