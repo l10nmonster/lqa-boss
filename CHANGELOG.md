@@ -1,3 +1,10 @@
+## [2.2.2](https://github.com/l10nmonster/lqa-boss/compare/v2.2.1...v2.2.2) (2025-11-08)
+
+
+### Bug Fixes
+
+* Don't mark multiline segments as modified ([46cc988](https://github.com/l10nmonster/lqa-boss/commit/46cc988a6edfc7032b13f7618d4bceea4d8f9861))
+
 ## [2.2.1](https://github.com/l10nmonster/lqa-boss/compare/v2.2.0...v2.2.1) (2025-11-08)
 
 
