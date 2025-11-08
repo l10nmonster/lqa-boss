@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef, useImperativeHandle, forwardRef, useMemo } from 'react'
-import { Box, Heading, Text, Input, HStack, Kbd, InputGroup, Menu, IconButton } from '@chakra-ui/react'
-import { Checkbox } from '@chakra-ui/react'
-import { FiSearch, FiSliders } from 'react-icons/fi'
+import { useState, useEffect, useImperativeHandle, forwardRef, useMemo, useRef } from 'react'
+import { Box, Heading, Text, HStack } from '@chakra-ui/react'
 import JSZip from 'jszip'
 import { FlowData, JobData, TranslationUnit } from '../types'
 import { QualityModel } from '../types/qualityModel'
@@ -10,6 +8,7 @@ import TextSegmentEditor from './TextSegmentEditor'
 import GlassBox from './GlassBox'
 import ResizablePane from './ResizablePane'
 import InfoModal from './InfoModal'
+import { TranslationFilterControls } from './TranslationFilterControls'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
 import { calculateTER } from '../utils/metrics'
@@ -53,14 +52,13 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
   const [showOnlyNonReviewed, setShowOnlyNonReviewed] = useState(false)
+  const [filterText, setFilterText] = useState('')
+  const userDeselected = useRef(false)
 
   // Expose openInstructions method via ref (keeping method name for backward compatibility)
   useImperativeHandle(ref, () => ({
     openInstructions: () => setIsInfoModalOpen(true)
   }), [])
-  const [filterText, setFilterText] = useState('')
-  const filterInputRef = useRef<HTMLInputElement>(null)
-  const userDeselected = useRef(false)
   const [searchableFields, setSearchableFields] = useState({
     source: true,
     target: true,
@@ -173,19 +171,6 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
       return false
     })
   }
-  
-  // Handle Cmd/Ctrl+K shortcut for filter focus
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-        event.preventDefault()
-        filterInputRef.current?.focus()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
   
   // Get filtered job data
   const filteredJobData = jobData ? { ...jobData, tus: filterTranslationUnits(jobData.tus) } : null
@@ -306,103 +291,14 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               <Heading size="md" color="gray.700">
                 Editable Text Segments
               </Heading>
-              <HStack gap={2}>
-                <Checkbox.Root
-                  checked={showOnlyNonReviewed}
-                  onCheckedChange={(e: any) => setShowOnlyNonReviewed(e.checked === true)}
-                  size="sm"
-                >
-                  <Checkbox.HiddenInput />
-                  <Checkbox.Control />
-                  <Checkbox.Label>Show only non-reviewed</Checkbox.Label>
-                </Checkbox.Root>
-                <InputGroup 
-                  width="200px" 
-                  startElement={<FiSearch color="gray.500" />} 
-                  endElement={
-                    <Kbd fontSize="xs" color="gray.500" bg="gray.100" px="1" py="0.5">
-                      {navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'}
-                    </Kbd>
-                  }
-                >
-                  <Input
-                    ref={filterInputRef}
-                    placeholder="Filter"
-                    size="sm"
-                    value={filterText}
-                    onChange={(e) => setFilterText(e.target.value)}
-                    bg="rgba(255, 255, 255, 0.9)"
-                    borderColor="rgba(0, 0, 0, 0.2)"
-                    _focus={{
-                      borderColor: "blue.500",
-                      boxShadow: "0 0 0 1px rgba(66, 153, 225, 0.6)"
-                    }}
-                  />
-                </InputGroup>
-                <Menu.Root>
-                  <Menu.Trigger asChild>
-                    <IconButton
-                      aria-label="Filter settings"
-                      size="sm"
-                      variant="ghost"
-                    >
-                      <FiSliders />
-                    </IconButton>
-                  </Menu.Trigger>
-                  <Menu.Positioner>
-                    <Menu.Content>
-                      <Menu.CheckboxItem 
-                        value="source"
-                        checked={searchableFields.source}
-                        onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, source: checked }))}
-                      >
-                        <Menu.ItemIndicator />
-                        Source
-                      </Menu.CheckboxItem>
-                      <Menu.CheckboxItem 
-                        value="target"
-                        checked={searchableFields.target}
-                        onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, target: checked }))}
-                      >
-                        <Menu.ItemIndicator />
-                        Target
-                      </Menu.CheckboxItem>
-                      <Menu.CheckboxItem 
-                        value="notes"
-                        checked={searchableFields.notes}
-                        onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, notes: checked }))}
-                      >
-                        <Menu.ItemIndicator />
-                        Notes
-                      </Menu.CheckboxItem>
-                      <Menu.CheckboxItem 
-                        value="rid"
-                        checked={searchableFields.rid}
-                        onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, rid: checked }))}
-                      >
-                        <Menu.ItemIndicator />
-                        RID
-                      </Menu.CheckboxItem>
-                      <Menu.CheckboxItem 
-                        value="sid"
-                        checked={searchableFields.sid}
-                        onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, sid: checked }))}
-                      >
-                        <Menu.ItemIndicator />
-                        SID
-                      </Menu.CheckboxItem>
-                      <Menu.CheckboxItem 
-                        value="guid"
-                        checked={searchableFields.guid}
-                        onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, guid: checked }))}
-                      >
-                        <Menu.ItemIndicator />
-                        GUID
-                      </Menu.CheckboxItem>
-                    </Menu.Content>
-                  </Menu.Positioner>
-                </Menu.Root>
-              </HStack>
+              <TranslationFilterControls
+                showOnlyNonReviewed={showOnlyNonReviewed}
+                onShowOnlyNonReviewedChange={setShowOnlyNonReviewed}
+                filterText={filterText}
+                onFilterTextChange={setFilterText}
+                searchableFields={searchableFields}
+                onSearchableFieldsChange={setSearchableFields}
+              />
             </HStack>
             <TextSegmentEditor
               page={currentPage || null}
@@ -425,103 +321,14 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
             <Heading size="md" color="gray.700">
               Editable Translation Units
             </Heading>
-            <HStack gap={2}>
-              <Checkbox.Root
-                checked={showOnlyNonReviewed}
-                onCheckedChange={(e: any) => setShowOnlyNonReviewed(e.checked === true)}
-                size="sm"
-              >
-                <Checkbox.HiddenInput />
-                <Checkbox.Control />
-                <Checkbox.Label>Show only non-reviewed</Checkbox.Label>
-              </Checkbox.Root>
-              <InputGroup 
-                width="200px" 
-                startElement={<FiSearch color="gray.500" />} 
-                endElement={
-                  <Kbd fontSize="xs" color="gray.500" bg="gray.100" px="1" py="0.5">
-                    {navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'}
-                  </Kbd>
-                }
-              >
-                <Input
-                  ref={filterInputRef}
-                  placeholder="Filter"
-                  size="sm"
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  bg="rgba(255, 255, 255, 0.9)"
-                  borderColor="rgba(0, 0, 0, 0.2)"
-                  _focus={{
-                    borderColor: "blue.500",
-                    boxShadow: "0 0 0 1px rgba(66, 153, 225, 0.6)"
-                  }}
-                />
-              </InputGroup>
-              <Menu.Root>
-                <Menu.Trigger asChild>
-                  <IconButton
-                    aria-label="Filter settings"
-                    size="sm"
-                    variant="ghost"
-                  >
-                    <FiSliders />
-                  </IconButton>
-                </Menu.Trigger>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    <Menu.CheckboxItem 
-                      value="source"
-                      checked={searchableFields.source}
-                      onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, source: checked }))}
-                    >
-                      <Menu.ItemIndicator />
-                      Source
-                    </Menu.CheckboxItem>
-                    <Menu.CheckboxItem 
-                      value="target"
-                      checked={searchableFields.target}
-                      onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, target: checked }))}
-                    >
-                      <Menu.ItemIndicator />
-                      Target
-                    </Menu.CheckboxItem>
-                    <Menu.CheckboxItem 
-                      value="notes"
-                      checked={searchableFields.notes}
-                      onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, notes: checked }))}
-                    >
-                      <Menu.ItemIndicator />
-                      Notes
-                    </Menu.CheckboxItem>
-                    <Menu.CheckboxItem 
-                      value="rid"
-                      checked={searchableFields.rid}
-                      onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, rid: checked }))}
-                    >
-                      <Menu.ItemIndicator />
-                      RID
-                    </Menu.CheckboxItem>
-                    <Menu.CheckboxItem 
-                      value="sid"
-                      checked={searchableFields.sid}
-                      onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, sid: checked }))}
-                    >
-                      <Menu.ItemIndicator />
-                      SID
-                    </Menu.CheckboxItem>
-                    <Menu.CheckboxItem 
-                      value="guid"
-                      checked={searchableFields.guid}
-                      onCheckedChange={(checked) => setSearchableFields(prev => ({ ...prev, guid: checked }))}
-                    >
-                      <Menu.ItemIndicator />
-                      GUID
-                    </Menu.CheckboxItem>
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Menu.Root>
-            </HStack>
+            <TranslationFilterControls
+              showOnlyNonReviewed={showOnlyNonReviewed}
+              onShowOnlyNonReviewedChange={setShowOnlyNonReviewed}
+              filterText={filterText}
+              onFilterTextChange={setFilterText}
+              searchableFields={searchableFields}
+              onSearchableFieldsChange={setSearchableFields}
+            />
           </HStack>
           <Box flex="1" minHeight={0}>
             <TextSegmentEditor
