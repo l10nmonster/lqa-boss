@@ -87,9 +87,23 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     if (jobData && (sourceLang || targetLang)) {
       // Use jobGuid to detect new file loads since it's unique per job
       // and doesn't change when translation units are edited
-      if (currentJobGuidRef.current !== jobData.jobGuid && onInstructionsOpen) {
-        setIsInfoModalOpen(true)
-        onInstructionsOpen()
+      if (currentJobGuidRef.current !== jobData.jobGuid) {
+        // Reset filters to default values when loading new file
+        setShowOnlyNonReviewed(false)
+        setFilterText('')
+        setSearchableFields({
+          source: true,
+          target: true,
+          notes: true,
+          rid: true,
+          sid: true,
+          guid: true,
+        })
+
+        if (onInstructionsOpen) {
+          setIsInfoModalOpen(true)
+          onInstructionsOpen()
+        }
         currentJobGuidRef.current = jobData.jobGuid
       }
     } else {
