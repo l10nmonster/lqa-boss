@@ -2,6 +2,13 @@ import React from 'react'
 import { DecoratorNode, NodeKey } from 'lexical'
 import { NormalizedPlaceholder } from '../../../types'
 
+// Flag to allow programmatic removal during drag-and-drop
+let allowPlaceholderRemoval = false
+
+export function setAllowPlaceholderRemoval(allow: boolean) {
+  allowPlaceholderRemoval = allow
+}
+
 // Custom node for non-editable placeholders
 export class PlaceholderNode extends DecoratorNode<React.ReactNode> {
   __placeholder: NormalizedPlaceholder
@@ -36,9 +43,13 @@ export class PlaceholderNode extends DecoratorNode<React.ReactNode> {
     return true
   }
 
-  // Prevent removal of placeholder nodes
+  // Prevent removal of placeholder nodes except during drag-and-drop
   remove(): this {
-    // Placeholders cannot be removed - return this unchanged
+    if (allowPlaceholderRemoval) {
+      // Allow programmatic removal during drag-and-drop
+      super.remove()
+    }
+    // Always return this (whether removed or not)
     return this
   }
 

@@ -83,32 +83,39 @@ This is a React 19 PWA for editing LQA Boss (.lqaboss) files, which are ZIP arch
   ```
   src/components/editor/
   ├── nodes/
-  │   └── PlaceholderNode.tsx         # Custom Lexical decorator node
+  │   └── PlaceholderNode.tsx                # Custom Lexical decorator node
   └── plugins/
-      ├── PlainTextPastePlugin.tsx    # Strips formatting on paste
-      ├── ArrowNavigationPlugin.tsx   # Multi-paragraph navigation
-      ├── EditorRefPlugin.tsx         # Exposes blur/focus/forceUpdate methods
-      ├── InitializePlugin.tsx        # Content initialization & updates
-      └── DragDropPlugin.tsx          # Drag-and-drop with visual indicators
+      ├── PlainTextPastePlugin.tsx           # Strips formatting on paste
+      ├── ArrowNavigationPlugin.tsx          # Multi-paragraph navigation
+      ├── KeyboardShortcutPlugin.tsx         # Prevents Cmd+Enter newlines
+      ├── EditorRefPlugin.tsx                # Exposes blur/focus/forceUpdate methods
+      ├── InitializePlugin.tsx               # Content initialization & updates
+      └── DragDropPlugin.tsx                 # Drag-and-drop with visual indicators
   ```
 
 **PlaceholderNode** (`src/components/editor/nodes/PlaceholderNode.tsx:6`):
 - Custom DecoratorNode for non-editable placeholders (tags/variables)
+- **CRITICAL REQUIREMENT**: Placeholders can be MOVED via drag-and-drop but NEVER deleted via keyboard
 - **Protection mechanisms**:
-  - `remove(): this` - Returns self unchanged, preventing deletion
+  - `remove(): this` - Returns self unchanged, preventing deletion from keyboard or user actions
+  - Module-level flag `allowPlaceholderRemoval` - Set to `true` temporarily during drag-and-drop to allow programmatic removal
+  - `setAllowPlaceholderRemoval(true/false)` - Exported function used by DragDropPlugin to enable removal during move operation
   - `isKeyboardSelectable(): false` - Cursor jumps over placeholders
   - `isSegmented(): true` - Acts as word boundary for double-click selection
+  - `contentEditable="false"` - Prevents typing/editing within placeholder
 - **Key requirements**:
   - `clone()` must pass `node.__key` to preserve Lexical node identity
   - `decorate()` must return React element (not primitive) - wrapping in `<span>` required
 - Supports drag-and-drop with transparent drag image and visual feedback
 - Displays tooltips with code, sample, and optional description
+- **IMPORTANT**: Do NOT try to intercept delete commands with a plugin - too many edge cases. The `remove()` override is the correct approach.
 
 **Editor Plugins**:
 - **PlainTextPastePlugin**: Intercepts `PASTE_COMMAND` with `COMMAND_PRIORITY_HIGH`, strips all formatting
 - **ArrowNavigationPlugin**: Handles `KEY_ARROW_UP/DOWN_COMMAND` for paragraph-level navigation
-- **InitializePlugin**: Prevents update loops by comparing content with `arraysEqual()`, tags updates to avoid triggering onChange
-- **DragDropPlugin**: Complex coordinate-based insertion with text node splitting, cursor positioning after drop
+- **KeyboardShortcutPlugin**: Prevents `Cmd+Enter` from inserting newlines, allows window-level navigation handler to work
+- **InitializePlugin**: Prevents update loops by comparing content with `normalizedArraysEqual()`, tags updates to avoid triggering onChange
+- **DragDropPlugin**: Complex coordinate-based insertion with text node splitting, cursor positioning after drop; uses `setAllowPlaceholderRemoval()` to temporarily enable removal of original placeholder during move operation
 - **EditorRefPlugin**: Exposes methods via `React.useImperativeHandle` for external control
 
 **Editor Change Detection**:

@@ -11,7 +11,7 @@ import {
   TextNode
 } from 'lexical'
 import { NormalizedPlaceholder } from '../../../types'
-import { $createPlaceholderNode } from '../nodes/PlaceholderNode'
+import { $createPlaceholderNode, setAllowPlaceholderRemoval } from '../nodes/PlaceholderNode'
 
 // Plugin to handle drag and drop
 export function DragDropPlugin(): null {
@@ -87,10 +87,12 @@ export function DragDropPlugin(): null {
       const index = parseInt(indexData, 10)
 
       editor.update(() => {
-        // Remove the old node first
+        // Remove the old node first (temporarily allow placeholder removal)
         const oldNode = $getNodeByKey(nodeKey)
         if (oldNode) {
+          setAllowPlaceholderRemoval(true)
           oldNode.remove()
+          setAllowPlaceholderRemoval(false)
         }
 
         // Get editor element
