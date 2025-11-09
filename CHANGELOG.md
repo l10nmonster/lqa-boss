@@ -1,3 +1,13 @@
+## [2.2.3](https://github.com/l10nmonster/lqa-boss/compare/v2.2.2...v2.2.3) (2025-11-09)
+
+
+### Bug Fixes
+
+* Collapse segments when using filter ([fca8811](https://github.com/l10nmonster/lqa-boss/commit/fca88112cfe3a0d90ff62542ca3b453e2d071084))
+* Drag and drop duplicates placeholders ([65b9ee9](https://github.com/l10nmonster/lqa-boss/commit/65b9ee972987cf6d55e0e0c3519015e3b50c3adf))
+* Rename unreviewed checkbox ([f28c892](https://github.com/l10nmonster/lqa-boss/commit/f28c8924bd8ce7701985a4a31737da98b6c154b5))
+* Reset filters to default upon loading a job ([e7af193](https://github.com/l10nmonster/lqa-boss/commit/e7af193fbf71542e699dcc01d0d31933e2bf1ce2))
+
 ## [2.2.2](https://github.com/l10nmonster/lqa-boss/compare/v2.2.1...v2.2.2) (2025-11-08)
 
 
