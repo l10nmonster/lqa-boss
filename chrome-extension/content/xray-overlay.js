@@ -350,45 +350,29 @@ document.addEventListener('scroll', () => {
 let shiftHeldDown = false;
 let savedSegmentsForShift = [];
 
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Shift' && !shiftHeldDown && isCurrentlyVisible) {
+function handleShiftState(e) {
+  if (!isCurrentlyVisible) return;
+
+  // Check if ONLY Shift is currently pressed (no other modifiers)
+  const onlyShiftPressed = e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey;
+
+  const overlay = document.getElementById(XRAY_OVERLAY_ID);
+  if (!overlay) return;
+
+  if (onlyShiftPressed && !shiftHeldDown) {
+    // Hide overlay
     shiftHeldDown = true;
     savedSegmentsForShift = [...currentSegments];
-
-    // Hide overlay
-    const overlay = document.getElementById(XRAY_OVERLAY_ID);
-    if (overlay) {
-      overlay.style.display = 'none';
-    }
-  }
-});
-
-window.addEventListener('keyup', (e) => {
-  if (e.key === 'Shift' && shiftHeldDown) {
+    overlay.style.display = 'none';
+  } else if (!onlyShiftPressed && shiftHeldDown) {
+    // Restore overlay
+    overlay.style.display = '';
     shiftHeldDown = false;
-
-    if (window.LQABOSS_extractTextAndMetadata && savedSegmentsForShift.length > 0) {
-      const result = window.LQABOSS_extractTextAndMetadata();
-
-      if (result?.textElements) {
-        const segmentsWithMatchStatus = result.textElements.map((seg) => {
-          const matchingSegment = savedSegmentsForShift.find(saved =>
-            seg.g && saved.g && seg.g === saved.g
-          );
-          return { ...seg, matched: matchingSegment?.matched };
-        });
-
-        createOverlay(segmentsWithMatchStatus);
-        currentSegments = segmentsWithMatchStatus;
-        isCurrentlyVisible = true;
-      }
-    } else {
-      const overlay = document.getElementById(XRAY_OVERLAY_ID);
-      if (overlay) overlay.style.display = '';
-    }
-
     savedSegmentsForShift = [];
   }
-});
+}
+
+window.addEventListener('keydown', handleShiftState);
+window.addEventListener('keyup', handleShiftState);
 
 } // End guard against multiple injections
