@@ -42,9 +42,15 @@ chrome.runtime.onConnect.addListener((port) => {
     sidePanelOpen = true;
     sidePanelPort = port;
 
+    // Enable URL interception when panel opens
+    setupURLInterception();
+
     port.onDisconnect.addListener(async () => {
       sidePanelOpen = false;
       sidePanelPort = null;
+
+      // Disable URL interception when panel closes
+      setupURLInterception();
 
       // Disable X-ray on all tabs when panel closes
       const tabs = await chrome.tabs.query({});
@@ -610,8 +616,8 @@ function setupURLInterception() {
     chrome.webNavigation.onBeforeNavigate.removeListener(handleNavigation);
   }
 
-  // Only add listener if we have rules
-  if (urlRewriteRules.length > 0) {
+  // Only add listener if we have rules AND the side panel is open
+  if (urlRewriteRules.length > 0 && sidePanelOpen) {
     chrome.webNavigation.onBeforeNavigate.addListener(handleNavigation);
   }
 }
