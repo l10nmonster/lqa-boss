@@ -31,6 +31,95 @@ function fe00RangeToUtf8_browser(encoded) {
   return decoder.decode(bytes);
 }
 
+/**
+ * Check if a rect is actually visible to the user
+ * @param {DOMRect} rect - The bounding rectangle to check
+ * @param {Element} parentElement - The parent element of the text node
+ * @returns {boolean} - True if the element is visible
+ */
+function isRectVisible(rect, parentElement) {
+  // Check if rect has valid dimensions
+  if (rect.width <= 0 || rect.height <= 0) {
+    return false;
+  }
+
+  // Check if element is clipped by any parent with overflow
+  let element = parentElement;
+  while (element && element !== document.body) {
+    const styles = window.getComputedStyle(element);
+    const overflow = styles.overflow + styles.overflowX + styles.overflowY;
+
+    if (overflow.includes('hidden') || overflow.includes('scroll') || overflow.includes('clip')) {
+      const elementRect = element.getBoundingClientRect();
+
+      // Check if rect is completely outside the parent's bounds
+      if (rect.right <= elementRect.left ||
+          rect.left >= elementRect.right ||
+          rect.bottom <= elementRect.top ||
+          rect.top >= elementRect.bottom) {
+        return false;
+      }
+
+      // Check if rect is only partially visible (more than 50% clipped)
+      const visibleWidth = Math.min(rect.right, elementRect.right) - Math.max(rect.left, elementRect.left);
+      const visibleHeight = Math.min(rect.bottom, elementRect.bottom) - Math.max(rect.top, elementRect.top);
+
+      if (visibleWidth < rect.width * 0.5 || visibleHeight < rect.height * 0.5) {
+        return false;
+      }
+    }
+
+    element = element.parentElement;
+  }
+
+  // Check if rect is in viewport
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  if (rect.right <= 0 || rect.left >= viewportWidth ||
+      rect.bottom <= 0 || rect.top >= viewportHeight) {
+    return false;
+  }
+
+  // Check all 4 corners with elementFromPoint to ensure fully visible
+  const offset = 2;
+  const corners = [
+    { x: rect.left + offset, y: rect.top + offset },           // Top-left
+    { x: rect.right - offset, y: rect.top + offset },          // Top-right
+    { x: rect.left + offset, y: rect.bottom - offset },        // Bottom-left
+    { x: rect.right - offset, y: rect.bottom - offset }        // Bottom-right
+  ];
+
+  try {
+    // All 4 corners must be visible and not obscured
+    for (const corner of corners) {
+      // Check if corner is in viewport
+      if (corner.x < 0 || corner.x >= viewportWidth ||
+          corner.y < 0 || corner.y >= viewportHeight) {
+        return false;
+      }
+
+      const elementAtPoint = document.elementFromPoint(corner.x, corner.y);
+      if (!elementAtPoint) {
+        return false;
+      }
+
+      // Check if the element at this corner is related to our parent
+      const isRelated = elementAtPoint === parentElement ||
+                        parentElement.contains(elementAtPoint) ||
+                        elementAtPoint.contains(parentElement);
+
+      if (!isRelated) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function extractTextAndMetadata() {
   const textElements = [];
   const START_MARKER_REGEX = /(?<![''<])\u200B([\uFE00-\uFE0F]+)/g;
@@ -71,23 +160,36 @@ function extractTextAndMetadata() {
           range.setEnd(node, endMarkerPos);
 
           const rect = range.getBoundingClientRect();
-          if (rect.width > 0 || rect.height > 0) {
-            let parsedMetadata = {};
-            try {
-              const decodedJsonMetadata = fe00RangeToUtf8_browser(activeSegment.encodedMetadata);
-              if (decodedJsonMetadata && decodedJsonMetadata.trim() !== '') {
-                parsedMetadata = JSON.parse(decodedJsonMetadata);
-              }
-            } catch (e) {
-              parsedMetadata.decodingError = e.message;
+          let parsedMetadata = {};
+          try {
+            const decodedJsonMetadata = fe00RangeToUtf8_browser(activeSegment.encodedMetadata);
+            if (decodedJsonMetadata && decodedJsonMetadata.trim() !== '') {
+              parsedMetadata = JSON.parse(decodedJsonMetadata);
             }
+          } catch (e) {
+            parsedMetadata.decodingError = e.message;
+          }
 
+          // Check if the segment is actually visible
+          const visible = isRectVisible(rect, parentElement);
+
+          // Always include the segment, but only add coordinates if visible
+          if (visible) {
             textElements.push({
               text: activeSegment.text,
               x: rect.left + window.scrollX,
               y: rect.top + window.scrollY,
               width: rect.width,
               height: rect.height,
+              ...parsedMetadata
+            });
+          } else {
+            textElements.push({
+              text: activeSegment.text,
+              x: 0,
+              y: 0,
+              width: 0,
+              height: 0,
               ...parsedMetadata
             });
           }
@@ -115,23 +217,36 @@ function extractTextAndMetadata() {
             range.setEnd(node, endOffset);
 
             const rect = range.getBoundingClientRect();
-            if (rect.width > 0 || rect.height > 0) {
-              let parsedMetadata = {};
-              try {
-                const decodedJsonMetadata = fe00RangeToUtf8_browser(match[1]);
-                if (decodedJsonMetadata && decodedJsonMetadata.trim() !== '') {
-                  parsedMetadata = JSON.parse(decodedJsonMetadata);
-                }
-              } catch (e) {
-                parsedMetadata.decodingError = e.message;
+            let parsedMetadata = {};
+            try {
+              const decodedJsonMetadata = fe00RangeToUtf8_browser(match[1]);
+              if (decodedJsonMetadata && decodedJsonMetadata.trim() !== '') {
+                parsedMetadata = JSON.parse(decodedJsonMetadata);
               }
+            } catch (e) {
+              parsedMetadata.decodingError = e.message;
+            }
 
+            // Check if the segment is actually visible
+            const visible = isRectVisible(rect, parentElement);
+
+            // Always include the segment, but only add coordinates if visible
+            if (visible) {
               textElements.push({
                 text: capturedText,
                 x: rect.left + window.scrollX,
                 y: rect.top + window.scrollY,
                 width: rect.width,
                 height: rect.height,
+                ...parsedMetadata
+              });
+            } else {
+              textElements.push({
+                text: capturedText,
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
                 ...parsedMetadata
               });
             }

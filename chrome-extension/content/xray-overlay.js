@@ -14,6 +14,16 @@ const XRAY_STYLE_ID = 'lqaboss-xray-styles';
 let currentSegments = [];
 let isCurrentlyVisible = false;
 
+// Helper to notify side panel of segment count changes
+function notifySidePanelSegmentCount(count) {
+  chrome.runtime.sendMessage({
+    action: 'segment-count-updated',
+    count: count
+  }).catch(() => {
+    // Ignore if side panel is not open
+  });
+}
+
 function createStyles() {
   if (document.getElementById(XRAY_STYLE_ID)) return;
 
@@ -137,6 +147,11 @@ function createOverlay(segments) {
   `;
 
   segments.forEach((seg, index) => {
+    // Skip segments with no dimensions (invisible/off-screen)
+    if (!seg.width || !seg.height || seg.width <= 0 || seg.height <= 0) {
+      return;
+    }
+
     const highlight = document.createElement('div');
 
     // Determine color class based on matched status
@@ -229,10 +244,16 @@ function createOverlay(segments) {
 
 function toggleXRayVision(enabled, segments = []) {
   if (enabled && segments.length > 0) {
+    // Always remove existing overlay first to ensure clean state
+    removeOverlay();
     createOverlay(segments);
     currentSegments = segments;
     isCurrentlyVisible = true;
   } else {
+    // Clear all pending timeouts to prevent recreation
+    clearTimeout(resizeTimeout);
+    clearTimeout(scrollTimeout);
+
     removeOverlay();
     currentSegments = [];
     isCurrentlyVisible = false;
@@ -243,129 +264,87 @@ function toggleXRayVision(enabled, segments = []) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'toggle-xray') {
     toggleXRayVision(request.enabled, request.segments || []);
-    sendResponse({ success: true });
-    return true;
-  }
-
-  if (request.action === 'remove-xray') {
-    removeOverlay();
-    currentSegments = [];
-    isCurrentlyVisible = false;
-    sendResponse({ success: true });
-    return true;
-  }
-
-  if (request.action === 'hide-xray-temporarily') {
+  } else if (request.action === 'hide-xray-temporarily') {
     const wasVisible = isCurrentlyVisible;
-    if (wasVisible) {
-      removeOverlay();
-    }
+    if (wasVisible) removeOverlay();
     sendResponse({ success: true, wasVisible });
     return true;
-  }
-
-  if (request.action === 'restore-xray') {
+  } else if (request.action === 'restore-xray') {
     if (currentSegments.length > 0) {
       createOverlay(currentSegments);
       isCurrentlyVisible = true;
     }
-    sendResponse({ success: true });
-    return true;
   }
+  sendResponse({ success: true });
+  return true;
 });
 
 // Update overlay positions with new segment coordinates
 function updateOverlayPositions(newSegments) {
-  const overlay = document.getElementById(XRAY_OVERLAY_ID);
-  if (!overlay) return;
+  // Preserve matched status from current segments by matching on GUID
+  const segmentsWithMatchStatus = newSegments.map((seg) => {
+    // Try to find matching segment by GUID
+    const matchingSegment = currentSegments.find(current =>
+      seg.g && current.g && seg.g === current.g
+    );
 
-  const highlights = overlay.querySelectorAll('.lqaboss-segment-highlight');
-
-  // Update full document dimensions
-  const docHeight = Math.max(
-    document.documentElement.scrollHeight,
-    document.body.scrollHeight
-  );
-  const docWidth = Math.max(
-    document.documentElement.scrollWidth,
-    document.body.scrollWidth
-  );
-
-  overlay.style.width = `${docWidth}px`;
-  overlay.style.height = `${docHeight}px`;
-
-  // Update each highlight position and size
-  newSegments.forEach((seg, index) => {
-    if (highlights[index]) {
-      // Add padding around the segment (4px on all sides)
-      const padding = 4;
-      const width = Math.max(seg.width, 20) + (padding * 2);
-      const height = Math.max(seg.height, 16) + (padding * 2);
-
-      highlights[index].style.left = `${seg.x - padding}px`;
-      highlights[index].style.top = `${seg.y - padding}px`;
-      highlights[index].style.width = `${width}px`;
-      highlights[index].style.height = `${height}px`;
-    }
+    return {
+      ...seg,
+      matched: matchingSegment?.matched
+    };
   });
 
-  // Update current segments with new positions
-  currentSegments = newSegments.map((newSeg, i) => ({
-    ...currentSegments[i],
-    x: newSeg.x,
-    y: newSeg.y,
-    width: newSeg.width,
-    height: newSeg.height
-  }));
+  // Recreate overlay with new positions (simpler than trying to update in place)
+  createOverlay(segmentsWithMatchStatus);
+  currentSegments = segmentsWithMatchStatus;
+
+  // Notify side panel of updated segment count
+  notifySidePanelSegmentCount(segmentsWithMatchStatus.length);
 }
 
 // Listen for window resize and update positions
 let resizeTimeout;
 window.addEventListener('resize', () => {
-  if (isCurrentlyVisible && currentSegments.length > 0) {
-    // Debounce resize events
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      // Re-extract segments to get new positions
-      try {
-        // Check if extraction function is available
-        if (!window.LQABOSS_extractTextAndMetadata) {
-          return;
-        }
+  if (!isCurrentlyVisible) return;
 
-        const result = window.LQABOSS_extractTextAndMetadata();
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    if (!isCurrentlyVisible || !window.LQABOSS_extractTextAndMetadata) return;
 
-        if (result && result.textElements) {
-          const newSegments = result.textElements;
+    const overlay = document.getElementById(XRAY_OVERLAY_ID);
+    if (!overlay) return;
 
-          // Update overlay with new positions
-          if (newSegments.length === currentSegments.length) {
-            updateOverlayPositions(newSegments);
-          } else {
-            // Segment count changed, disable overlay
-            removeOverlay();
-            currentSegments = [];
-            isCurrentlyVisible = false;
+    overlay.style.display = 'none';
+    const result = window.LQABOSS_extractTextAndMetadata();
+    overlay.style.display = '';
 
-            try {
-              if (chrome.runtime?.id) {
-                chrome.runtime.sendMessage({
-                  action: 'xray-disabled-by-resize'
-                }).catch(() => {
-                  // Ignore if side panel is not open or extension reloaded
-                });
-              }
-            } catch (e) {
-              // Ignore messaging errors
-            }
-          }
-        }
-      } catch (error) {
-        // Extraction failed, keep existing positions
-      }
-    }, 250);
-  }
+    if (result?.textElements) {
+      updateOverlayPositions(result.textElements);
+    }
+  }, 250);
 });
+
+// Listen for scroll events (including from scrollable containers)
+let scrollTimeout;
+document.addEventListener('scroll', () => {
+  if (!isCurrentlyVisible) return;
+
+  const overlay = document.getElementById(XRAY_OVERLAY_ID);
+  if (!overlay) return;
+
+  overlay.style.display = 'none';
+
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    if (!isCurrentlyVisible || !window.LQABOSS_extractTextAndMetadata) return;
+
+    const result = window.LQABOSS_extractTextAndMetadata();
+
+    if (result?.textElements) {
+      updateOverlayPositions(result.textElements);
+    }
+  }, 100);
+}, true);
 
 // Shift-hold to temporarily hide X-ray
 let shiftHeldDown = false;
@@ -388,41 +367,24 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 'Shift' && shiftHeldDown) {
     shiftHeldDown = false;
 
-    // Re-extract segments in case DOM changed
-    try {
-      if (window.LQABOSS_extractTextAndMetadata && savedSegmentsForShift.length > 0) {
-        const result = window.LQABOSS_extractTextAndMetadata();
+    if (window.LQABOSS_extractTextAndMetadata && savedSegmentsForShift.length > 0) {
+      const result = window.LQABOSS_extractTextAndMetadata();
 
-        if (result && result.textElements) {
-          const newSegments = result.textElements;
+      if (result?.textElements) {
+        const segmentsWithMatchStatus = result.textElements.map((seg) => {
+          const matchingSegment = savedSegmentsForShift.find(saved =>
+            seg.g && saved.g && seg.g === saved.g
+          );
+          return { ...seg, matched: matchingSegment?.matched };
+        });
 
-          // Preserve matched status from saved segments
-          const segmentsWithMatchStatus = newSegments.map((seg, i) => {
-            const savedSeg = savedSegmentsForShift[i];
-            return {
-              ...seg,
-              matched: savedSeg?.matched
-            };
-          });
-
-          // Recreate overlay with updated segments
-          createOverlay(segmentsWithMatchStatus);
-          currentSegments = segmentsWithMatchStatus;
-          isCurrentlyVisible = true;
-        }
-      } else {
-        // Just show existing overlay if extraction not available
-        const overlay = document.getElementById(XRAY_OVERLAY_ID);
-        if (overlay) {
-          overlay.style.display = '';
-        }
+        createOverlay(segmentsWithMatchStatus);
+        currentSegments = segmentsWithMatchStatus;
+        isCurrentlyVisible = true;
       }
-    } catch (error) {
-      // Just show existing overlay on error
+    } else {
       const overlay = document.getElementById(XRAY_OVERLAY_ID);
-      if (overlay) {
-        overlay.style.display = '';
-      }
+      if (overlay) overlay.style.display = '';
     }
 
     savedSegmentsForShift = [];

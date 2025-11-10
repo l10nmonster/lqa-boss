@@ -50,8 +50,8 @@ class CartManager {
 
     // Listen for messages from content scripts
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'xray-disabled-by-resize') {
-        this.showStatus('X-Ray disabled due to segment count change', 'info');
+      if (request.action === 'segment-count-updated') {
+        this.updateSegmentCount(request.count);
       }
     });
 
@@ -60,6 +60,19 @@ class CartManager {
 
     // Auto-enable X-ray when panel opens
     await this.enableXRay();
+
+    // Disable X-ray when panel closes
+    window.addEventListener('pagehide', () => {
+      if (this.currentTab) {
+        chrome.tabs.sendMessage(this.currentTab.id, {
+          action: 'toggle-xray',
+          enabled: false,
+          segments: []
+        }).catch(() => {
+          // Ignore errors - tab may be closed
+        });
+      }
+    });
   }
 
   async updateCurrentTab() {
