@@ -1,3 +1,10 @@
+## [2.2.5](https://github.com/l10nmonster/lqa-boss/compare/v2.2.4...v2.2.5) (2025-11-11)
+
+
+### Bug Fixes
+
+* Disappearing segment when Only Unreviewed is checked ([2cc314a](https://github.com/l10nmonster/lqa-boss/commit/2cc314aab34128d65f564558e3b9b4f5447d7251))
+
 ## [2.2.4](https://github.com/l10nmonster/lqa-boss/compare/v2.2.3...v2.2.4) (2025-11-11)
 
 
