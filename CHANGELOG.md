@@ -1,3 +1,10 @@
+## [2.2.4](https://github.com/l10nmonster/lqa-boss/compare/v2.2.3...v2.2.4) (2025-11-11)
+
+
+### Bug Fixes
+
+* Add support for job name ([1838dde](https://github.com/l10nmonster/lqa-boss/commit/1838ddee5ea73ec4e731b80bcb3ac248b5271418))
+
 ## [2.2.3](https://github.com/l10nmonster/lqa-boss/compare/v2.2.2...v2.2.3) (2025-11-09)
 
 
