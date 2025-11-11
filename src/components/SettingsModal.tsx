@@ -24,6 +24,7 @@ interface SettingsModalProps {
   }>
   currentSettings: Record<string, Record<string, any>>
   onSave: (pluginId: string, values: Record<string, any>) => Promise<void>
+  onAfterSave?: () => void
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -32,6 +33,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   pluginsWithSettings,
   currentSettings,
   onSave,
+  onAfterSave,
 }) => {
   const [editedSettings, setEditedSettings] = useState<Record<string, Record<string, any>>>({})
 
@@ -98,6 +100,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         type: 'success',
         duration: 3000,
       })
+
+      // Trigger callback after successful save
+      onAfterSave?.()
 
       onClose()
     } catch (error: any) {

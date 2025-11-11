@@ -172,8 +172,8 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
             const updatedZipData = await zip.generateAsync({ type: 'arraybuffer' })
             const blob = new Blob([updatedZipData], { type: 'application/zip' })
 
-            // Use jobGuid as filename
-            const fileName = `${jobGuid}.lqaboss`
+            // Use filename from extension if provided, otherwise fallback to jobGuid
+            const fileName = response.data.fileName || `${jobGuid}.lqaboss`
             const file = new File([blob], fileName)
 
             resolve(file)

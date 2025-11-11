@@ -31,6 +31,7 @@ export const EditorPage: React.FC = () => {
   // Initialize plugin settings hook
   const pluginSettings = usePluginSettings(plugins)
   const [showSettingsForPlugin, setShowSettingsForPlugin] = useState<string | null>(null)
+  const [refreshExtensionAvailability, setRefreshExtensionAvailability] = useState(0)
 
   // Initialize quality model hook
   const qualityModelHook = useQualityModel()
@@ -210,6 +211,11 @@ export const EditorPage: React.FC = () => {
     setShowSettingsForPlugin(pluginId)
   }
 
+  const handleSettingsSaved = () => {
+    // Trigger re-check of extension availability
+    setRefreshExtensionAvailability(prev => prev + 1)
+  }
+
   const handleReviewToggle = (guid: string, reviewed: boolean) => {
     if (!fileOps.translationData.jobData) return
 
@@ -242,6 +248,7 @@ export const EditorPage: React.FC = () => {
     onUnloadModel: qualityModelHook.handleUnloadModel,
     onShowSummary: qualityModelHook.handleShowSummary,
     onShowPluginSettings: handleShowPluginSettings,
+    refreshExtensionAvailability,
   }), [
     plugins,
     fileOps.handleSave,
@@ -257,6 +264,7 @@ export const EditorPage: React.FC = () => {
     qualityModelHook.handleEditModel,
     qualityModelHook.handleUnloadModel,
     qualityModelHook.handleShowSummary,
+    refreshExtensionAvailability,
   ])
 
   const header = <UnifiedHeader {...headerProps} />
@@ -341,6 +349,7 @@ export const EditorPage: React.FC = () => {
         }
         currentSettings={pluginSettings.settings}
         onSave={pluginSettings.setPluginSettings}
+        onAfterSave={handleSettingsSaved}
       />
 
       <EditorLayout header={header}>

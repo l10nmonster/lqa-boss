@@ -23,6 +23,7 @@ interface UnifiedHeaderProps {
   onUnloadModel?: () => void
   onShowSummary?: () => void
   onShowPluginSettings?: (pluginId: string) => void
+  refreshExtensionAvailability?: number
 }
 
 export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
@@ -42,6 +43,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   onUnloadModel,
   onShowSummary,
   onShowPluginSettings,
+  refreshExtensionAvailability,
 }) => {
   // Get plugins by ID for easy lookup
   const extensionPlugin = plugins.find(p => p.metadata.id === 'extension')
@@ -61,7 +63,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
     if (extensionPlugin?.isAvailable) {
       extensionPlugin.isAvailable().then(setExtensionAvailable)
     }
-  }, [extensionPlugin])
+  }, [extensionPlugin, refreshExtensionAvailability])
 
   const handleSignOut = async () => {
     if (gcsPlugin?.signOut) {
