@@ -180,7 +180,39 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   }, [activeSegmentIndex])
 
   // Focus the editor when active segment changes
+  // Track previous active segment to mark as reviewed when focus changes
+  const prevActiveSegmentIndexRef = useRef<number>(-1)
+
   useEffect(() => {
+    // Mark previous segment as reviewed when focus changes
+    const prevIndex = prevActiveSegmentIndexRef.current
+    if (prevIndex >= 0 && prevIndex !== activeSegmentIndex) {
+      const translationUnitsToShow = page
+        ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
+        : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
+
+      const prevItem = translationUnitsToShow[prevIndex]
+      if (prevItem?.tu) {
+        const prevTu = prevItem.tu
+        const originalTu = originalTusByGuid.get(prevTu.guid)
+        if (originalTu) {
+          const isOriginal = normalizedArraysEqual(prevTu.ntgt || [], originalTu.ntgt || [])
+          // Mark as reviewed if content differs from original and not already reviewed
+          if (!isOriginal && !prevTu.reviewedTs) {
+            const updatedTu = {
+              ...prevTu,
+              reviewedTs: Date.now()
+            }
+            onTranslationUnitChange(updatedTu)
+          }
+        }
+      }
+    }
+
+    // Update ref for next focus change
+    prevActiveSegmentIndexRef.current = activeSegmentIndex
+
+    // Focus the new active segment
     if (activeSegmentIndex >= 0) {
       const translationUnitsToShow = page
         ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
@@ -195,7 +227,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         }, 100)
       }
     }
-  }, [activeSegmentIndex, page, jobData.tus, tusByGuid])
+  }, [activeSegmentIndex, page, jobData.tus, tusByGuid, originalTusByGuid, onTranslationUnitChange])
 
   const handleNormalizedChange = useCallback((guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
@@ -210,11 +242,12 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
       let newReviewedTs: number | undefined
 
       if (!wasOriginal && !isOriginal) {
-        // Content was modified and still is modified - mark as reviewed (or keep existing timestamp)
-        newReviewedTs = tu.reviewedTs || Date.now()
+        // Content was modified and still is modified - keep existing timestamp
+        newReviewedTs = tu.reviewedTs
       } else if (wasOriginal && !isOriginal) {
-        // Content is being edited away from original - mark as reviewed
-        newReviewedTs = Date.now()
+        // Content is being edited away from original - DON'T mark as reviewed yet
+        // Will be marked when segment loses focus or user navigates away
+        newReviewedTs = tu.reviewedTs
       } else if (!wasOriginal && isOriginal) {
         // Content is being edited back to original - unmark as reviewed
         newReviewedTs = undefined
