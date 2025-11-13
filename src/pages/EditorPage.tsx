@@ -115,7 +115,7 @@ export const EditorPage: React.FC = () => {
     }
 
     const total = fileOps.translationData.jobData.tus.length
-    const reviewed = fileOps.translationData.jobData.tus.filter(tu => tu.reviewedTs).length
+    const reviewed = fileOps.translationData.jobData.tus.filter(tu => tu.ts).length
     const percentage = total > 0 ? Math.round((reviewed / total) * 100) : 0
 
     return { reviewed, total, percentage }
@@ -224,7 +224,7 @@ export const EditorPage: React.FC = () => {
 
     const updatedTu = {
       ...tu,
-      reviewedTs: reviewed ? Date.now() : undefined
+      ts: reviewed ? Date.now() : undefined
     }
 
     fileOps.translationData.updateTranslationUnit(updatedTu)

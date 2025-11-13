@@ -21,7 +21,7 @@ export const saveChangedTus = (
       return true;
     }
     // Include if reviewed OR if content has changed
-    if (currentTu.reviewedTs) {
+    if (currentTu.ts) {
       return true;
     }
     return !isEqual(currentTu.ntgt, originalTu.ntgt);
@@ -29,7 +29,16 @@ export const saveChangedTus = (
 
   const outputData: JobData = {
     ...jobData,
-    tus: changedTus,
+    tus: changedTus.map(tu => {
+      // If providerData.quality exists, use it to populate q
+      if (jobData.providerData?.quality !== undefined) {
+        return {
+          ...tu,
+          q: jobData.providerData.quality
+        };
+      }
+      return tu;
+    }),
     updatedAt: new Date().toISOString(),
   };
 

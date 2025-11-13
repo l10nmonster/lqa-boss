@@ -229,7 +229,16 @@ export class GCSPlugin implements IPersistencePlugin {
 
     const outputData = {
       ...data,
-      tus: changedTus,
+      tus: changedTus.map(tu => {
+        // If providerData.quality exists, use it to populate q
+        if (data.providerData?.quality !== undefined) {
+          return {
+            ...tu,
+            q: data.providerData.quality
+          }
+        }
+        return tu
+      }),
       updatedAt: new Date().toISOString(),
     }
 

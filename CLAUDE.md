@@ -157,7 +157,7 @@ This is a React 19 PWA for editing LQA Boss (.lqaboss) files, which are ZIP arch
 ### Change Detection & Export
 The app tracks modifications by comparing current `ntgt` arrays with original data using `isEqual()` from lodash. Translation units are exported via `saveChangedTus()` in `src/utils/saveHandler.ts:10` if they meet either condition:
 1. Content has changed (`ntgt` differs from original)
-2. Segment has been marked as reviewed (`reviewedTs` exists)
+2. Segment has been marked as reviewed (`ts` exists)
 
 This ensures reviewed segments are saved even if unchanged, preserving review progress.
 
@@ -191,17 +191,19 @@ The application uses a **three-state system** to track translation changes:
 
 **When Operating Modes**:
 - **Two-State System** (status "NEW"): Used for local files without auto-save
-  - `originalJobData` = `savedJobData` = copy of loaded `jobData`
+  - `originalJobData` = copy of loaded job with `ts` and `translationProvider` from request
+  - `savedJobData` = copy without `ts` or `translationProvider` (no reviews yet)
+  - `jobData` = copy without `ts` or `translationProvider` (no reviews yet)
   - All three have identical ntgt values initially
 
 - **Three-State System** (status "LOADED"): Used when auto-save data exists
-  - `originalJobData` = translations from the originally loaded file
-  - `savedJobData` = translations from auto-save (previous editing session)
+  - `originalJobData` = translations from originally loaded file with `ts` and `translationProvider` from request
+  - `savedJobData` = translations from auto-save with `ts` as review timestamp (no `translationProvider`)
   - `jobData` = current working copy (starts as copy of savedJobData)
 
 **State Setup Functions** (`src/hooks/useTranslationData.ts`):
-- `setupTwoStateSystem()`: Creates three identical copies of job data
-- `setupThreeStateSystem()`: Sets up original/saved/current with different translations
+- `setupTwoStateSystem()`: Strips `ts` and `translationProvider` from working copies, keeping them only in originalJobData as request metadata
+- `setupThreeStateSystem()`: Sets up original/saved/current with different translations; `ts` in saved/current represents review timestamp
 
 ### Quality Model System
 
@@ -249,8 +251,10 @@ The application supports configurable quality models for translation quality ass
 The application tracks which segments have been reviewed with a timestamp-based system.
 
 **Review Status Field** (`src/types/index.ts`):
-- `TranslationUnit.reviewedTs?: number` - Timestamp when segment was marked as reviewed
-- Absence of this field indicates an unreviewed segment
+- `TranslationUnit.ts?: number` - Dual-purpose timestamp field:
+  - In `originalJobData`: Creation timestamp from the job request
+  - In `savedJobData` and `jobData`: Review timestamp (when segment was marked as reviewed)
+- Absence of this field in working copies indicates an unreviewed segment
 
 **Visual Indicators**:
 - **Badge** (next to segment menu): Clickable "REVIEWED" (green) or "TO REVIEW" (orange) badge
@@ -264,7 +268,7 @@ The application tracks which segments have been reviewed with a timestamp-based 
 - Segment is automatically marked as reviewed when edited (content differs from original)
 - Segment is automatically unmarked when reverted to original content (e.g., via "Reset to original")
 - `Cmd+Enter` (or `Ctrl+Enter`) always marks the current segment as reviewed before navigating to next
-- Preserves existing `reviewedTs` when segment gets focus (no spurious unmarking)
+- Preserves existing `ts` when segment gets focus (no spurious unmarking)
 
 **Batch Operations**:
 - **"Mark all as reviewed" button** (`src/components/ScreenshotViewer.tsx:134-144`):
@@ -284,10 +288,10 @@ The application tracks which segments have been reviewed with a timestamp-based 
 **State Management** (`src/hooks/useTranslationData.ts:18-60`):
 - Uses functional `setState` updates to handle batch review operations correctly
 - Prevents stale state issues when marking multiple segments simultaneously
-- Detects `reviewedTs` changes to trigger state updates
+- Detects `ts` changes to trigger state updates
 
 **Save Behavior** (`src/utils/saveHandler.ts:17-28`):
-- Exports all segments that have `reviewedTs` set, even if content is unchanged
+- Exports all segments that have `ts` set, even if content is unchanged
 - Preserves review progress across editing sessions
 
 ### Plugin System Architecture

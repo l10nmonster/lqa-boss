@@ -135,7 +135,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
 
     // Apply review status filter first
     if (showOnlyNonReviewed) {
-      filtered = filtered.filter(tu => !tu.reviewedTs)
+      filtered = filtered.filter(tu => !tu.ts)
     }
 
     // Then apply text search filter
@@ -371,6 +371,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
           instructions={jobData.instructions}
           sourceLang={jobData.sourceLang}
           targetLang={jobData.targetLang}
+          jobName={jobData.jobName}
           jobGuid={jobData.jobGuid}
           updatedAt={jobData.updatedAt}
           sourceInfo={sourcePluginName ? {

@@ -198,10 +198,10 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         if (originalTu) {
           const isOriginal = normalizedArraysEqual(prevTu.ntgt || [], originalTu.ntgt || [])
           // Mark as reviewed if content differs from original and not already reviewed
-          if (!isOriginal && !prevTu.reviewedTs) {
+          if (!isOriginal && !prevTu.ts) {
             const updatedTu = {
               ...prevTu,
-              reviewedTs: Date.now()
+              ts: Date.now()
             }
             onTranslationUnitChange(updatedTu)
           }
@@ -238,28 +238,28 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
       const wasOriginal = normalizedArraysEqual(tu.ntgt || [], originalTu.ntgt || [])
       const isOriginal = normalizedArraysEqual(newNtgt, originalTu.ntgt || [])
 
-      // Determine new reviewedTs value
-      let newReviewedTs: number | undefined
+      // Determine new ts value
+      let newTs: number | undefined
 
       if (!wasOriginal && !isOriginal) {
         // Content was modified and still is modified - keep existing timestamp
-        newReviewedTs = tu.reviewedTs
+        newTs = tu.ts
       } else if (wasOriginal && !isOriginal) {
         // Content is being edited away from original - DON'T mark as reviewed yet
         // Will be marked when segment loses focus or user navigates away
-        newReviewedTs = tu.reviewedTs
+        newTs = tu.ts
       } else if (!wasOriginal && isOriginal) {
         // Content is being edited back to original - unmark as reviewed
-        newReviewedTs = undefined
+        newTs = undefined
       } else {
         // Content was original and still is original - preserve existing state
-        newReviewedTs = tu.reviewedTs
+        newTs = tu.ts
       }
 
       const updatedTu = {
         ...tu,
         ntgt: newNtgt,
-        reviewedTs: newReviewedTs
+        ts: newTs
       }
 
       onTranslationUnitChange(updatedTu)
@@ -374,7 +374,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     const tu = tusByGuid.get(guid)
 
     // Blue: Unreviewed segments
-    if (!tu?.reviewedTs) {
+    if (!tu?.ts) {
       return 'blue.500'
     }
 
@@ -567,7 +567,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                   </HStack>
                   <HStack gap={2}>
                     <Badge
-                      bg={tu.reviewedTs ? 'green.500' : 'orange.500'}
+                      bg={tu.ts ? 'green.500' : 'orange.500'}
                       color="white"
                       px={2}
                       py={1}
@@ -577,13 +577,13 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       cursor="pointer"
                       onClick={(e) => {
                         e.stopPropagation()
-                        onReviewToggle(tu.guid, !tu.reviewedTs)
+                        onReviewToggle(tu.guid, !tu.ts)
                       }}
                       _hover={{
                         opacity: 0.8
                       }}
                     >
-                      {tu.reviewedTs ? 'REVIEWED' : 'TO REVIEW'}
+                      {tu.ts ? 'REVIEWED' : 'TO REVIEW'}
                     </Badge>
                     <Menu.Root>
                     <Menu.Trigger asChild>
@@ -600,29 +600,48 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       <Menu.Positioner zIndex={9999}>
                         <Menu.Content>
                           {/* Informational labels */}
-                          {(tu.translationProvider || tu.ts) && (
-                            <>
-                              <Box px={3} py={2} fontSize="xs" color="gray.600">
-                                {tu.translationProvider && (
-                                  <Text fontWeight="medium">
-                                    Provider: {tu.translationProvider}
-                                  </Text>
-                                )}
-                                {tu.ts && (
-                                  <Text>
-                                    Updated: {new Date(tu.ts).toLocaleDateString(undefined, {
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </Text>
-                                )}
-                              </Box>
-                              <Menu.Separator />
-                            </>
-                          )}
+                          {(() => {
+                            const originalTu = originalTusByGuid.get(tu.guid)
+                            return (originalTu?.translationProvider || originalTu?.q !== undefined || originalTu?.ts || tu.ts) && (
+                              <>
+                                <Box px={3} py={2} fontSize="xs" color="gray.600">
+                                  {originalTu?.translationProvider && (
+                                    <Text fontWeight="medium">
+                                      Provider: {originalTu.translationProvider}
+                                    </Text>
+                                  )}
+                                  {originalTu?.q !== undefined && (
+                                    <Text fontWeight="medium">
+                                      Quality: {originalTu.q}
+                                    </Text>
+                                  )}
+                                  {originalTu?.ts && (
+                                    <Text>
+                                      Created: {new Date(originalTu.ts).toLocaleDateString(undefined, {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </Text>
+                                  )}
+                                  {tu.ts && (
+                                    <Text>
+                                      Reviewed: {new Date(tu.ts).toLocaleDateString(undefined, {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </Text>
+                                  )}
+                                </Box>
+                                <Menu.Separator />
+                              </>
+                            )
+                          })()}
                           <Menu.Item
                             value="original"
                             disabled={segmentState === 'original'}
@@ -750,9 +769,20 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                                 onChange={(e) => {
                                   const sev = e.target.value
                                   const weight = severity.weight
-                                  const currentQa = tu.qa || { sev: '', cat: '', w: 0 }
-                                  const newQa = { ...currentQa, sev, w: weight }
-                                  handleQAChange(tu.guid, (sev || newQa.cat) ? newQa : undefined)
+                                  const currentQa = tu.qa || {}
+                                  const newQa: QualityAssessment = { ...currentQa }
+
+                                  // Set or remove sev and w based on whether severity is selected
+                                  if (sev) {
+                                    newQa.sev = sev
+                                    newQa.w = weight
+                                  } else {
+                                    delete newQa.sev
+                                    delete newQa.w
+                                  }
+
+                                  // Only keep qa if at least sev or cat is set
+                                  handleQAChange(tu.guid, (newQa.sev || newQa.cat) ? newQa : undefined)
                                 }}
                                 style={{ marginRight: '4px' }}
                               />
@@ -780,10 +810,18 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                             value={tu.qa?.cat || ''}
                             onChange={(e) => {
                               const cat = e.target.value
-                              const currentQa = tu.qa || { sev: '', cat: '', w: 0 }
-                              const newQa = { ...currentQa, cat }
-                              // Only clear qa if both sev and cat are empty
-                              handleQAChange(tu.guid, (newQa.sev || cat) ? newQa : undefined)
+                              const currentQa = tu.qa || {}
+                              const newQa: QualityAssessment = { ...currentQa }
+
+                              // Set or remove cat based on whether category is selected
+                              if (cat) {
+                                newQa.cat = cat
+                              } else {
+                                delete newQa.cat
+                              }
+
+                              // Only keep qa if at least sev or cat is set
+                              handleQAChange(tu.guid, (newQa.sev || newQa.cat) ? newQa : undefined)
                             }}
                             style={{
                               width: '100%',
@@ -829,13 +867,17 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                         value={tu.qa?.notes || ''}
                         onChange={(e) => {
                           const notes = e.target.value
-                          const currentQa = tu.qa || { sev: '', cat: '', w: 0 }
-                          const newQa = notes ? { ...currentQa, notes } : { ...currentQa }
-                          // Remove notes property if empty to keep data clean
-                          if (!notes && 'notes' in newQa) {
+                          const currentQa = tu.qa || {}
+                          const newQa: QualityAssessment = { ...currentQa }
+
+                          // Set or remove notes based on whether it's non-empty
+                          if (notes) {
+                            newQa.notes = notes
+                          } else {
                             delete newQa.notes
                           }
-                          // Only clear qa if both sev and cat are empty
+
+                          // Only keep qa if at least sev or cat is set
                           handleQAChange(tu.guid, (newQa.sev || newQa.cat) ? newQa : undefined)
                         }}
                         placeholder="Notes (optional)"

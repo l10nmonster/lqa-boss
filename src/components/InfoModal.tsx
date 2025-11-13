@@ -60,6 +60,7 @@ interface InfoModalProps {
   instructions?: string
   sourceLang?: string
   targetLang?: string
+  jobName?: string
   jobGuid?: string
   updatedAt?: string
   sourceInfo?: {
@@ -76,6 +77,7 @@ const InfoModal: React.FC<InfoModalProps> = ({
   instructions,
   sourceLang,
   targetLang,
+  jobName,
   jobGuid,
   updatedAt,
   sourceInfo,
@@ -157,7 +159,7 @@ const InfoModal: React.FC<InfoModalProps> = ({
                 color="gray.700"
                 mb={3}
               >
-                🌐 {sourceLang || 'Not specified'} → {targetLang || 'Not specified'}
+                🌐 {jobName ? `${jobName} (${sourceLang || 'Not specified'} → ${targetLang || 'Not specified'})` : `${sourceLang || 'Not specified'} → ${targetLang || 'Not specified'}`}
               </Text>
             </Box>
           )}

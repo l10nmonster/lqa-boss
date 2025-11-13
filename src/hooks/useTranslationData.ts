@@ -27,7 +27,7 @@ export const useTranslationData = () => {
       if (!currentTu) return prevJobData
 
       // Only update if the content, QA, or review status actually changed
-      if (!isEqual(currentTu.ntgt, tu.ntgt) || !isEqual(currentTu.qa, tu.qa) || currentTu.reviewedTs !== tu.reviewedTs) {
+      if (!isEqual(currentTu.ntgt, tu.ntgt) || !isEqual(currentTu.qa, tu.qa) || currentTu.ts !== tu.ts) {
         // If ntgt changed, clear candidateSelected flag (user is now manually editing)
         const updatedTu = !isEqual(currentTu.ntgt, tu.ntgt)
           ? { ...tu, candidateSelected: undefined }
@@ -62,9 +62,17 @@ export const useTranslationData = () => {
   const setupTwoStateSystem = (currentJobData: JobData) => {
     // Two-state system: original = saved = current
     // IMPORTANT: Create deep copies of ALL three to ensure independence
-    const currentCopy = JSON.parse(JSON.stringify(currentJobData))
     const originalCopy = JSON.parse(JSON.stringify(currentJobData))
-    const savedCopy = JSON.parse(JSON.stringify(currentJobData))
+
+    // For working copies, strip ts and translationProvider from translation units
+    // These represent metadata from the job request, not user edits
+    const currentCopy = JSON.parse(JSON.stringify(currentJobData))
+    currentCopy.tus = currentCopy.tus.map((tu: any) => {
+      const { ts, translationProvider, ...tuWithoutMetadata } = tu
+      return tuWithoutMetadata
+    })
+
+    const savedCopy = JSON.parse(JSON.stringify(currentCopy))
 
     setJobData(currentCopy)
     setOriginalJobData(originalCopy)

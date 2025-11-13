@@ -82,7 +82,7 @@ export function calculateTERStatistics(
   // Iterate through current TUs (only reviewed ones)
   for (const currentTu of currentJobData.tus) {
     // Only consider reviewed segments
-    if (!currentTu.reviewedTs) {
+    if (!currentTu.ts) {
       continue
     }
 
@@ -163,7 +163,7 @@ export function calculateEPT(
 
   for (const tu of currentJobData.tus) {
     // Only consider reviewed segments
-    if (!tu.reviewedTs) {
+    if (!tu.ts) {
       continue
     }
 
