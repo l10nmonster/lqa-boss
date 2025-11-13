@@ -1,3 +1,10 @@
+## [2.2.6](https://github.com/l10nmonster/lqa-boss/compare/v2.2.5...v2.2.6) (2025-11-13)
+
+
+### Bug Fixes
+
+* Handle timestamps correctly ([20c9099](https://github.com/l10nmonster/lqa-boss/commit/20c9099b08365d8ba25c0c73617630f5ba371564))
+
 ## [2.2.5](https://github.com/l10nmonster/lqa-boss/compare/v2.2.4...v2.2.5) (2025-11-11)
 
 
