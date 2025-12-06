@@ -890,6 +890,34 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                       />
                     </Box>
                   </HStack>
+                  {/* QA Summary Footnote */}
+                  {(tu.qa?.sev || tu.qa?.cat) && (
+                    <Text fontSize="2xs" color="gray.500" px={2}>
+                      {(() => {
+                        const sentences: string[] = []
+
+                        // Add severity description
+                        if (tu.qa?.sev) {
+                          const severity = qualityModel.severities.find(s => s.id === tu.qa?.sev)
+                          if (severity?.description) {
+                            sentences.push(severity.description)
+                          }
+                        }
+
+                        // Add category description
+                        if (tu.qa?.cat) {
+                          const [catId, subId] = tu.qa.cat.split('.')
+                          const category = qualityModel.errorCategories.find(c => c.id === catId)
+                          const subcategory = category?.subcategories.find(s => s.id === subId)
+                          if (subcategory?.description) {
+                            sentences.push(subcategory.description)
+                          }
+                        }
+
+                        return sentences.join(' ')
+                      })()}
+                    </Text>
+                  )}
                   </VStack>
                 )}
                 {/* Placeholder Mapping */}
