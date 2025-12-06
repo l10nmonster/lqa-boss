@@ -1,3 +1,21 @@
+# [2.3.0](https://github.com/l10nmonster/lqa-boss/compare/v2.2.6...v2.3.0) (2025-12-06)
+
+
+### Bug Fixes
+
+* Add tooltip to mark all button ([c832916](https://github.com/l10nmonster/lqa-boss/commit/c832916eb2459a18d1def3c94b8aa1ababf82014))
+* Don't lose focus when entering a qa note ([156cea1](https://github.com/l10nmonster/lqa-boss/commit/156cea1de4056b5d36f1ec0e3554cd7eb02c274f))
+* Filter input box scrolling out of view ([097d18f](https://github.com/l10nmonster/lqa-boss/commit/097d18f16b5155158905e6e80fd328fa69f1d41b))
+* Improve info and quality summary modals ([924f1dc](https://github.com/l10nmonster/lqa-boss/commit/924f1dc276a05a167f28063663be3176462933e6))
+* QA assessment is dropped when loading the job ([ace720c](https://github.com/l10nmonster/lqa-boss/commit/ace720cf45025bc8dbda4a4691be6e39a08cc198))
+
+
+### Features
+
+* Add GDrive support ([dad193c](https://github.com/l10nmonster/lqa-boss/commit/dad193cc884f0b7e6cee105bb6cf6e2553f9c074))
+* Add preferences to turn off plugins ([df492c7](https://github.com/l10nmonster/lqa-boss/commit/df492c70e97599c8587219d5f2da872003caeb1c))
+* Add qa summary footnote ([a499d2a](https://github.com/l10nmonster/lqa-boss/commit/a499d2a1d5634ddaadd178956258ef9863b89a33))
+
 ## [2.2.6](https://github.com/l10nmonster/lqa-boss/compare/v2.2.5...v2.2.6) (2025-11-13)
 
 
