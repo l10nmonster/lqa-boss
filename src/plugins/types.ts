@@ -152,4 +152,17 @@ export interface IPersistencePlugin {
   parseUrl?: (params: URLSearchParams) => FileIdentifier | null
   parsePathUrl?: (pathSegments: string[]) => FileIdentifier | null
   buildUrl?: (identifier: FileIdentifier) => string
+
+  // Source display info for InfoModal
+  getSourceDisplayInfo?: (identifier: FileIdentifier) => SourceDisplayInfo | null
+}
+
+/**
+ * Standardized source display information for InfoModal
+ */
+export interface SourceDisplayInfo {
+  pluginName: string
+  locationLabel: string       // e.g., "bucket/prefix" or folder name
+  locationUrl?: string        // URL to link to (e.g., GCS console or GDrive folder)
+  filename?: string           // The filename
 }

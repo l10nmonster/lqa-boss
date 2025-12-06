@@ -114,6 +114,7 @@ export function usePluginAuth(options?: UsePluginAuthOptions) {
     showAuthPrompt,
     showClientIdPrompt,
     pendingFileId,
+    currentPlugin,
 
     // Actions
     checkAuthRequired,

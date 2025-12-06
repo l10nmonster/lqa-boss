@@ -9,26 +9,45 @@ import {
   Grid,
   Checkbox,
   Portal,
-  IconButton,
+  Spinner,
   Input,
+  IconButton,
 } from '@chakra-ui/react'
-import { FiX, FiEdit2, FiCheck } from 'react-icons/fi'
-import { GCSFile } from '../utils/gcsOperations'
+import { FiX, FiEdit2, FiCheck, FiFolder } from 'react-icons/fi'
 
-interface GCSFilePickerProps {
-  files: GCSFile[]
-  bucket: string
-  prefix: string
-  onFileSelect: (filename: string) => void
-  onReloadWithLocation?: (bucket: string, prefix: string) => Promise<void>
-  onLoadFileList?: () => Promise<void>
-  disabled?: boolean
+export interface PickerFile {
+  id: string
+  name: string
+  size?: string
+  updated?: string
+}
+
+export interface LocationInfo {
+  // GCS location
+  bucket?: string
+  prefix?: string
+  // GDrive location
+  folderId?: string
+  folderName?: string
+}
+
+interface FilePickerProps {
+  title: string
+  files: PickerFile[]
+  loading?: boolean
+  error?: string
+  onFileSelect: (file: PickerFile) => void
+  onRetry?: () => void
   isOpen: boolean
   onClose: () => void
+  // Location handling
+  location?: LocationInfo
+  onLocationChange?: (location: LocationInfo) => void
+  onBrowseFolders?: () => void
 }
 
 // Helper function to check if a job is done (has corresponding .json file)
-const isJobDone = (files: GCSFile[], jobId: string): boolean => {
+const isJobDone = (files: PickerFile[], jobId: string): boolean => {
   return files.some(file => file.name === `${jobId}.json`)
 }
 
@@ -37,41 +56,71 @@ const extractJobId = (filename: string): string => {
   return filename.replace('.lqaboss', '')
 }
 
-const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
+const FilePicker: React.FC<FilePickerProps> = ({
+  title,
   files,
-  bucket,
-  prefix,
+  loading = false,
+  error,
   onFileSelect,
-  onReloadWithLocation,
-  onLoadFileList,
-  disabled = false,
+  onRetry,
   isOpen,
-  onClose
+  onClose,
+  location,
+  onLocationChange,
+  onBrowseFolders,
 }) => {
   const [showDoneJobs, setShowDoneJobs] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
-  const [editBucket, setEditBucket] = useState(bucket)
-  const [editPrefix, setEditPrefix] = useState(prefix)
-  const [isLoading, setIsLoading] = useState(false)
+  const [editBucket, setEditBucket] = useState(location?.bucket || '')
+  const [editPrefix, setEditPrefix] = useState(location?.prefix || '')
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false)
 
-  // Update edit values when props change
+  // Update edit values when location changes
   useEffect(() => {
-    setEditBucket(bucket)
-    setEditPrefix(prefix)
-  }, [bucket, prefix])
+    setEditBucket(location?.bucket || '')
+    setEditPrefix(location?.prefix || '')
+  }, [location?.bucket, location?.prefix])
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = ''
+      }
+    }
+  }, [isOpen])
+
+  // Determine location type
+  const isGCS = !!(location?.bucket || location?.prefix)
+  const isGDrive = !!location?.folderId
+
+  // Build location display string
+  const getLocationDisplay = (): string => {
+    if (isGCS && location?.bucket && location?.prefix) {
+      return `${location.bucket}/${location.prefix}`
+    }
+    if (isGDrive && location?.folderName) {
+      return location.folderName
+    }
+    if (isGDrive && location?.folderId) {
+      return location.folderId === 'root' ? 'My Drive' : location.folderId
+    }
+    return ''
+  }
 
   const handleStartEdit = () => {
     setIsEditing(true)
   }
 
   const handleCancelEdit = () => {
-    setEditBucket(bucket)
-    setEditPrefix(prefix)
+    setEditBucket(location?.bucket || '')
+    setEditPrefix(location?.prefix || '')
     setIsEditing(false)
   }
 
   const handleSaveEdit = async () => {
-    if (!onReloadWithLocation) return
+    if (!onLocationChange) return
 
     const trimmedBucket = editBucket.trim()
     const trimmedPrefix = editPrefix.trim()
@@ -80,29 +129,23 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
       return
     }
 
-    setIsLoading(true)
+    setIsLoadingLocation(true)
     try {
-      await onReloadWithLocation(trimmedBucket, trimmedPrefix)
+      await onLocationChange({ bucket: trimmedBucket, prefix: trimmedPrefix })
       setIsEditing(false)
-    } catch (error) {
-      // Error is handled by parent
     } finally {
-      setIsLoading(false)
+      setIsLoadingLocation(false)
     }
   }
-
-  // Load file list when modal opens and files array is empty
-  useEffect(() => {
-    if (isOpen && files.length === 0 && onLoadFileList && !disabled) {
-      onLoadFileList()
-    }
-  }, [isOpen, files.length, onLoadFileList, disabled])
 
   // Filter and sort .lqaboss files by updated date (descending)
   let lqabossFiles = files
     .filter(file => file.name.endsWith('.lqaboss'))
-    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-  
+    .sort((a, b) => {
+      if (!a.updated || !b.updated) return 0
+      return new Date(b.updated).getTime() - new Date(a.updated).getTime()
+    })
+
   // Filter by job status if needed
   if (!showDoneJobs) {
     lqabossFiles = lqabossFiles.filter(file => {
@@ -114,12 +157,14 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
   // Limit to maximum 100 jobs
   lqabossFiles = lqabossFiles.slice(0, 100)
 
-  const handleFileSelect = (filename: string) => {
-    onFileSelect(filename)
+  const handleFileSelect = (file: PickerFile) => {
+    onFileSelect(file)
     onClose()
   }
 
   if (!isOpen) return null
+
+  const locationDisplay = getLocationDisplay()
 
   return (
     <Portal>
@@ -135,7 +180,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
         zIndex="overlay"
         onClick={onClose}
       />
-      
+
       {/* Modal Content */}
       <Box
         position="fixed"
@@ -153,7 +198,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
         boxShadow="xl"
         borderRadius="xl"
         overflow="hidden"
-        data-testid="gcs-file-picker-modal"
+        data-testid="file-picker-modal"
       >
         {/* Header */}
         <Box
@@ -165,7 +210,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
           justifyContent="space-between"
         >
           <Heading size="lg" color="gray.700">
-            Load Job from GCS
+            {title}
           </Heading>
           <Button
             variant="ghost"
@@ -178,8 +223,8 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
             <FiX size={20} />
           </Button>
         </Box>
-        
-        {/* Subheader with filter */}
+
+        {/* Subheader with location and filter */}
         <Box
           px={6}
           py={4}
@@ -190,7 +235,8 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
           justifyContent="space-between"
           bg="gray.50"
         >
-          {isEditing ? (
+          {/* GCS: Inline editing of bucket/prefix */}
+          {isGCS && isEditing ? (
             <HStack gap={2} flex={1}>
               <Input
                 size="sm"
@@ -213,7 +259,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
                 size="sm"
                 aria-label="Save location"
                 title="Save and reload"
-                loading={isLoading}
+                loading={isLoadingLocation}
                 disabled={!editBucket.trim() || !editPrefix.trim()}
               >
                 <FiCheck />
@@ -222,7 +268,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
                 onClick={handleCancelEdit}
                 variant="ghost"
                 size="sm"
-                disabled={isLoading}
+                disabled={isLoadingLocation}
               >
                 Cancel
               </Button>
@@ -230,9 +276,10 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
           ) : (
             <HStack gap={2}>
               <Text fontSize="sm" color="gray.600">
-                {bucket}/{prefix}
+                {locationDisplay || 'No location set'}
               </Text>
-              {onReloadWithLocation && (
+              {/* GCS: Edit button for bucket/prefix */}
+              {isGCS && onLocationChange && (
                 <IconButton
                   onClick={handleStartEdit}
                   variant="ghost"
@@ -241,6 +288,18 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
                   title="Edit bucket and prefix"
                 >
                   <FiEdit2 />
+                </IconButton>
+              )}
+              {/* GDrive: Browse folders button */}
+              {isGDrive && onBrowseFolders && (
+                <IconButton
+                  onClick={onBrowseFolders}
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Browse folders"
+                  title="Browse folders"
+                >
+                  <FiFolder />
                 </IconButton>
               )}
             </HStack>
@@ -259,31 +318,48 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
             </Checkbox.Root>
           )}
         </Box>
-        
+
         {/* Body */}
         <Box p={6} overflow="auto" maxH="60vh">
-          {lqabossFiles.length === 0 ? (
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" py={8}>
+              <Spinner size="lg" color="blue.500" />
+            </Box>
+          ) : error ? (
+            <Box textAlign="center" py={8}>
+              <Text color="red.500">{error}</Text>
+              {onRetry && (
+                <Button
+                  mt={4}
+                  size="sm"
+                  onClick={onRetry}
+                >
+                  Retry
+                </Button>
+              )}
+            </Box>
+          ) : lqabossFiles.length === 0 ? (
             <Text color="gray.600" textAlign="center" py={8}>
-              No .lqaboss files found in {bucket}/{prefix}
+              No .lqaboss files found{locationDisplay ? ` in ${locationDisplay}` : ''}
             </Text>
           ) : (
             <Grid templateColumns="repeat(auto-fit, minmax(300px, 1fr))" gap={4}>
-              {lqabossFiles.map((file, index) => {
+              {lqabossFiles.map((file) => {
                 const jobId = extractJobId(file.name)
                 const isDone = isJobDone(files, jobId)
-                
+
                 return (
                   <Button
-                    key={index}
+                    key={file.id}
                     variant="outline"
                     justifyContent="flex-start"
-                    onClick={() => handleFileSelect(file.name)}
+                    onClick={() => handleFileSelect(file)}
                     p={4}
                     height="auto"
                     whiteSpace="normal"
                     width="100%"
                     bg="white"
-                    _hover={{ 
+                    _hover={{
                       bg: "rgba(59, 130, 246, 0.1)",
                       borderColor: "blue.400",
                       transform: "translateY(-1px)",
@@ -296,7 +372,7 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
                         <Text fontWeight="bold" fontSize="sm" color="gray.800">
                           Job: {jobId}
                         </Text>
-                        <Badge 
+                        <Badge
                           colorPalette={isDone ? "green" : "orange"}
                           variant={isDone ? "solid" : "subtle"}
                           size="sm"
@@ -305,7 +381,8 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
                         </Badge>
                       </HStack>
                       <Text fontSize="xs" color="gray.600">
-                        {(parseInt(file.size) / 1024).toFixed(1)} KB • {new Date(file.updated).toLocaleDateString()}
+                        {file.size ? `${(parseInt(file.size) / 1024).toFixed(1)} KB` : 'Unknown size'}
+                        {file.updated && ` • ${new Date(file.updated).toLocaleDateString()}`}
                       </Text>
                     </Box>
                   </Button>
@@ -319,4 +396,4 @@ const GCSFilePicker: React.FC<GCSFilePickerProps> = ({
   )
 }
 
-export default GCSFilePicker
+export default FilePicker

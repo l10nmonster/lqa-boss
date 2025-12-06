@@ -54,6 +54,13 @@ function parseTextWithLinks(text: string): React.ReactNode {
   return parts.length > 0 ? parts : text
 }
 
+interface SourceDisplayInfo {
+  pluginName: string
+  locationLabel: string
+  locationUrl?: string
+  filename?: string
+}
+
 interface InfoModalProps {
   isOpen: boolean
   onClose: () => void
@@ -63,10 +70,7 @@ interface InfoModalProps {
   jobName?: string
   jobGuid?: string
   updatedAt?: string
-  sourceInfo?: {
-    pluginName: string
-    location?: string
-  }
+  sourceInfo?: SourceDisplayInfo
   ter?: number | null
   ept?: number | null
   segmentWordCounts?: {
@@ -247,10 +251,30 @@ const InfoModal: React.FC<InfoModalProps> = ({
                 Loaded From
               </Text>
               {sourceInfo && (
-                <Text fontSize="sm" color="gray.700">
-                  {sourceInfo.pluginName}
-                  {sourceInfo.location && ` (${sourceInfo.location})`}
-                </Text>
+                <Box>
+                  <Text fontSize="sm" color="gray.700">
+                    {sourceInfo.pluginName} (
+                    {sourceInfo.locationUrl ? (
+                      <Link
+                        href={sourceInfo.locationUrl}
+                        color="blue.600"
+                        textDecoration="underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {sourceInfo.locationLabel}
+                      </Link>
+                    ) : (
+                      sourceInfo.locationLabel
+                    )}
+                    )
+                  </Text>
+                  {sourceInfo.filename && (
+                    <Text fontSize="sm" color="gray.700">
+                      Filename: <Text as="span" fontFamily="mono">{sourceInfo.filename}</Text>
+                    </Text>
+                  )}
+                </Box>
               )}
               {qualityModelName && (
                 <Text fontSize="sm" color="gray.700">

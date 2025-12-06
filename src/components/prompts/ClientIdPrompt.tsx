@@ -3,11 +3,12 @@ import { Stack, Heading, Text, Input, Button } from '@chakra-ui/react'
 import GlassBox from '../GlassBox'
 
 interface ClientIdPromptProps {
+  pluginName: string
   onSubmit: (clientId: string) => void
   onCancel: () => void
 }
 
-export const ClientIdPrompt: React.FC<ClientIdPromptProps> = ({ onSubmit, onCancel }) => {
+export const ClientIdPrompt: React.FC<ClientIdPromptProps> = ({ pluginName, onSubmit, onCancel }) => {
   const [clientIdInput, setClientIdInput] = useState('')
 
   const handleSubmit = () => {
@@ -29,7 +30,7 @@ export const ClientIdPrompt: React.FC<ClientIdPromptProps> = ({ onSubmit, onCanc
           Google OAuth2 Client ID Required
         </Heading>
         <Text color="gray.600" fontSize="lg">
-          To access Google Cloud Storage, please enter your Google OAuth2 Client ID.
+          To access {pluginName}, please enter your Google OAuth2 Client ID.
         </Text>
         <Input
           placeholder="Enter your Google OAuth2 Client ID"

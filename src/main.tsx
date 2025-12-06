@@ -6,11 +6,13 @@ import { EditorPage } from './pages/EditorPage'
 import { pluginRegistry } from './plugins/PluginRegistry'
 import { LocalFilePlugin } from './plugins/LocalFilePlugin'
 import { GCSPlugin } from './plugins/GCSPlugin'
+import { GDrivePlugin } from './plugins/GDrivePlugin'
 import { ChromeExtensionPlugin } from './plugins/ChromeExtensionPlugin'
 
 // Register plugins
 pluginRegistry.register(new LocalFilePlugin())
 pluginRegistry.register(new GCSPlugin())
+pluginRegistry.register(new GDrivePlugin())
 pluginRegistry.register(new ChromeExtensionPlugin())
 
 // Initialize all plugins

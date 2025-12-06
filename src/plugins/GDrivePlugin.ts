@@ -10,24 +10,24 @@ import {
   SourceDisplayInfo
 } from './types'
 import { JobData, TranslationUnit } from '../types'
-import { GCSOperations, GCSFile } from '../utils/gcsOperations'
+import { GDriveOperations, GDriveFile } from '../utils/gdriveOperations'
 import { isEqual } from 'lodash'
 import React from 'react'
-import { GCSLocationPrompt } from '../components/prompts/GCSLocationPrompt'
+import { GDriveLocationPrompt } from '../components/prompts/GDriveLocationPrompt'
 
 /**
- * Google Cloud Storage plugin for loading and saving files from GCS buckets
+ * Google Drive plugin for loading and saving files from Google Drive
  */
-export class GCSPlugin implements IPersistencePlugin {
-  private gcsOps: GCSOperations
+export class GDrivePlugin implements IPersistencePlugin {
+  private gdriveOps: GDriveOperations
   private authState: AuthState = { isAuthenticated: false }
   private accessToken: string = ''
   private clientId: string = ''
 
   readonly metadata: PluginMetadata = {
-    id: 'gcs',
-    name: 'Google Cloud Storage',
-    description: 'Load and save files from GCS buckets',
+    id: 'gdrive',
+    name: 'Google Drive',
+    description: 'Load and save files from Google Drive',
     icon: 'cloud',
     version: '1.0.0'
   }
@@ -40,7 +40,7 @@ export class GCSPlugin implements IPersistencePlugin {
   }
 
   constructor() {
-    this.gcsOps = new GCSOperations({
+    this.gdriveOps = new GDriveOperations({
       onTokenExpired: () => this.handleTokenExpiry()
     })
 
@@ -49,23 +49,16 @@ export class GCSPlugin implements IPersistencePlugin {
   }
 
   private loadSavedCredentials(): void {
-    // Migrate old key to new key (one-time migration)
-    const oldClientId = localStorage.getItem('gcs-client-id')
-    if (oldClientId && !localStorage.getItem('plugin-gcs-clientId')) {
-      localStorage.setItem('plugin-gcs-clientId', oldClientId)
-      localStorage.removeItem('gcs-client-id')
-    }
-
     // Load from settings system keys
-    const savedClientId = localStorage.getItem('plugin-gcs-clientId')
-    const savedAccessToken = localStorage.getItem('gcs-access-token')
-    const tokenExpiry = localStorage.getItem('gcs-token-expiry')
+    const savedClientId = localStorage.getItem('plugin-gdrive-clientId')
+    const savedAccessToken = localStorage.getItem('gdrive-access-token')
+    const tokenExpiry = localStorage.getItem('gdrive-token-expiry')
 
     if (savedClientId) {
       this.clientId = savedClientId
     }
 
-    // Check if saved token is still valid
+    // Check if saved OAuth token is still valid
     if (savedAccessToken && tokenExpiry) {
       const expiryTime = parseInt(tokenExpiry)
       const now = Date.now()
@@ -76,18 +69,18 @@ export class GCSPlugin implements IPersistencePlugin {
           isAuthenticated: true,
           expiresAt: new Date(expiryTime)
         }
-        console.log('Using saved GCS access token')
+        console.log('Using saved Google Drive access token')
       } else {
         // Token expired, clean up
         this.clearStoredCredentials()
-        console.log('Saved GCS token expired, removed from storage')
+        console.log('Saved Google Drive token expired, removed from storage')
       }
     }
   }
 
   private clearStoredCredentials(): void {
-    localStorage.removeItem('gcs-access-token')
-    localStorage.removeItem('gcs-token-expiry')
+    localStorage.removeItem('gdrive-access-token')
+    localStorage.removeItem('gdrive-token-expiry')
   }
 
   private handleTokenExpiry(): void {
@@ -108,8 +101,7 @@ export class GCSPlugin implements IPersistencePlugin {
    */
   setClientId(clientId: string): void {
     this.clientId = clientId
-    // Use settings system key
-    localStorage.setItem('plugin-gcs-clientId', clientId)
+    localStorage.setItem('plugin-gdrive-clientId', clientId)
   }
 
   /**
@@ -117,6 +109,13 @@ export class GCSPlugin implements IPersistencePlugin {
    */
   getClientId(): string {
     return this.clientId
+  }
+
+  /**
+   * Get access token (for location prompt and operations)
+   */
+  getAccessToken(): string {
+    return this.accessToken
   }
 
   /**
@@ -135,7 +134,8 @@ export class GCSPlugin implements IPersistencePlugin {
       try {
         const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: this.clientId,
-          scope: 'https://www.googleapis.com/auth/devstorage.read_write',
+          // Use full drive scope to access shared folders and files
+          scope: 'https://www.googleapis.com/auth/drive',
           callback: (response: any) => {
             if (response.access_token) {
               this.accessToken = response.access_token
@@ -148,10 +148,10 @@ export class GCSPlugin implements IPersistencePlugin {
               }
 
               // Save token to localStorage
-              localStorage.setItem('gcs-access-token', response.access_token)
-              localStorage.setItem('gcs-token-expiry', expiryTime.toString())
+              localStorage.setItem('gdrive-access-token', response.access_token)
+              localStorage.setItem('gdrive-token-expiry', expiryTime.toString())
 
-              console.log('GCS OAuth2 authentication successful')
+              console.log('Google Drive OAuth2 authentication successful')
               resolve()
             } else {
               reject(new Error(`Authentication failed: ${response.error || 'Unknown error'}`))
@@ -177,47 +177,59 @@ export class GCSPlugin implements IPersistencePlugin {
     this.clearStoredCredentials()
     this.accessToken = ''
     this.authState = { isAuthenticated: false }
-    console.log('Signed out from GCS')
+    console.log('Signed out from Google Drive')
   }
 
   /**
-   * Load a file from GCS
-   * Identifier must contain: { bucket, prefix, filename }
+   * Load a file from Google Drive
+   * Identifier must contain: { fileId } or { folderId, filename }
    */
   async loadFile(identifier: FileIdentifier): Promise<File> {
-    const { bucket, prefix, filename } = identifier
-
-    if (!bucket || !prefix || !filename) {
-      throw new Error('bucket, prefix, and filename are required for GCS load')
-    }
+    const { fileId, folderId, filename } = identifier
 
     if (!this.accessToken) {
-      throw new Error('Not authenticated. Please sign in to GCS.')
+      throw new Error('Not authenticated. Please sign in to Google Drive.')
     }
 
-    return await this.gcsOps.loadFile(bucket, prefix, filename, this.accessToken)
+    // If we have a fileId, load directly
+    if (fileId) {
+      return await this.gdriveOps.loadFile(fileId, this.accessToken)
+    }
+
+    // If we have folderId and filename, find the file first
+    if (folderId && filename) {
+      const file = await this.gdriveOps.findFileByName(folderId, filename, this.accessToken)
+      if (!file) {
+        throw new Error(`File not found: ${filename}`)
+      }
+      return await this.gdriveOps.loadFile(file.id, this.accessToken)
+    }
+
+    throw new Error('fileId or (folderId and filename) are required for Google Drive load')
   }
 
   /**
-   * Save a file to GCS
+   * Save a file to Google Drive
    * Saves only changed translation units as .json
    * If zipFile is present, also saves the original .lqaboss file
-   * Identifier must contain: { bucket, prefix, filename, originalJobData }
-   * Identifier may contain: { zipFile } for saving the complete .lqaboss archive
    */
   async saveFile(identifier: FileIdentifier, data: JobData): Promise<void> {
-    const { bucket, prefix, filename, originalJobData, zipFile } = identifier
+    const { folderId, filename, originalJobData, zipFile, jsonFileId, lqabossFileId, fileId } = identifier
 
-    if (!bucket || !prefix || !filename) {
-      throw new Error('bucket, prefix, and filename are required for GCS save')
+    if (!folderId || !filename) {
+      throw new Error('folderId and filename are required for Google Drive save')
     }
 
+    // Use the original file ID for .lqaboss updates if lqabossFileId isn't set
+    // This happens when the file was loaded directly (fileId is the loaded file's ID)
+    const effectiveLqabossFileId = lqabossFileId || (filename.endsWith('.lqaboss') ? fileId : undefined)
+
     if (!this.accessToken) {
-      throw new Error('Not authenticated. Please sign in to GCS.')
+      throw new Error('Not authenticated. Please sign in to Google Drive.')
     }
 
     if (!originalJobData) {
-      throw new Error('originalJobData is required for GCS save')
+      throw new Error('originalJobData is required for Google Drive save')
     }
 
     // Extract only changed TUs
@@ -243,31 +255,47 @@ export class GCSPlugin implements IPersistencePlugin {
       updatedAt: new Date().toISOString(),
     }
 
-    // Ensure filename has .json extension (strip .lqaboss if present)
-    // This ensures we save companion .json files for .lqaboss archives
-    const baseFilename = filename.replace('.lqaboss', '')
-    const jsonFilename = baseFilename.endsWith('.json') ? baseFilename : `${baseFilename}.json`
+    // Ensure filename has .json extension
+    const baseFilename = filename.replace('.lqaboss', '').replace('.json', '')
+    const jsonFilename = `${baseFilename}.json`
 
     // Save the .json file with changed translations
-    await this.gcsOps.saveFile(bucket, prefix, jsonFilename, outputData, this.accessToken)
+    const newJsonFileId = await this.gdriveOps.saveFile(
+      folderId,
+      jsonFilename,
+      outputData,
+      this.accessToken,
+      jsonFileId
+    )
+
+    // Store the file ID for future saves
+    if (!jsonFileId) {
+      identifier.jsonFileId = newJsonFileId
+    }
 
     // If we have the original ZIP file and no .lqaboss exists yet, save it
     // The .lqaboss file is immutable - only create it once, never update
-    // If filename ends with .lqaboss, we loaded an existing file so don't overwrite
-    const lqabossExists = filename.endsWith('.lqaboss')
-
-    if (zipFile && !lqabossExists) {
+    if (zipFile && !effectiveLqabossFileId) {
       const lqabossFilename = `${baseFilename}.lqaboss`
 
       // Convert JSZip to blob
       const zipBlob = await zipFile.generateAsync({ type: 'blob' })
 
       // Save the .lqaboss file (create new only)
-      await this.gcsOps.saveBlobFile(bucket, prefix, lqabossFilename, zipBlob, this.accessToken)
+      const newLqabossFileId = await this.gdriveOps.saveBlobFile(
+        folderId,
+        lqabossFilename,
+        zipBlob,
+        this.accessToken,
+        undefined // Always create new, never update
+      )
 
-      console.log(`Saved both ${lqabossFilename} and ${jsonFilename} to GCS`)
+      // Store the file ID for future reference
+      identifier.lqabossFileId = newLqabossFileId
+
+      console.log(`Saved both ${lqabossFilename} and ${jsonFilename} to Google Drive`)
     } else {
-      console.log(`Saved ${jsonFilename} to GCS`)
+      console.log(`Saved ${jsonFilename} to Google Drive`)
     }
   }
 
@@ -281,15 +309,15 @@ export class GCSPlugin implements IPersistencePlugin {
       return null
     }
 
-    const { bucket, prefix } = identifier
+    const { folderId } = identifier
 
-    if (!bucket || !prefix) {
-      console.log('GCS auto-save: Missing bucket or prefix in identifier')
+    if (!folderId) {
+      console.log('Google Drive auto-save: Missing folderId in identifier')
       return null
     }
 
     if (!this.accessToken) {
-      console.log('GCS auto-save: No access token available')
+      console.log('Google Drive auto-save: No access token available')
       return null
     }
 
@@ -297,22 +325,23 @@ export class GCSPlugin implements IPersistencePlugin {
     const jsonFilename = `${jobId}.json`
 
     try {
-      // Ensure all required fields are present in the identifier
-      const jsonFileId: FileIdentifier = {
-        bucket,
-        prefix,
-        filename: jsonFilename
+      const jsonFile = await this.gdriveOps.findFileByName(folderId, jsonFilename, this.accessToken)
+
+      if (!jsonFile) {
+        console.log(`No saved translations found for ${filename} (this is normal for new files)`)
+        return null
       }
 
-      const jsonFile = await this.loadFile(jsonFileId)
+      // Store the file ID for future updates
+      identifier.jsonFileId = jsonFile.id
 
-      const jsonContent = await jsonFile.text()
+      const file = await this.gdriveOps.loadFile(jsonFile.id, this.accessToken)
+      const jsonContent = await file.text()
       const savedJobData = JSON.parse(jsonContent)
 
       console.log(`Loaded saved translations from ${jsonFilename}`)
       return savedJobData
     } catch (error: any) {
-      // 404 errors are expected when there are no saved translations
       if (error.message?.includes('404') || error.message?.includes('not found')) {
         console.log(`No saved translations found for ${filename} (this is normal for new files)`)
       } else {
@@ -323,51 +352,47 @@ export class GCSPlugin implements IPersistencePlugin {
   }
 
   /**
-   * List files in a GCS bucket/prefix
-   * Location format: "bucket/prefix" or just provide bucket and prefix separately
+   * List files in a Google Drive folder
    */
   async listFiles(location?: string): Promise<FileInfo[]> {
     if (!this.accessToken) {
-      throw new Error('Not authenticated. Please sign in to GCS.')
+      throw new Error('Not authenticated. Please sign in to Google Drive.')
     }
 
-    let bucket: string
-    let prefix: string
+    const folderId = location || 'root'
+    const files = await this.gdriveOps.listFiles(folderId, this.accessToken)
 
-    if (location) {
-      const parts = location.split('/')
-      bucket = parts[0]
-      prefix = parts.slice(1).join('/')
-    } else {
-      throw new Error('Location (bucket/prefix) is required for listing GCS files')
-    }
-
-    const files = await this.gcsOps.listFiles(bucket, prefix, this.accessToken)
-
-    return files.map((f: GCSFile) => ({
-      name: f.name,
-      displayName: f.name,
-      identifier: { bucket, prefix, filename: f.name },
-      size: f.size,
-      updated: f.updated
-    }))
+    return files
+      .filter((f: GDriveFile) => f.name.endsWith('.lqaboss') || f.name.endsWith('.json'))
+      .map((f: GDriveFile) => ({
+        name: f.name,
+        displayName: f.name,
+        identifier: { fileId: f.id, folderId, filename: f.name },
+        size: f.size,
+        updated: f.modifiedTime
+      }))
   }
 
   /**
-   * Parse URL parameters to extract GCS file identifier
-   * Supports both old format (/gcs/:bucket/:prefix/:filename) and new format (?plugin=gcs&bucket=...&prefix=...&file=...)
+   * Parse URL parameters to extract Google Drive file identifier
    */
   parseUrl(params: URLSearchParams): FileIdentifier | null {
-    // New query param format
-    const bucket = params.get('bucket')
-    const prefix = params.get('prefix')
-    // Support both 'filename' and 'file' parameters for compatibility
+    const fileId = params.get('fileId')
+    const folderId = params.get('folderId')
     const filename = params.get('filename') || params.get('file')
 
-    if (bucket && prefix) {
+    if (fileId) {
       return {
-        bucket: decodeURIComponent(bucket),
-        prefix: decodeURIComponent(prefix),
+        fileId: decodeURIComponent(fileId),
+        folderId: folderId ? decodeURIComponent(folderId) : undefined,
+        filename: filename ? decodeURIComponent(filename) : undefined
+      }
+    }
+
+    // Support folder-only URLs (will show file picker after auth)
+    if (folderId) {
+      return {
+        folderId: decodeURIComponent(folderId),
         filename: filename ? decodeURIComponent(filename) : undefined
       }
     }
@@ -376,18 +401,17 @@ export class GCSPlugin implements IPersistencePlugin {
   }
 
   /**
-   * Build a shareable URL for a GCS file
-   * Uses query parameter format for consistency
+   * Build a shareable URL for a Google Drive file
    */
   buildUrl(identifier: FileIdentifier): string {
     const params = new URLSearchParams()
-    params.set('plugin', 'gcs')
+    params.set('plugin', 'gdrive')
 
-    if (identifier.bucket) {
-      params.set('bucket', identifier.bucket)
+    if (identifier.fileId) {
+      params.set('fileId', identifier.fileId)
     }
-    if (identifier.prefix) {
-      params.set('prefix', identifier.prefix)
+    if (identifier.folderId) {
+      params.set('folderId', identifier.folderId)
     }
     if (identifier.filename) {
       params.set('filename', identifier.filename)
@@ -402,8 +426,7 @@ export class GCSPlugin implements IPersistencePlugin {
   getConfig(): Record<string, any> {
     return {
       clientId: this.clientId,
-      defaultBucket: localStorage.getItem('plugin-gcs-defaultBucket') || '',
-      defaultPrefix: localStorage.getItem('plugin-gcs-defaultPrefix') || '',
+      defaultFolderId: localStorage.getItem('plugin-gdrive-defaultFolderId') || '',
     }
   }
 
@@ -414,8 +437,6 @@ export class GCSPlugin implements IPersistencePlugin {
     if (config.clientId) {
       this.setClientId(config.clientId)
     }
-    // defaultBucket and defaultPrefix are now managed by the settings system
-    // They will be stored directly to localStorage by usePluginSettings
   }
 
   /**
@@ -432,19 +453,11 @@ export class GCSPlugin implements IPersistencePlugin {
         required: true,
       },
       {
-        key: 'defaultBucket',
-        label: 'Default Bucket',
+        key: 'defaultFolderId',
+        label: 'Default Folder ID',
         type: 'text',
-        placeholder: 'my-bucket',
-        description: 'Default GCS bucket to use',
-        required: false,
-      },
-      {
-        key: 'defaultPrefix',
-        label: 'Default Prefix',
-        type: 'text',
-        placeholder: 'path/to/folder',
-        description: 'Default prefix (folder path) within the bucket',
+        placeholder: 'Leave empty for root folder',
+        description: 'Default Google Drive folder ID to open',
         required: false,
       },
     ]
@@ -463,11 +476,17 @@ export class GCSPlugin implements IPersistencePlugin {
   validateIdentifier(identifier: FileIdentifier, operation: 'load' | 'save'): { valid: boolean, missing?: string[] } {
     const missing: string[] = []
 
-    if (!identifier.bucket) missing.push('bucket')
-    if (!identifier.prefix) missing.push('prefix')
-
-    if (operation === 'save' && !identifier.filename) {
-      missing.push('filename')
+    if (operation === 'load') {
+      // For load, we need either:
+      // - fileId (direct file access), OR
+      // - folderId (to show file picker for that folder), OR
+      // - folderId AND filename (to load specific file from folder)
+      if (!identifier.fileId && !identifier.folderId) {
+        missing.push('fileId or folderId')
+      }
+    } else {
+      if (!identifier.folderId) missing.push('folderId')
+      if (!identifier.filename) missing.push('filename')
     }
 
     return {
@@ -477,40 +496,18 @@ export class GCSPlugin implements IPersistencePlugin {
   }
 
   /**
-   * Parse path-based URL segments
-   * Format: /gcs/bucket/prefix/filename
-   */
-  parsePathUrl(pathSegments: string[]): FileIdentifier | null {
-    if (pathSegments.length < 3) {
-      return null
-    }
-
-    const bucket = decodeURIComponent(pathSegments[1])
-    const prefix = decodeURIComponent(pathSegments[2])
-    const filename = pathSegments[3] ? decodeURIComponent(pathSegments[3]) : undefined
-
-    return {
-      bucket,
-      prefix,
-      filename
-    }
-  }
-
-  /**
-   * Location prompt component for collecting GCS parameters
+   * Location prompt component for collecting Google Drive parameters
    */
   LocationPromptComponent: React.FC<LocationPromptProps> = ({ fileName, operation, onSubmit, onCancel }) => {
-    // Always use settings values, not currentIdentifier (which may have old URL values)
-    const bucket = localStorage.getItem('plugin-gcs-defaultBucket') || ''
-    const prefix = localStorage.getItem('plugin-gcs-defaultPrefix') || ''
+    const defaultFolderId = localStorage.getItem('plugin-gdrive-defaultFolderId') || 'root'
 
-    return React.createElement(GCSLocationPrompt, {
-      currentBucket: bucket,
-      currentPrefix: prefix,
+    return React.createElement(GDriveLocationPrompt, {
+      accessToken: this.accessToken,
+      currentFolderId: defaultFolderId,
       currentFilename: fileName,
       operation,
-      onSubmit: (bucket: string, prefix: string, filename?: string) => {
-        onSubmit({ bucket, prefix, filename })
+      onSubmit: (folderId: string, _folderName: string, filename?: string) => {
+        onSubmit({ folderId, filename })
       },
       onCancel
     })
@@ -520,15 +517,15 @@ export class GCSPlugin implements IPersistencePlugin {
    * Get source display info for InfoModal
    */
   getSourceDisplayInfo(identifier: FileIdentifier): SourceDisplayInfo | null {
-    if (!identifier.bucket || !identifier.prefix) return null
+    if (!identifier.folderId) return null
 
-    const locationLabel = `${identifier.bucket}/${identifier.prefix}`
+    const folderName = identifier.folderName || identifier.folderId
     const filename = identifier.filename || identifier.fileName
 
     return {
       pluginName: this.metadata.name,
-      locationLabel,
-      locationUrl: `https://console.cloud.google.com/storage/browser/${identifier.bucket}/${identifier.prefix}`,
+      locationLabel: folderName === 'root' ? 'My Drive' : folderName,
+      locationUrl: `https://drive.google.com/drive/folders/${identifier.folderId}`,
       filename
     }
   }

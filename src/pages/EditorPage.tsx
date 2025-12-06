@@ -4,7 +4,8 @@ import { UnifiedHeader } from '../components/headers/UnifiedHeader'
 import { TranslationEditor, TranslationEditorRef } from '../components/TranslationEditor'
 import { ClientIdPrompt } from '../components/prompts/ClientIdPrompt'
 import { AuthPrompt } from '../components/prompts/AuthPrompt'
-import GCSFilePicker from '../components/GCSFilePicker'
+import { GDriveLocationPrompt } from '../components/prompts/GDriveLocationPrompt'
+import FilePicker from '../components/FilePicker'
 import { ModelEditor } from '../components/ModelEditor'
 import QASummaryModal from '../components/QASummaryModal'
 
@@ -32,6 +33,7 @@ export const EditorPage: React.FC = () => {
   const pluginSettings = usePluginSettings(plugins)
   const [showSettingsForPlugin, setShowSettingsForPlugin] = useState<string | null>(null)
   const [refreshExtensionAvailability, setRefreshExtensionAvailability] = useState(0)
+  const [refreshAuthState, setRefreshAuthState] = useState(0)
 
   // Initialize quality model hook
   const qualityModelHook = useQualityModel()
@@ -55,6 +57,9 @@ export const EditorPage: React.FC = () => {
   // Initialize auth hook with post-auth callback
   const auth = usePluginAuth({
     onAuthComplete: async (plugin: IPersistencePlugin, fileId: FileIdentifier | null) => {
+      // Trigger header to re-check auth state
+      setRefreshAuthState(n => n + 1)
+
       if (!fileId) return
 
       // Determine if this is a save operation
@@ -80,9 +85,11 @@ export const EditorPage: React.FC = () => {
         fileOps.setSourceFileId(fileId)
         fileOps.setCurrentFileId(fileId)
 
-        if (fileId.filename) {
+        if (fileId.filename || fileId.fileId) {
+          // Has specific file to load
           await fileOps.loadFileFromPlugin(plugin, fileId)
-        } else {
+        } else if (fileId.folderId || (fileId.bucket && fileId.prefix)) {
+          // GDrive or GCS: show unified file picker
           await fileOps.showFileListBrowser(plugin, fileId)
         }
         auth.setPendingFileId(null)
@@ -253,6 +260,7 @@ export const EditorPage: React.FC = () => {
     onShowSummary: qualityModelHook.handleShowSummary,
     onShowPluginSettings: handleShowPluginSettings,
     refreshExtensionAvailability,
+    refreshAuthState,
   }), [
     plugins,
     fileOps.handleSave,
@@ -269,15 +277,37 @@ export const EditorPage: React.FC = () => {
     qualityModelHook.handleUnloadModel,
     qualityModelHook.handleShowSummary,
     refreshExtensionAvailability,
+    refreshAuthState,
   ])
 
   const header = <UnifiedHeader {...headerProps} />
 
+  // Helper to build location description for auth prompt
+  const getLocationDescription = (): string | undefined => {
+    const fileId = auth.pendingFileId as any
+    if (!fileId) return undefined
+
+    // GCS format: bucket/prefix/filename
+    if (fileId.bucket && fileId.prefix) {
+      const parts = [fileId.bucket, fileId.prefix]
+      if (fileId.filename) parts.push(fileId.filename)
+      return parts.join('/')
+    }
+
+    // GDrive format: just filename if present
+    if (fileId.filename) {
+      return fileId.filename
+    }
+
+    return undefined
+  }
+
   // Show client ID prompt if needed
-  if (auth.showClientIdPrompt) {
+  if (auth.showClientIdPrompt && auth.currentPlugin) {
     return (
       <EditorLayout header={header}>
         <ClientIdPrompt
+          pluginName={auth.currentPlugin.metadata.name}
           onSubmit={auth.handleClientIdSubmit}
           onCancel={auth.handleClientIdCancel}
         />
@@ -286,13 +316,12 @@ export const EditorPage: React.FC = () => {
   }
 
   // Show auth prompt if needed
-  if (auth.showAuthPrompt) {
+  if (auth.showAuthPrompt && auth.currentPlugin) {
     return (
       <EditorLayout header={header}>
         <AuthPrompt
-          bucket={(auth.pendingFileId as any)?.bucket || ''}
-          prefix={(auth.pendingFileId as any)?.prefix || ''}
-          filename={(auth.pendingFileId as any)?.filename}
+          pluginName={auth.currentPlugin.metadata.name}
+          locationDescription={getLocationDescription()}
           onAccept={auth.handleAuthPromptAccept}
         />
       </EditorLayout>
@@ -311,20 +340,32 @@ export const EditorPage: React.FC = () => {
         />
       )}
 
-      <GCSFilePicker
+      <FilePicker
+        title={`Load Job from ${fileOps.currentPlugin?.metadata.name || 'Cloud'}`}
         files={fileOps.fileList}
-        bucket={fileOps.sourceFileId?.bucket || ''}
-        prefix={fileOps.sourceFileId?.prefix || ''}
+        loading={fileOps.fileListLoading}
+        error={fileOps.fileListError || undefined}
         onFileSelect={fileOps.handleFileSelect}
-        onReloadWithLocation={async (bucket: string, prefix: string) => {
-          const gcsPlugin = plugins.find(p => p.metadata.id === 'gcs')
-          if (gcsPlugin) {
-            await fileOps.showFileListBrowser(gcsPlugin, { bucket, prefix })
-          }
-        }}
+        onRetry={fileOps.handleFileListRetry}
         isOpen={fileOps.showFilePicker}
         onClose={fileOps.handleFilePickerClose}
+        location={fileOps.filePickerLocation}
+        onLocationChange={fileOps.handleFilePickerLocationChange}
+        onBrowseFolders={fileOps.handleBrowseFolders}
       />
+
+      {/* GDrive folder browser for changing folder */}
+      {fileOps.showFolderBrowser && fileOps.currentPlugin?.metadata.id === 'gdrive' && (
+        <GDriveLocationPrompt
+          accessToken={(fileOps.currentPlugin as any).getAccessToken?.() || ''}
+          currentFolderId={fileOps.filePickerLocation.folderId || 'root'}
+          operation="load"
+          onSubmit={(folderId: string, folderName: string) => {
+            fileOps.handleFolderSelected(folderId, folderName)
+          }}
+          onCancel={() => fileOps.setShowFolderBrowser(false)}
+        />
+      )}
 
       <ModelEditor
         isOpen={qualityModelHook.showModelEditor}
@@ -368,8 +409,7 @@ export const EditorPage: React.FC = () => {
           onTranslationUnitChange={fileOps.translationData.updateTranslationUnit}
           onCandidateSelect={fileOps.translationData.selectCandidate}
           onInstructionsOpen={() => {}}
-          sourcePluginName={fileOps.sourcePlugin?.metadata.name}
-          sourceLocation={fileOps.getSourceLocation()}
+          sourceInfo={fileOps.getSourceDisplayInfo()}
           qualityModel={qualityModelHook.qualityModel}
           ept={ept}
           onReviewToggle={handleReviewToggle}

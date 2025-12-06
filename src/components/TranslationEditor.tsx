@@ -13,6 +13,13 @@ import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
 import { calculateTER, calculateSegmentWordCounts } from '../utils/metrics'
 
+interface SourceDisplayInfo {
+  pluginName: string
+  locationLabel: string
+  locationUrl?: string
+  filename?: string
+}
+
 interface TranslationEditorProps {
   flowData: FlowData | null
   jobData: JobData | null
@@ -22,8 +29,7 @@ interface TranslationEditorProps {
   onTranslationUnitChange: (tu: TranslationUnit) => void
   onCandidateSelect: (guid: string, candidateIndex: number) => void
   onInstructionsOpen?: () => void
-  sourcePluginName?: string
-  sourceLocation?: string
+  sourceInfo?: SourceDisplayInfo
   qualityModel: QualityModel | null
   ept: number | null
   onReviewToggle: (guid: string, reviewed: boolean) => void
@@ -42,8 +48,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   onTranslationUnitChange,
   onCandidateSelect,
   onInstructionsOpen,
-  sourcePluginName,
-  sourceLocation,
+  sourceInfo,
   qualityModel,
   ept,
   onReviewToggle,
@@ -369,7 +374,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
       )}
       
       {/* Info Modal */}
-      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourcePluginName || ter !== null || ept !== null) && (
+      {jobData && (jobData.sourceLang || jobData.targetLang || jobData.instructions || jobData.jobGuid || jobData.updatedAt || sourceInfo || ter !== null || ept !== null) && (
         <InfoModal
           isOpen={isInfoModalOpen}
           onClose={() => setIsInfoModalOpen(false)}
@@ -379,10 +384,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
           jobName={jobData.jobName}
           jobGuid={jobData.jobGuid}
           updatedAt={jobData.updatedAt}
-          sourceInfo={sourcePluginName ? {
-            pluginName: sourcePluginName,
-            location: sourceLocation
-          } : undefined}
+          sourceInfo={sourceInfo}
           ter={ter}
           ept={ept}
           segmentWordCounts={segmentWordCounts}

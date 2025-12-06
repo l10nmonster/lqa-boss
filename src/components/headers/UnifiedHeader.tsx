@@ -24,6 +24,7 @@ interface UnifiedHeaderProps {
   onShowSummary?: () => void
   onShowPluginSettings?: (pluginId: string) => void
   refreshExtensionAvailability?: number
+  refreshAuthState?: number
 }
 
 export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
@@ -44,14 +45,24 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   onShowSummary,
   onShowPluginSettings,
   refreshExtensionAvailability,
+  refreshAuthState,
 }) => {
   // Get plugins by ID for easy lookup
   const extensionPlugin = plugins.find(p => p.metadata.id === 'extension')
   const localPlugin = plugins.find(p => p.metadata.id === 'local')
   const gcsPlugin = plugins.find(p => p.metadata.id === 'gcs')
+  const gdrivePlugin = plugins.find(p => p.metadata.id === 'gdrive')
 
-  // Check GCS authentication state
+  // Force re-render trigger for auth state changes (internal + external via prop)
+  const [authRefreshInternal, setAuthRefreshInternal] = useState(0)
+
+  // Check auth state from plugins directly
+  // Dependencies on authRefreshInternal and refreshAuthState ensure re-render after sign in/out
   const gcsIsAuthenticated = gcsPlugin?.getAuthState?.().isAuthenticated || false
+  const gdriveIsAuthenticated = gdrivePlugin?.getAuthState?.().isAuthenticated || false
+  // Use refresh counters to avoid unused variable warnings
+  void authRefreshInternal
+  void refreshAuthState
 
   // Check extension availability
   const [extensionAvailable, setExtensionAvailable] = useState(false)
@@ -65,9 +76,17 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
     }
   }, [extensionPlugin, refreshExtensionAvailability])
 
-  const handleSignOut = async () => {
+  const handleGcsSignOut = async () => {
     if (gcsPlugin?.signOut) {
       await gcsPlugin.signOut()
+      setAuthRefreshInternal(n => n + 1)
+    }
+  }
+
+  const handleGdriveSignOut = async () => {
+    if (gdrivePlugin?.signOut) {
+      await gdrivePlugin.signOut()
+      setAuthRefreshInternal(n => n + 1)
     }
   }
 
@@ -142,7 +161,38 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                       {gcsIsAuthenticated && (
                         <Menu.Item
                           value="gcs-sign-out"
-                          onClick={handleSignOut}
+                          onClick={handleGcsSignOut}
+                        >
+                          <FiLogOut /> Sign Out
+                        </Menu.Item>
+                      )}
+                    </Menu.ItemGroup>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Google Drive Group */}
+                {gdrivePlugin && (
+                  <>
+                    <Menu.ItemGroup>
+                      <Menu.ItemGroupLabel>{gdrivePlugin.metadata.name}</Menu.ItemGroupLabel>
+                      <Menu.Item
+                        value="gdrive-open"
+                        onClick={() => onLoad(gdrivePlugin)}
+                      >
+                        <FiFolder /> Open File…
+                      </Menu.Item>
+                      <Menu.Item
+                        value="gdrive-save"
+                        onClick={() => onSave(gdrivePlugin)}
+                        disabled={!hasData}
+                      >
+                        <FiSave /> Save
+                      </Menu.Item>
+                      {gdriveIsAuthenticated && (
+                        <Menu.Item
+                          value="gdrive-sign-out"
+                          onClick={handleGdriveSignOut}
                         >
                           <FiLogOut /> Sign Out
                         </Menu.Item>

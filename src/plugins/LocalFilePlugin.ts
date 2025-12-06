@@ -1,4 +1,4 @@
-import { IPersistencePlugin, FileIdentifier, PluginMetadata, PluginCapabilities } from './types'
+import { IPersistencePlugin, FileIdentifier, PluginMetadata, PluginCapabilities, SourceDisplayInfo } from './types'
 import { JobData } from '../types'
 import { saveChangedTus } from '../utils/saveHandler'
 
@@ -135,7 +135,7 @@ export class LocalFilePlugin implements IPersistencePlugin {
   /**
    * Save file to local device (download)
    * Downloads changed translations as .json
-   * If zipFile is present, also downloads the original .lqaboss file
+   * The .lqaboss file is immutable - only download if it doesn't exist locally
    */
   async saveFile(identifier: FileIdentifier, data: JobData): Promise<void> {
     const { fileName, originalJobData, zipFile } = identifier
@@ -147,10 +147,13 @@ export class LocalFilePlugin implements IPersistencePlugin {
     // Save the .json file with changed translations
     saveChangedTus(data, originalJobData, fileName)
 
-    // If we have the original ZIP file, also download the .lqaboss file
-    if (zipFile) {
-      const baseFilename = fileName.replace('.lqaboss', '')
-      const lqabossFilename = baseFilename.endsWith('.lqaboss') ? baseFilename : `${baseFilename}.lqaboss`
+    // The .lqaboss file is immutable - if user loaded from a .lqaboss file,
+    // they already have it locally, so don't download again
+    const lqabossExists = fileName.endsWith('.lqaboss')
+
+    if (zipFile && !lqabossExists) {
+      const baseFilename = fileName.replace('.json', '')
+      const lqabossFilename = `${baseFilename}.lqaboss`
 
       // Convert JSZip to blob
       const zipBlob = await zipFile.generateAsync({ type: 'blob' })
@@ -205,5 +208,19 @@ export class LocalFilePlugin implements IPersistencePlugin {
    */
   validateIdentifier(_identifier: FileIdentifier, _operation: 'load' | 'save'): { valid: boolean } {
     return { valid: true }
+  }
+
+  /**
+   * Get source display info for InfoModal
+   */
+  getSourceDisplayInfo(identifier: FileIdentifier): SourceDisplayInfo | null {
+    const filename = identifier.fileName || identifier.filename
+    if (!filename) return null
+
+    return {
+      pluginName: this.metadata.name,
+      locationLabel: 'Local Device',
+      filename
+    }
   }
 }

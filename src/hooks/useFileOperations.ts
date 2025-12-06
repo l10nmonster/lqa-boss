@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { IPersistencePlugin, FileIdentifier } from '../plugins/types'
-import { GCSFile } from '../utils/gcsOperations'
 import { toaster } from '../components/ui/toaster'
 import { JobData } from '../types'
 import { QualityModel } from '../types/qualityModel'
 import { useFileLoader } from './useFileLoader'
 import { useTranslationData } from './useTranslationData'
+import { PickerFile, LocationInfo } from '../components/FilePicker'
 
 export interface UseFileOperationsOptions {
   onAuthRequired?: (plugin: IPersistencePlugin, fileId: FileIdentifier) => Promise<boolean>
@@ -19,46 +19,74 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
   const [sourceFileId, setSourceFileId] = useState<FileIdentifier | null>(null)
   const [showLocationPrompt, setShowLocationPrompt] = useState<'load' | 'save' | null>(null)
   const [showFilePicker, setShowFilePicker] = useState(false)
-  const [fileList, setFileList] = useState<GCSFile[]>([])
+  const [fileList, setFileList] = useState<PickerFile[]>([])
+  const [fileListLoading, setFileListLoading] = useState(false)
+  const [fileListError, setFileListError] = useState<string | null>(null)
+  const [filePickerLocation, setFilePickerLocation] = useState<LocationInfo>({})
+  const [showFolderBrowser, setShowFolderBrowser] = useState(false)
 
   const fileLoader = useFileLoader()
   const translationData = useTranslationData()
 
   /**
-   * Convert FileInfo array to GCSFile array and show file picker
+   * Load file list and show unified file picker
+   * Works for both GCS (bucket/prefix) and GDrive (folderId)
    */
   const showFileListBrowser = async (
     plugin: IPersistencePlugin,
     fileId: FileIdentifier
   ): Promise<void> => {
-    if (!plugin.listFiles || !fileId.bucket || !fileId.prefix) {
+    if (!plugin.listFiles) {
       return
     }
 
+    // Determine location based on plugin type
+    let location: string | undefined
+    if (fileId.bucket && fileId.prefix) {
+      // GCS format
+      location = `${fileId.bucket}/${fileId.prefix}`
+    } else if (fileId.folderId) {
+      // GDrive format
+      location = fileId.folderId
+    } else {
+      return
+    }
+
+    // Update sourceFileId so the picker shows the correct location
+    setSourceFileId(fileId)
+    setCurrentFileId(fileId)
+    setFileListLoading(true)
+    setFileListError(null)
+    setShowFilePicker(true)
+
+    // Set location info for the picker
+    if (fileId.bucket && fileId.prefix) {
+      setFilePickerLocation({ bucket: fileId.bucket, prefix: fileId.prefix })
+    } else if (fileId.folderId) {
+      setFilePickerLocation({ folderId: fileId.folderId, folderName: fileId.folderName })
+    }
+
     try {
-      const location = `${fileId.bucket}/${fileId.prefix}`
       const files = await plugin.listFiles(location)
 
-      const gcsFiles: GCSFile[] = files.map(f => ({
+      const pickerFiles: PickerFile[] = files.map(f => ({
+        id: f.identifier?.fileId || f.name,
         name: f.name,
-        fullName: f.name,
         size: f.size || '0',
         updated: f.updated || new Date().toISOString()
       }))
 
-      // Update sourceFileId so the picker shows the correct location
-      setSourceFileId(fileId)
-      setCurrentFileId(fileId)
-
-      setFileList(gcsFiles)
-      setShowFilePicker(true)
+      setFileList(pickerFiles)
     } catch (error: any) {
+      setFileListError(error.message)
       toaster.create({
         title: 'Failed to list files',
         description: error.message,
         type: 'error',
         duration: 6000,
       })
+    } finally {
+      setFileListLoading(false)
     }
   }
 
@@ -300,6 +328,12 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
           bucket: defaultBucket,
           prefix: defaultPrefix
         }
+      } else if (plugin.metadata.id === 'gdrive') {
+        // For GDrive, read default folder from settings
+        const defaultFolderId = localStorage.getItem('plugin-gdrive-defaultFolderId') || 'root'
+        identifierToValidate = {
+          folderId: defaultFolderId
+        }
       } else {
         // For other plugins, use sourceFileId
         identifierToValidate = sourceFileId || {}
@@ -320,12 +354,31 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
           return
         }
 
+        // For plugins requiring auth, check authentication before showing location prompt
+        if (plugin.capabilities.requiresAuth) {
+          // Check if needs setup first
+          if (plugin.needsSetup?.()) {
+            if (options?.onAuthRequired) {
+              await options.onAuthRequired(plugin, identifierToValidate)
+              return
+            }
+          }
+
+          // Check if not authenticated
+          if (!plugin.getAuthState?.().isAuthenticated) {
+            if (options?.onAuthRequired) {
+              await options.onAuthRequired(plugin, identifierToValidate)
+              return
+            }
+          }
+        }
+
         // For other plugins, show location prompt
         setShowLocationPrompt('load')
         return
       }
 
-      // Has valid location (bucket/prefix) - show file browser
+      // Has valid location (bucket/prefix for GCS, folderId for GDrive) - show file browser
       if (identifierToValidate.bucket && identifierToValidate.prefix && plugin.listFiles) {
         try {
           // Check authentication
@@ -352,6 +405,30 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
           })
           return
         }
+      }
+
+      // For GDrive with valid folderId, check auth then show file picker
+      if (plugin.metadata.id === 'gdrive' && identifierToValidate.folderId) {
+        // Check authentication first
+        if (plugin.capabilities.requiresAuth) {
+          if (plugin.needsSetup?.()) {
+            if (options?.onAuthRequired) {
+              await options.onAuthRequired(plugin, identifierToValidate)
+              return
+            }
+          }
+
+          if (!plugin.getAuthState?.().isAuthenticated) {
+            if (options?.onAuthRequired) {
+              await options.onAuthRequired(plugin, identifierToValidate)
+              return
+            }
+          }
+        }
+
+        // Authenticated - show unified file picker
+        await showFileListBrowser(plugin, identifierToValidate)
+        return
       }
     }
 
@@ -387,10 +464,12 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
       // Save with the provided identifier
       await performSave(currentPlugin, identifier)
     } else if (operation === 'load') {
-      // Save bucket/prefix to settings for next time
-      if (identifier.bucket && identifier.prefix) {
+      // Save location to settings for next time based on plugin
+      if (currentPlugin.metadata.id === 'gcs' && identifier.bucket && identifier.prefix) {
         localStorage.setItem('plugin-gcs-defaultBucket', identifier.bucket)
         localStorage.setItem('plugin-gcs-defaultPrefix', identifier.prefix)
+      } else if (currentPlugin.metadata.id === 'gdrive' && identifier.folderId) {
+        localStorage.setItem('plugin-gdrive-defaultFolderId', identifier.folderId)
       }
 
       // Update the source file ID
@@ -401,11 +480,11 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
       if (identifier.filename) {
         await loadFileFromPlugin(currentPlugin, identifier)
       } else {
-        // No filename - show file browser to select a file
-        if (currentPlugin.listFiles) {
+        // No filename - show file browser to select a file (for GCS)
+        if (currentPlugin.listFiles && identifier.bucket && identifier.prefix) {
           await showFileListBrowser(currentPlugin, identifier)
         } else {
-          // Plugin doesn't support file listing
+          // Plugin doesn't support file listing or no location info
           toaster.create({
             title: 'Location saved',
             description: 'Click Load File again to continue',
@@ -420,26 +499,36 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
   /**
    * Handle file selection from file picker
    */
-  const handleFileSelect = async (filename: string) => {
+  const handleFileSelect = async (file: PickerFile) => {
     if (!currentPlugin || !sourceFileId) return
 
-    // Ensure we have all required fields for GCS
-    if (!sourceFileId.bucket || !sourceFileId.prefix) {
-      console.error('Missing bucket or prefix in sourceFileId:', sourceFileId)
+    // Build file identifier based on plugin type
+    let fileId: FileIdentifier
+
+    if (sourceFileId.bucket && sourceFileId.prefix) {
+      // GCS format
+      fileId = {
+        bucket: sourceFileId.bucket,
+        prefix: sourceFileId.prefix,
+        filename: file.name
+      }
+    } else if (sourceFileId.folderId) {
+      // GDrive format
+      fileId = {
+        folderId: sourceFileId.folderId,
+        fileId: file.id,
+        filename: file.name
+      }
+    } else {
+      console.error('Unknown source file ID format:', sourceFileId)
       toaster.create({
         title: 'Configuration error',
-        description: 'Missing bucket or prefix information',
+        description: 'Unknown file source format',
         type: 'error',
         duration: 4000,
       })
       setShowFilePicker(false)
       return
-    }
-
-    const fileId: FileIdentifier = {
-      bucket: sourceFileId.bucket,
-      prefix: sourceFileId.prefix,
-      filename
     }
 
     setShowFilePicker(false)
@@ -491,26 +580,35 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
   }
 
   /**
-   * Helper function to format source location
+   * Get source display info from the plugin
    */
-  const getSourceLocation = (): string | undefined => {
-    if (!sourceFileId) return undefined
+  const getSourceDisplayInfo = () => {
+    if (!sourcePlugin || !sourceFileId) return undefined
+    return sourcePlugin.getSourceDisplayInfo?.(sourceFileId) || undefined
+  }
 
-    // For GCS plugin, show gcs://bucket/prefix/filename
-    if (sourcePlugin?.metadata.id === 'gcs' && sourceFileId.bucket) {
-      const parts = [sourceFileId.bucket]
-      if (sourceFileId.prefix) parts.push(sourceFileId.prefix)
-      if (sourceFileId.filename) parts.push(sourceFileId.filename)
-      return `gcs://${parts.join('/')}`
+  // Handle location change from file picker (for GCS inline editing)
+  const handleFilePickerLocationChange = async (location: LocationInfo) => {
+    if (!currentPlugin) return
+
+    if (location.bucket && location.prefix) {
+      const newFileId = { bucket: location.bucket, prefix: location.prefix }
+      await showFileListBrowser(currentPlugin, newFileId)
     }
+  }
 
-    // For local file plugin, show filename
-    if (sourcePlugin?.metadata.id === 'local' && sourceFileId.fileName) {
-      return sourceFileId.fileName
-    }
+  // Handle browse folders button click (for GDrive)
+  const handleBrowseFolders = () => {
+    setShowFolderBrowser(true)
+  }
 
-    // For other plugins or no specific location info
-    return undefined
+  // Handle folder selection from GDrive folder browser
+  const handleFolderSelected = async (folderId: string, folderName: string) => {
+    if (!currentPlugin) return
+
+    setShowFolderBrowser(false)
+    const newFileId = { folderId, folderName }
+    await showFileListBrowser(currentPlugin, newFileId)
   }
 
   return {
@@ -522,6 +620,10 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
     showLocationPrompt,
     showFilePicker,
     fileList,
+    fileListLoading,
+    fileListError,
+    filePickerLocation,
+    showFolderBrowser,
     fileLoader,
     translationData,
 
@@ -534,7 +636,10 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
     handleFileSelect,
     performSave,
     showFileListBrowser,
-    getSourceLocation,
+    getSourceDisplayInfo,
+    handleFilePickerLocationChange,
+    handleBrowseFolders,
+    handleFolderSelected,
 
     // Setters
     setCurrentPlugin,
@@ -542,7 +647,13 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
     setSourceFileId,
     setShowLocationPrompt,
     setShowFilePicker,
+    setShowFolderBrowser,
     handleLocationPromptCancel: () => setShowLocationPrompt(null),
     handleFilePickerClose: () => setShowFilePicker(false),
+    handleFileListRetry: () => {
+      if (currentPlugin && sourceFileId) {
+        showFileListBrowser(currentPlugin, sourceFileId)
+      }
+    },
   }
 }
