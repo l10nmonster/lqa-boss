@@ -209,11 +209,14 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
       }
     }
 
+    // Focus the new active segment only when activeSegmentIndex actually changes
+    const indexChanged = prevActiveSegmentIndexRef.current !== activeSegmentIndex
+
     // Update ref for next focus change
     prevActiveSegmentIndexRef.current = activeSegmentIndex
 
-    // Focus the new active segment
-    if (activeSegmentIndex >= 0) {
+    // Only focus if the index actually changed (not just data updates)
+    if (indexChanged && activeSegmentIndex >= 0) {
       const translationUnitsToShow = page
         ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
         : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
@@ -877,8 +880,8 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
                             delete newQa.notes
                           }
 
-                          // Only keep qa if at least sev or cat is set
-                          handleQAChange(tu.guid, (newQa.sev || newQa.cat) ? newQa : undefined)
+                          // Only keep qa if at least sev, cat, or notes is set
+                          handleQAChange(tu.guid, (newQa.sev || newQa.cat || newQa.notes) ? newQa : undefined)
                         }}
                         placeholder="Notes (optional)"
                         fontSize="xs"
