@@ -15,7 +15,7 @@ import { usePluginSettings } from '../hooks/usePluginSettings'
 import { pluginRegistry } from '../plugins/PluginRegistry'
 import { IPersistencePlugin, FileIdentifier } from '../plugins/types'
 import { useNavigate } from 'react-router-dom'
-import { calculateTER, calculateEPT, calculateQASummary, calculateTERStatistics } from '../utils/metrics'
+import { calculateTER, calculateEPT, calculateQASummary, calculateTERStatistics, calculateSegmentWordCounts } from '../utils/metrics'
 import { SettingsModal } from '../components/SettingsModal'
 
 // Track processed URLs during this session (not persisted)
@@ -107,6 +107,10 @@ export const EditorPage: React.FC = () => {
   const terStats = useMemo(() => {
     return calculateTERStatistics(fileOps.translationData.jobData, fileOps.translationData.originalJobData)
   }, [fileOps.translationData.jobData, fileOps.translationData.originalJobData])
+
+  const segmentWordCounts = useMemo(() => {
+    return calculateSegmentWordCounts(fileOps.translationData.jobData)
+  }, [fileOps.translationData.jobData])
 
   // Calculate review completion statistics
   const reviewStats = useMemo(() => {
@@ -337,6 +341,7 @@ export const EditorPage: React.FC = () => {
         terStats={terStats}
         ter={ter}
         ept={ept}
+        segmentWordCounts={segmentWordCounts}
       />
 
       <SettingsModal

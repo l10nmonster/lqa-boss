@@ -190,6 +190,42 @@ export interface QASummary {
   unassessedCategory: number
 }
 
+export interface SegmentWordCounts {
+  totalSegments: number
+  totalWords: number
+  reviewedSegments: number
+  reviewedWords: number
+}
+
+/**
+ * Calculates total and reviewed segment/word counts
+ */
+export function calculateSegmentWordCounts(
+  jobData: JobData | null
+): SegmentWordCounts {
+  if (!jobData) {
+    return { totalSegments: 0, totalWords: 0, reviewedSegments: 0, reviewedWords: 0 }
+  }
+
+  let totalSegments = 0
+  let totalWords = 0
+  let reviewedSegments = 0
+  let reviewedWords = 0
+
+  for (const tu of jobData.tus) {
+    totalSegments++
+    const words = getWords(tu.ntgt)
+    totalWords += words.length
+
+    if (tu.ts) {
+      reviewedSegments++
+      reviewedWords += words.length
+    }
+  }
+
+  return { totalSegments, totalWords, reviewedSegments, reviewedWords }
+}
+
 /**
  * Calculates QA error breakdown by severity and category
  */

@@ -11,7 +11,7 @@ import InfoModal from './InfoModal'
 import { TranslationFilterControls } from './TranslationFilterControls'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
-import { calculateTER } from '../utils/metrics'
+import { calculateTER, calculateSegmentWordCounts } from '../utils/metrics'
 
 interface TranslationEditorProps {
   flowData: FlowData | null
@@ -116,6 +116,11 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   const ter = useMemo(() => {
     return calculateTER(jobData, originalJobData)
   }, [jobData, originalJobData])
+
+  // Calculate segment and word counts
+  const segmentWordCounts = useMemo(() => {
+    return calculateSegmentWordCounts(jobData)
+  }, [jobData])
 
   const navigatePage = (direction: number) => {
     if (!flowData) return
@@ -380,6 +385,9 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
           } : undefined}
           ter={ter}
           ept={ept}
+          segmentWordCounts={segmentWordCounts}
+          qualityModelName={qualityModel?.name}
+          qualityModelVersion={qualityModel?.version}
         />
       )}
     </>

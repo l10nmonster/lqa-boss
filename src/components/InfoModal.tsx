@@ -69,6 +69,14 @@ interface InfoModalProps {
   }
   ter?: number | null
   ept?: number | null
+  segmentWordCounts?: {
+    totalSegments: number
+    totalWords: number
+    reviewedSegments: number
+    reviewedWords: number
+  }
+  qualityModelName?: string
+  qualityModelVersion?: string
 }
 
 const InfoModal: React.FC<InfoModalProps> = ({
@@ -83,6 +91,9 @@ const InfoModal: React.FC<InfoModalProps> = ({
   sourceInfo,
   ter,
   ept,
+  segmentWordCounts,
+  qualityModelName,
+  qualityModelVersion,
 }) => {
   if (!isOpen) return null
 
@@ -187,6 +198,36 @@ const InfoModal: React.FC<InfoModalProps> = ({
             </Box>
           )}
 
+          {/* Segment & Word Counts */}
+          {segmentWordCounts && (
+            <Box mb={4}>
+              <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={2}>
+                Progress
+              </Text>
+              <Box
+                bg="gray.50"
+                p={3}
+                borderRadius="md"
+                border="1px solid"
+                borderColor="gray.200"
+              >
+                <Text fontSize="sm" color="gray.700" mb={1}>
+                  Segments: <Text as="span" fontWeight="bold" color="blue.600">{segmentWordCounts.reviewedSegments}</Text> / {segmentWordCounts.totalSegments} reviewed ({segmentWordCounts.totalSegments > 0 ? ((segmentWordCounts.reviewedSegments / segmentWordCounts.totalSegments) * 100).toFixed(0) : 0}%)
+                </Text>
+                <Text fontSize="sm" color="gray.700" mb={1}>
+                  Words: <Text as="span" fontWeight="bold" color="blue.600">{segmentWordCounts.reviewedWords}</Text> / {segmentWordCounts.totalWords} reviewed ({segmentWordCounts.totalWords > 0 ? ((segmentWordCounts.reviewedWords / segmentWordCounts.totalWords) * 100).toFixed(0) : 0}%)
+                </Text>
+                {((ter !== null && ter !== undefined) || (ept !== null && ept !== undefined)) && (
+                  <Text fontSize="sm" color="gray.700">
+                    {ter !== null && ter !== undefined && <>TER: <Text as="span" fontWeight="bold" color="blue.600">{(ter * 100).toFixed(0)}%</Text></>}
+                    {ter !== null && ter !== undefined && ept !== null && ept !== undefined && ' • '}
+                    {ept !== null && ept !== undefined && <>EPT: <Text as="span" fontWeight="bold" color="blue.600">{ept.toFixed(1)}</Text></>}
+                  </Text>
+                )}
+              </Box>
+            </Box>
+          )}
+
           {/* Job GUID */}
           {jobGuid && (
             <Box mb={4}>
@@ -200,15 +241,22 @@ const InfoModal: React.FC<InfoModalProps> = ({
           )}
 
           {/* Source Information */}
-          {sourceInfo && (
+          {(sourceInfo || qualityModelName) && (
             <Box mb={4}>
               <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={1}>
                 Loaded From
               </Text>
-              <Text fontSize="sm" color="gray.700">
-                {sourceInfo.pluginName}
-                {sourceInfo.location && ` (${sourceInfo.location})`}
-              </Text>
+              {sourceInfo && (
+                <Text fontSize="sm" color="gray.700">
+                  {sourceInfo.pluginName}
+                  {sourceInfo.location && ` (${sourceInfo.location})`}
+                </Text>
+              )}
+              {qualityModelName && (
+                <Text fontSize="sm" color="gray.700">
+                  Quality Model: {qualityModelName}{qualityModelVersion ? ` v${qualityModelVersion}` : ''}
+                </Text>
+              )}
             </Box>
           )}
 
@@ -230,32 +278,6 @@ const InfoModal: React.FC<InfoModalProps> = ({
             </Box>
           )}
 
-          {/* Quality Metrics */}
-          {(ter !== null && ter !== undefined) || (ept !== null && ept !== undefined) ? (
-            <Box mb={4}>
-              <Text fontSize="sm" fontWeight="semibold" color="gray.600" mb={2}>
-                Quality Metrics
-              </Text>
-              <Box
-                bg="gray.50"
-                p={3}
-                borderRadius="md"
-                border="1px solid"
-                borderColor="gray.200"
-              >
-                {ter !== null && ter !== undefined && (
-                  <Text fontSize="sm" color="gray.700" mb={1}>
-                    TER: {(ter * 100).toFixed(0)}%
-                  </Text>
-                )}
-                {ept !== null && ept !== undefined && (
-                  <Text fontSize="sm" color="gray.700">
-                    EPT: {ept.toFixed(1)}
-                  </Text>
-                )}
-              </Box>
-            </Box>
-          ) : null}
         </Box>
       </Box>
     </Portal>

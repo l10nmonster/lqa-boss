@@ -18,6 +18,12 @@ interface QASummaryModalProps {
   terStats: TERStatistics | null
   ter: number | null
   ept: number | null
+  segmentWordCounts?: {
+    totalSegments: number
+    totalWords: number
+    reviewedSegments: number
+    reviewedWords: number
+  }
 }
 
 const QASummaryModal: React.FC<QASummaryModalProps> = ({
@@ -28,6 +34,7 @@ const QASummaryModal: React.FC<QASummaryModalProps> = ({
   terStats,
   ter,
   ept,
+  segmentWordCounts,
 }) => {
   if (!isOpen) return null
 
@@ -79,7 +86,7 @@ const QASummaryModal: React.FC<QASummaryModalProps> = ({
             fontWeight="bold"
             color="gray.700"
           >
-            📊 Quality Summary
+            📊 Quality Summary{qualityModel ? ` (${qualityModel.name}${qualityModel.version ? ` v${qualityModel.version}` : ''})` : ''}
           </Text>
           <Button
             variant="ghost"
@@ -95,6 +102,29 @@ const QASummaryModal: React.FC<QASummaryModalProps> = ({
 
         {/* Body */}
         <Box p={6} overflow="auto" maxH="60vh">
+          {/* Segment & Word Counts */}
+          {segmentWordCounts && (
+            <Box mb={4}>
+              <Text fontSize="lg" fontWeight="semibold" color="gray.700" mb={3}>
+                Review Progress
+              </Text>
+              <Box
+                bg="gray.50"
+                p={3}
+                borderRadius="md"
+                border="1px solid"
+                borderColor="gray.200"
+              >
+                <Text fontSize="sm" color="gray.700" mb={1}>
+                  Segments: <Text as="span" fontWeight="bold" color="blue.600">{segmentWordCounts.reviewedSegments}</Text> / {segmentWordCounts.totalSegments} reviewed ({segmentWordCounts.totalSegments > 0 ? ((segmentWordCounts.reviewedSegments / segmentWordCounts.totalSegments) * 100).toFixed(0) : 0}%)
+                </Text>
+                <Text fontSize="sm" color="gray.700">
+                  Words: <Text as="span" fontWeight="bold" color="blue.600">{segmentWordCounts.reviewedWords}</Text> / {segmentWordCounts.totalWords} reviewed ({segmentWordCounts.totalWords > 0 ? ((segmentWordCounts.reviewedWords / segmentWordCounts.totalWords) * 100).toFixed(0) : 0}%)
+                </Text>
+              </Box>
+            </Box>
+          )}
+
           {/* QA Errors Summary */}
           {qualityModel && (
             <>
