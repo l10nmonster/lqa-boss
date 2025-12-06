@@ -8,11 +8,13 @@ import { GDriveLocationPrompt } from '../components/prompts/GDriveLocationPrompt
 import FilePicker from '../components/FilePicker'
 import { ModelEditor } from '../components/ModelEditor'
 import QASummaryModal from '../components/QASummaryModal'
+import { PreferencesModal } from '../components/PreferencesModal'
 
 import { usePluginAuth } from '../hooks/usePluginAuth'
 import { useQualityModel } from '../hooks/useQualityModel'
 import { useFileOperations } from '../hooks/useFileOperations'
 import { usePluginSettings } from '../hooks/usePluginSettings'
+import { usePluginPreferences } from '../hooks/usePluginPreferences'
 import { pluginRegistry } from '../plugins/PluginRegistry'
 import { IPersistencePlugin, FileIdentifier } from '../plugins/types'
 import { useNavigate } from 'react-router-dom'
@@ -27,11 +29,18 @@ export const EditorPage: React.FC = () => {
   const navigate = useNavigate()
 
   // Get all available plugins
-  const plugins = pluginRegistry.getAllPlugins()
+  const allPlugins = pluginRegistry.getAllPlugins()
+
+  // Initialize plugin preferences hook (for enabling/disabling plugins)
+  const pluginPrefs = usePluginPreferences(allPlugins)
+
+  // Use only enabled plugins for the UI
+  const plugins = pluginPrefs.enabledPlugins
 
   // Initialize plugin settings hook
   const pluginSettings = usePluginSettings(plugins)
   const [showSettingsForPlugin, setShowSettingsForPlugin] = useState<string | null>(null)
+  const [showPreferences, setShowPreferences] = useState(false)
   const [refreshExtensionAvailability, setRefreshExtensionAvailability] = useState(0)
   const [refreshAuthState, setRefreshAuthState] = useState(0)
 
@@ -259,6 +268,7 @@ export const EditorPage: React.FC = () => {
     onUnloadModel: qualityModelHook.handleUnloadModel,
     onShowSummary: qualityModelHook.handleShowSummary,
     onShowPluginSettings: handleShowPluginSettings,
+    onShowPreferences: () => setShowPreferences(true),
     refreshExtensionAvailability,
     refreshAuthState,
   }), [
@@ -396,6 +406,13 @@ export const EditorPage: React.FC = () => {
         currentSettings={pluginSettings.settings}
         onSave={pluginSettings.setPluginSettings}
         onAfterSave={handleSettingsSaved}
+      />
+
+      <PreferencesModal
+        isOpen={showPreferences}
+        onClose={() => setShowPreferences(false)}
+        pluginsWithState={pluginPrefs.pluginsWithState}
+        onTogglePlugin={pluginPrefs.togglePlugin}
       />
 
       <EditorLayout header={header}>

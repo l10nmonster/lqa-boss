@@ -23,6 +23,7 @@ interface UnifiedHeaderProps {
   onUnloadModel?: () => void
   onShowSummary?: () => void
   onShowPluginSettings?: (pluginId: string) => void
+  onShowPreferences?: () => void
   refreshExtensionAvailability?: number
   refreshAuthState?: number
 }
@@ -44,6 +45,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   onUnloadModel,
   onShowSummary,
   onShowPluginSettings,
+  onShowPreferences,
   refreshExtensionAvailability,
   refreshAuthState,
 }) => {
@@ -136,7 +138,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                         <FiSave /> Save
                       </Menu.Item>
                     </Menu.ItemGroup>
-                    <Separator />
+                    {(gcsPlugin || gdrivePlugin || extensionPlugin) && <Separator />}
                   </>
                 )}
 
@@ -167,7 +169,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                         </Menu.Item>
                       )}
                     </Menu.ItemGroup>
-                    <Separator />
+                    {(gdrivePlugin || extensionPlugin) && <Separator />}
                   </>
                 )}
 
@@ -198,7 +200,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                         </Menu.Item>
                       )}
                     </Menu.ItemGroup>
-                    <Separator />
+                    {extensionPlugin && <Separator />}
                   </>
                 )}
 
@@ -296,31 +298,40 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         </Menu.Root>
 
         {/* Settings Menu */}
-        {onShowPluginSettings && pluginsWithSettings.length > 0 && (
-          <Menu.Root>
-            <Menu.Trigger asChild>
-              <Button variant="ghost" size="sm">
-                Settings
-                <FiChevronDown />
-              </Button>
-            </Menu.Trigger>
-            <Portal>
-              <Menu.Positioner>
-                <Menu.Content>
-                  {pluginsWithSettings.map(plugin => (
+        <Menu.Root>
+          <Menu.Trigger asChild>
+            <Button variant="ghost" size="sm">
+              Settings
+              <FiChevronDown />
+            </Button>
+          </Menu.Trigger>
+          <Portal>
+            <Menu.Positioner>
+              <Menu.Content>
+                {onShowPreferences && (
+                  <>
                     <Menu.Item
-                      key={plugin.metadata.id}
-                      value={`settings-${plugin.metadata.id}`}
-                      onClick={() => onShowPluginSettings(plugin.metadata.id)}
+                      value="preferences"
+                      onClick={onShowPreferences}
                     >
-                      <FiSettings /> {plugin.metadata.name}…
+                      <FiSettings /> Preferences…
                     </Menu.Item>
-                  ))}
-                </Menu.Content>
-              </Menu.Positioner>
-            </Portal>
-          </Menu.Root>
-        )}
+                    {pluginsWithSettings.length > 0 && <Separator />}
+                  </>
+                )}
+                {onShowPluginSettings && pluginsWithSettings.map(plugin => (
+                  <Menu.Item
+                    key={plugin.metadata.id}
+                    value={`settings-${plugin.metadata.id}`}
+                    onClick={() => onShowPluginSettings(plugin.metadata.id)}
+                  >
+                    <FiSettings /> {plugin.metadata.name}…
+                  </Menu.Item>
+                ))}
+              </Menu.Content>
+            </Menu.Positioner>
+          </Portal>
+        </Menu.Root>
       </HStack>
 
       <HStack gap={2}>

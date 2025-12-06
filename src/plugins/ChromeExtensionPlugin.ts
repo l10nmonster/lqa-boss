@@ -25,7 +25,7 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
   readonly metadata: PluginMetadata = {
     id: 'extension',
     name: 'Chrome Extension',
-    description: 'Receive files from Chrome extension',
+    description: 'Receive jobs from LQA Boss Capture',
     icon: 'extension',
     version: '1.0.0'
   }
