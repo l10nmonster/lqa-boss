@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Box, Image, IconButton, Text, Stack } from '@chakra-ui/react'
+import { Box, Image, IconButton, Text, Stack, Tooltip, Portal } from '@chakra-ui/react'
 import { FiChevronLeft, FiChevronRight, FiCheckCircle } from 'react-icons/fi'
 import JSZip from 'jszip'
 import { Page } from '../types'
@@ -131,17 +131,28 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
         >
           <FiChevronRight />
         </IconButton>
-        <IconButton
-          aria-label="Mark all visible segments as reviewed"
-          size="sm"
-          variant="solid"
-          onClick={onMarkAllVisibleAsReviewed}
-          colorScheme="blue"
-          ml={2}
-          borderRadius="full"
-        >
-          <FiCheckCircle />
-        </IconButton>
+        <Tooltip.Root openDelay={300} closeDelay={0}>
+          <Tooltip.Trigger asChild>
+            <IconButton
+              aria-label="Mark all visible segments as reviewed"
+              size="sm"
+              variant="solid"
+              onClick={onMarkAllVisibleAsReviewed}
+              colorScheme="blue"
+              ml={2}
+              borderRadius="full"
+            >
+              <FiCheckCircle />
+            </IconButton>
+          </Tooltip.Trigger>
+          <Portal>
+            <Tooltip.Positioner>
+              <Tooltip.Content>
+                <Text fontSize="xs">Mark all as reviewed</Text>
+              </Tooltip.Content>
+            </Tooltip.Positioner>
+          </Portal>
+        </Tooltip.Root>
       </Stack>
 
       {/* Image Container */}
