@@ -170,11 +170,27 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
 
   useEffect(() => {
-    // Scroll active segment into view with centering
-    if (activeSegmentIndex >= 0 && editorRefs.current[activeSegmentIndex]) {
-      editorRefs.current[activeSegmentIndex].scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
+    // Scroll active segment into view with centering - only within this container
+    if (activeSegmentIndex >= 0 && editorRefs.current[activeSegmentIndex] && scrollContainerRef.current) {
+      const container = scrollContainerRef.current
+      const element = editorRefs.current[activeSegmentIndex]
+
+      // Calculate the scroll position to center the element within the container
+      const containerRect = container.getBoundingClientRect()
+      const elementRect = element.getBoundingClientRect()
+
+      // Calculate the element's position relative to the container's scroll area
+      const elementTop = element.offsetTop
+      const elementHeight = elementRect.height
+      const containerHeight = containerRect.height
+
+      // Target scroll position to center the element
+      const targetScrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2)
+
+      // Smooth scroll only within this container (doesn't affect parent containers)
+      container.scrollTo({
+        top: Math.max(0, targetScrollTop),
+        behavior: 'smooth'
       })
     }
   }, [activeSegmentIndex])
