@@ -112,7 +112,7 @@ export const useTranslationData = () => {
         if (!isEqual(savedTu.ntgt, tu.ntgt)) {
           editedCount++
         }
-        return { ...tu, ntgt: savedTu.ntgt }
+        return { ...tu, ntgt: savedTu.ntgt, qa: savedTu.qa, ts: savedTu.ts }
       }
       return tu
     })
