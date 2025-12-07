@@ -1,3 +1,10 @@
+## [2.3.1](https://github.com/l10nmonster/lqa-boss/compare/v2.3.0...v2.3.1) (2025-12-06)
+
+
+### Bug Fixes
+
+* Bump dependencies ([d36d633](https://github.com/l10nmonster/lqa-boss/commit/d36d633ceacc92846c19e69566ad8e312e0a9196))
+
 # [2.3.0](https://github.com/l10nmonster/lqa-boss/compare/v2.2.6...v2.3.0) (2025-12-06)
 
 
