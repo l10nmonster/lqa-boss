@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, forwardRef, useMemo, useRef } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef, useMemo, useRef, useCallback } from 'react'
 import { Box, Heading, Text, HStack } from '@chakra-ui/react'
 import JSZip from 'jszip'
 import { FlowData, JobData, TranslationUnit } from '../types'
@@ -11,6 +11,7 @@ import InfoModal from './InfoModal'
 import { TranslationFilterControls } from './TranslationFilterControls'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
 import { normalizedToString } from '../utils/normalizedText'
+import { normalizedArraysEqual } from '../utils/normalizedComparison'
 import { calculateTER, calculateSegmentWordCounts } from '../utils/metrics'
 
 interface SourceDisplayInfo {
@@ -54,7 +55,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   onReviewToggle,
 }, ref) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
-  const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1)
+  const [activeSegmentGuid, setActiveSegmentGuid] = useState<string | null>(null)
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
   const [showOnlyNonReviewed, setShowOnlyNonReviewed] = useState(false)
   const [filterText, setFilterText] = useState('')
@@ -73,14 +74,14 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     guid: true,
   })
   
-  // Wrapper for setActiveSegmentIndex that tracks user deselection
-  const handleSetActiveSegmentIndex = (index: number) => {
-    if (index === -1 && activeSegmentIndex !== -1) {
+  // Wrapper for setActiveSegmentGuid that tracks user deselection
+  const handleSetActiveSegmentGuid = (guid: string | null) => {
+    if (guid === null && activeSegmentGuid !== null) {
       userDeselected.current = true
-    } else if (index !== -1) {
+    } else if (guid !== null) {
       userDeselected.current = false
     }
-    setActiveSegmentIndex(index)
+    setActiveSegmentGuid(guid)
   }
   
   // Show instructions modal only when a new file is loaded with language info
@@ -133,7 +134,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     if (newIndex >= 0 && newIndex < flowData.pages.length) {
       setCurrentPageIndex(newIndex)
       userDeselected.current = false // Reset on page navigation
-      setActiveSegmentIndex(-1)
+      setActiveSegmentGuid(null)
     }
   }
   
@@ -201,19 +202,10 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
 
   // Handle marking current segment as reviewed before navigation
   const handleBeforeNavigate = () => {
-    if (!jobData || activeSegmentIndex < 0) return
+    if (!jobData || !activeSegmentGuid) return
 
-    // Get the current segment's GUID
-    let currentGuid: string | undefined
-    if (flowData && currentPage) {
-      currentGuid = currentPage.segments?.[activeSegmentIndex]?.g
-    } else if (filteredJobData) {
-      currentGuid = filteredJobData.tus[activeSegmentIndex]?.guid
-    }
-
-    if (currentGuid) {
-      onReviewToggle(currentGuid, true)
-    }
+    // Mark the current segment as reviewed
+    onReviewToggle(activeSegmentGuid, true)
   }
 
   // Mark all visible segments on current page as reviewed
@@ -231,41 +223,93 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     })
   }
 
+  // Compute the ordered list of guids for navigation (matches TextSegmentEditor logic)
+  const segmentGuids = useMemo(() => {
+    if (!filteredJobData) return []
+    if (currentPage) {
+      // Get set of guids that appear on this page
+      const pageGuids = new Set(currentPage.segments?.map(s => s.g) || [])
+      // Filter to TUs that appear on this page, preserving job file order
+      return filteredJobData.tus
+        .filter(tu => pageGuids.has(tu.guid))
+        .map(tu => tu.guid)
+    }
+    return filteredJobData.tus.map(tu => tu.guid)
+  }, [currentPage, filteredJobData])
+
+  // Create lookup maps for segment color calculation
+  const tusByGuid = useMemo(() =>
+    new Map(jobData?.tus.map(tu => [tu.guid, tu]) || []),
+    [jobData?.tus]
+  )
+  const originalTusByGuid = useMemo(() =>
+    new Map(originalJobData?.tus.map(tu => [tu.guid, tu]) || []),
+    [originalJobData?.tus]
+  )
+  const savedTusByGuid = useMemo(() =>
+    new Map(savedJobData?.tus.map(tu => [tu.guid, tu]) || []),
+    [savedJobData?.tus]
+  )
+
+  // Get segment color based on review status (matches TextSegmentEditor logic)
+  const getSegmentColor = useCallback((guid: string): string => {
+    const tu = tusByGuid.get(guid)
+    const originalTu = originalTusByGuid.get(guid)
+    const savedTu = savedTusByGuid.get(guid)
+
+    if (!tu || !originalTu || !savedTu) return '#3B82F6' // blue.500
+
+    // Blue: Unreviewed segments
+    if (!tu.ts) {
+      return '#3B82F6' // blue.500
+    }
+
+    // Reviewed segments - color based on state
+    const isOriginal = normalizedArraysEqual(tu.ntgt || [], originalTu.ntgt || [])
+    if (isOriginal) {
+      return '#86EFAC' // green.300 - Reviewed, unchanged from original
+    }
+
+    const isSaved = normalizedArraysEqual(tu.ntgt || [], savedTu.ntgt || [])
+    if (isSaved) {
+      return '#FACC15' // yellow.400 - Reviewed, changed and saved
+    }
+
+    return '#EF4444' // red.500 - Reviewed, changed but not saved
+  }, [tusByGuid, originalTusByGuid, savedTusByGuid])
+
   // Setup keyboard navigation
   useKeyboardNavigation({
     currentPageIndex,
     totalPages: flowData?.pages.length || 0,
-    activeSegmentIndex,
-    totalSegments: flowData ? (currentPage?.segments.length || 0) : (filteredJobData?.tus.length || 0),
+    activeSegmentGuid,
+    segmentGuids,
     navigatePage,
-    setActiveSegmentIndex: handleSetActiveSegmentIndex,
+    setActiveSegmentGuid: handleSetActiveSegmentGuid,
     onBeforeNavigate: handleBeforeNavigate,
   })
-  
+
   // When navigating to a new page or when jobData loads without flowData, focus on the first segment
   // But don't auto-select when user has explicitly deselected or when only the filter changes
   useEffect(() => {
-    const hasSegments = flowData ? (currentPage?.segments.length || 0) > 0 : (jobData?.tus.length || 0) > 0
-    if (hasSegments && activeSegmentIndex === -1 && !userDeselected.current) {
-      setActiveSegmentIndex(0)
+    const hasSegments = segmentGuids.length > 0
+    if (hasSegments && activeSegmentGuid === null && !userDeselected.current) {
+      setActiveSegmentGuid(segmentGuids[0])
     }
-  }, [currentPageIndex, flowData, jobData, currentPage, activeSegmentIndex])
-  
+  }, [currentPageIndex, flowData, segmentGuids, activeSegmentGuid])
+
   // Handle case where active segment gets filtered out - deselect instead of auto-selecting
   useEffect(() => {
-    if (activeSegmentIndex !== -1 && filteredJobData) {
-      const filteredCount = filteredJobData.tus.length
-      if (filteredCount === 0 || activeSegmentIndex >= filteredCount) {
-        handleSetActiveSegmentIndex(-1)
-      }
+    if (activeSegmentGuid !== null && !segmentGuids.includes(activeSegmentGuid)) {
+      handleSetActiveSegmentGuid(null)
     }
-  }, [filteredJobData, activeSegmentIndex])
-  
+  }, [segmentGuids, activeSegmentGuid])
+
   // Reset page index when new flow data is loaded
   useEffect(() => {
     setCurrentPageIndex(0)
     userDeselected.current = false // Reset on new data
-    setActiveSegmentIndex(-1)
+    setActiveSegmentGuid(null)
   }, [flowData])
   
   if (!jobData || !originalJobData || !savedJobData) {
@@ -295,12 +339,13 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               <ScreenshotViewer
                 page={currentPage}
                 zipFile={zipFile}
-                activeSegmentIndex={activeSegmentIndex}
-                onSegmentClick={setActiveSegmentIndex}
+                activeSegmentGuid={activeSegmentGuid}
+                onSegmentClick={handleSetActiveSegmentGuid}
                 currentPageIndex={currentPageIndex}
                 totalPages={flowData.pages.length}
                 onNavigatePage={navigatePage}
                 onMarkAllVisibleAsReviewed={handleMarkAllVisibleAsReviewed}
+                getSegmentColor={getSegmentColor}
               />
             ) : (
               <Text color="gray.600" textAlign="center" py={20}>
@@ -322,7 +367,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
                 onFilterTextChange={setFilterText}
                 searchableFields={searchableFields}
                 onSearchableFieldsChange={setSearchableFields}
-                onFilterFocus={() => handleSetActiveSegmentIndex(-1)}
+                onFilterFocus={() => handleSetActiveSegmentGuid(null)}
               />
             </HStack>
             <TextSegmentEditor
@@ -332,8 +377,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               savedJobData={savedJobData}
               onTranslationUnitChange={onTranslationUnitChange}
               onCandidateSelect={onCandidateSelect}
-              activeSegmentIndex={activeSegmentIndex}
-              onSegmentFocus={handleSetActiveSegmentIndex}
+              activeSegmentGuid={activeSegmentGuid}
+              onSegmentFocus={handleSetActiveSegmentGuid}
               qualityModel={qualityModel}
               onReviewToggle={onReviewToggle}
             />
@@ -353,7 +398,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               onFilterTextChange={setFilterText}
               searchableFields={searchableFields}
               onSearchableFieldsChange={setSearchableFields}
-              onFilterFocus={() => handleSetActiveSegmentIndex(-1)}
+              onFilterFocus={() => handleSetActiveSegmentGuid(null)}
             />
           </HStack>
           <Box flex="1" minHeight={0}>
@@ -364,8 +409,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               savedJobData={savedJobData}
               onTranslationUnitChange={onTranslationUnitChange}
               onCandidateSelect={onCandidateSelect}
-              activeSegmentIndex={activeSegmentIndex}
-              onSegmentFocus={handleSetActiveSegmentIndex}
+              activeSegmentGuid={activeSegmentGuid}
+              onSegmentFocus={handleSetActiveSegmentGuid}
               qualityModel={qualityModel}
               onReviewToggle={onReviewToggle}
             />

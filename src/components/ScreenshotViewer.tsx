@@ -7,23 +7,25 @@ import { Page } from '../types'
 interface ScreenshotViewerProps {
   page: Page
   zipFile: JSZip
-  activeSegmentIndex: number
-  onSegmentClick: (index: number) => void
+  activeSegmentGuid: string | null
+  onSegmentClick: (guid: string) => void
   currentPageIndex: number
   totalPages: number
   onNavigatePage: (direction: number) => void
   onMarkAllVisibleAsReviewed: () => void
+  getSegmentColor: (guid: string) => string
 }
 
 const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   page,
   zipFile,
-  activeSegmentIndex,
+  activeSegmentGuid,
   onSegmentClick,
   currentPageIndex,
   totalPages,
   onNavigatePage,
   onMarkAllVisibleAsReviewed,
+  getSegmentColor,
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -210,6 +212,9 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
             const position = calculateHighlightPosition(segment)
             if (!position) return null
 
+            const isActive = segment.g === activeSegmentGuid
+            const segmentColor = getSegmentColor(segment.g)
+
             return (
               <Box
                 key={index}
@@ -218,18 +223,18 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
                 top={`${position.top}px`}
                 width={`${position.width}px`}
                 height={`${position.height}px`}
-                border="3px dashed"
-                borderColor={index === activeSegmentIndex ? 'blue.500' : 'orange.500'}
+                border="3px solid"
+                borderColor={segmentColor}
                 borderRadius="md"
                 cursor="pointer"
                 transition="all 0.4s ease-in-out"
                 _hover={{
-                  bg: index === activeSegmentIndex ? 'blue.100' : 'orange.100',
-                  transform: 'scale(1.05)',
+                  transform: 'scale(1.02)',
+                  boxShadow: `0 0 8px ${segmentColor}`,
                 }}
-                bg={index === activeSegmentIndex ? 'blue.100' : 'transparent'}
-                opacity={index === activeSegmentIndex ? 0.4 : 0.6}
-                onClick={() => onSegmentClick(index)}
+                bg={isActive ? `${segmentColor}` : 'transparent'}
+                opacity={isActive ? 0.3 : 0.7}
+                onClick={() => onSegmentClick(segment.g)}
               />
             )
           })}

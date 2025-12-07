@@ -3,20 +3,20 @@ import { useEffect } from 'react'
 interface UseKeyboardNavigationProps {
   currentPageIndex: number
   totalPages: number
-  activeSegmentIndex: number
-  totalSegments: number
+  activeSegmentGuid: string | null
+  segmentGuids: string[]  // Ordered list of guids for navigation
   navigatePage: (direction: number) => void
-  setActiveSegmentIndex: (index: number) => void
+  setActiveSegmentGuid: (guid: string | null) => void
   onBeforeNavigate?: () => void
 }
 
 export const useKeyboardNavigation = ({
   currentPageIndex,
   totalPages,
-  activeSegmentIndex,
-  totalSegments,
+  activeSegmentGuid,
+  segmentGuids,
   navigatePage,
-  setActiveSegmentIndex,
+  setActiveSegmentGuid,
   onBeforeNavigate,
 }: UseKeyboardNavigationProps) => {
   useEffect(() => {
@@ -25,21 +25,25 @@ export const useKeyboardNavigation = ({
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
 
-        if (totalSegments === 0) return
+        if (segmentGuids.length === 0) return
 
         // Call onBeforeNavigate to mark current segment as reviewed
-        if (onBeforeNavigate && activeSegmentIndex >= 0) {
+        if (onBeforeNavigate && activeSegmentGuid) {
           onBeforeNavigate()
         }
 
+        // Find current index in the list
+        const currentIndex = activeSegmentGuid ? segmentGuids.indexOf(activeSegmentGuid) : -1
+
         // Move to next segment or page
-        if (activeSegmentIndex >= totalSegments - 1) {
+        if (currentIndex >= segmentGuids.length - 1) {
           if (currentPageIndex < totalPages - 1) {
             navigatePage(1)
             // Will set to first segment on next page
           }
         } else {
-          setActiveSegmentIndex(activeSegmentIndex === -1 ? 0 : activeSegmentIndex + 1)
+          const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1
+          setActiveSegmentGuid(segmentGuids[nextIndex])
         }
       }
 
@@ -57,9 +61,9 @@ export const useKeyboardNavigation = ({
   }, [
     currentPageIndex,
     totalPages,
-    activeSegmentIndex,
-    totalSegments,
+    activeSegmentGuid,
+    segmentGuids,
     navigatePage,
-    setActiveSegmentIndex,
+    setActiveSegmentGuid,
   ])
 } 

@@ -122,8 +122,8 @@ interface TextSegmentEditorProps {
   savedJobData: JobData
   onTranslationUnitChange: (tu: TranslationUnit) => void
   onCandidateSelect: (guid: string, candidateIndex: number) => void
-  activeSegmentIndex: number
-  onSegmentFocus: (index: number) => void
+  activeSegmentGuid: string | null
+  onSegmentFocus: (guid: string | null) => void
   qualityModel: QualityModel | null
   onReviewToggle: (guid: string, reviewed: boolean) => void
 }
@@ -135,7 +135,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   savedJobData,
   onTranslationUnitChange,
   onCandidateSelect,
-  activeSegmentIndex,
+  activeSegmentGuid,
   onSegmentFocus,
   qualityModel,
   onReviewToggle,
@@ -152,101 +152,103 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   // Handle Esc key to deselect segment
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && activeSegmentIndex !== -1) {
-        onSegmentFocus(-1)
+      if (event.key === 'Escape' && activeSegmentGuid !== null) {
+        onSegmentFocus(null)
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [activeSegmentIndex, onSegmentFocus])
+  }, [activeSegmentGuid, onSegmentFocus])
 
 
-  // Get translation units to display
-  // If we have page data, use segments to determine which TUs to show
-  // If no page data, show all translation units
-  const translationUnitsToShow = page 
-    ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
-    : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
-
-  useEffect(() => {
-    // Scroll active segment into view with centering - only within this container
-    if (activeSegmentIndex >= 0 && editorRefs.current[activeSegmentIndex] && scrollContainerRef.current) {
-      const container = scrollContainerRef.current
-      const element = editorRefs.current[activeSegmentIndex]
-
-      // Calculate the scroll position to center the element within the container
-      const containerRect = container.getBoundingClientRect()
-      const elementRect = element.getBoundingClientRect()
-
-      // Calculate the element's position relative to the container's scroll area
-      const elementTop = element.offsetTop
-      const elementHeight = elementRect.height
-      const containerHeight = containerRect.height
-
-      // Target scroll position to center the element
-      const targetScrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2)
-
-      // Smooth scroll only within this container (doesn't affect parent containers)
-      container.scrollTo({
-        top: Math.max(0, targetScrollTop),
-        behavior: 'smooth'
-      })
+  // Get translation units to display - always in job file order, each TU shown only once
+  // If we have page data, filter to only TUs that appear on the current page
+  const translationUnitsToShow = useMemo(() => {
+    if (page) {
+      // Get set of guids that appear on this page
+      const pageGuids = new Set(page.segments?.map(s => s.g) || [])
+      // Filter jobData.tus to only those with guids on this page, preserving job file order
+      return jobData.tus
+        .filter(tu => pageGuids.has(tu.guid))
+        .map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
     }
-  }, [activeSegmentIndex])
+    return jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
+  }, [page, jobData.tus])
 
-  // Focus the editor when active segment changes
+  // Find the index of the active segment in translationUnitsToShow
+  const activeSegmentIndex = useMemo(() => {
+    if (!activeSegmentGuid) return -1
+    return translationUnitsToShow.findIndex(item => item.tu?.guid === activeSegmentGuid)
+  }, [activeSegmentGuid, translationUnitsToShow])
+
   // Track previous active segment to mark as reviewed when focus changes
-  const prevActiveSegmentIndexRef = useRef<number>(-1)
+  const prevActiveSegmentGuidRef = useRef<string | null>(null)
 
   useEffect(() => {
     // Mark previous segment as reviewed when focus changes
-    const prevIndex = prevActiveSegmentIndexRef.current
-    if (prevIndex >= 0 && prevIndex !== activeSegmentIndex) {
-      const translationUnitsToShow = page
-        ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
-        : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
-
-      const prevItem = translationUnitsToShow[prevIndex]
-      if (prevItem?.tu) {
-        const prevTu = prevItem.tu
-        const originalTu = originalTusByGuid.get(prevTu.guid)
-        if (originalTu) {
-          const isOriginal = normalizedArraysEqual(prevTu.ntgt || [], originalTu.ntgt || [])
-          // Mark as reviewed if content differs from original and not already reviewed
-          if (!isOriginal && !prevTu.ts) {
-            const updatedTu = {
-              ...prevTu,
-              ts: Date.now()
-            }
-            onTranslationUnitChange(updatedTu)
+    const prevGuid = prevActiveSegmentGuidRef.current
+    if (prevGuid && prevGuid !== activeSegmentGuid) {
+      const prevTu = tusByGuid.get(prevGuid)
+      const originalTu = originalTusByGuid.get(prevGuid)
+      if (prevTu && originalTu) {
+        const isOriginal = normalizedArraysEqual(prevTu.ntgt || [], originalTu.ntgt || [])
+        // Mark as reviewed if content differs from original and not already reviewed
+        if (!isOriginal && !prevTu.ts) {
+          const updatedTu = {
+            ...prevTu,
+            ts: Date.now()
           }
+          onTranslationUnitChange(updatedTu)
         }
       }
     }
 
-    // Focus the new active segment only when activeSegmentIndex actually changes
-    const indexChanged = prevActiveSegmentIndexRef.current !== activeSegmentIndex
+    // Focus and scroll the new active segment
+    const guidChanged = prevActiveSegmentGuidRef.current !== activeSegmentGuid
+    prevActiveSegmentGuidRef.current = activeSegmentGuid
 
-    // Update ref for next focus change
-    prevActiveSegmentIndexRef.current = activeSegmentIndex
+    if (guidChanged && activeSegmentGuid && activeSegmentIndex >= 0) {
+      const container = scrollContainerRef.current
+      const element = editorRefs.current[activeSegmentIndex]
 
-    // Only focus if the index actually changed (not just data updates)
-    if (indexChanged && activeSegmentIndex >= 0) {
-      const translationUnitsToShow = page
-        ? page.segments?.map((segment, index) => ({ tu: tusByGuid.get(segment.g), segmentIndex: index, segment })).filter(item => item.tu) || []
-        : jobData.tus.map((tu, index) => ({ tu, segmentIndex: index, segment: null }))
-
-      const activeItem = translationUnitsToShow[activeSegmentIndex]
-      if (activeItem?.tu) {
-        const guid = activeItem.tu.guid
-        // Small delay to ensure the editor is ready after scroll
+      if (container && element) {
+        // Step 1: Focus the editor first (this may trigger browser scroll)
         setTimeout(() => {
-          normalizedEditorRefs.current[guid]?.focus()
-        }, 100)
+          normalizedEditorRefs.current[activeSegmentGuid]?.focus()
+
+          // Step 2: After focus, scroll to ensure full card is visible
+          // This overrides any browser scroll from focus
+          setTimeout(() => {
+            const containerRect = container.getBoundingClientRect()
+            const elementRect = element.getBoundingClientRect()
+
+            const elementTopRelative = elementRect.top - containerRect.top
+            const elementBottomRelative = elementRect.bottom - containerRect.top
+
+            const padding = 24
+
+            const isAboveView = elementTopRelative < padding
+            const isBelowView = elementBottomRelative > containerRect.height - padding
+
+            if (isAboveView) {
+              const scrollDelta = elementTopRelative - padding
+              container.scrollTo({
+                top: container.scrollTop + scrollDelta,
+                behavior: 'smooth'
+              })
+            } else if (isBelowView) {
+              const scrollDelta = elementBottomRelative - (containerRect.height - padding)
+              container.scrollTo({
+                top: container.scrollTop + scrollDelta,
+                behavior: 'smooth'
+              })
+            }
+          }, 50)
+        }, 50)
       }
     }
-  }, [activeSegmentIndex, page, jobData.tus, tusByGuid, originalTusByGuid, onTranslationUnitChange])
+  }, [activeSegmentGuid, activeSegmentIndex, tusByGuid, originalTusByGuid, onTranslationUnitChange])
 
   const handleNormalizedChange = useCallback((guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
@@ -464,7 +466,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         if (!tu) {
           return (
             <Box key={index} p={4} bg="rgba(239, 68, 68, 0.1)" backdropFilter="blur(10px)" borderRadius="lg" border="1px solid" borderColor="rgba(239, 68, 68, 0.3)">
-              <Text color="red.600">Error: No translation unit found for segment with guid: {item.segment?.g}</Text>
+              <Text color="red.600">Error: No translation unit found at index {index}</Text>
             </Box>
           )
         }
@@ -532,7 +534,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
             boxShadow={isActive ? '0 8px 24px 0 rgba(59, 130, 246, 0.3)' : '0 2px 8px 0 rgba(0, 0, 0, 0.2)'}
             transform={isActive ? 'scale(1)' : 'scale(0.99)'}
             transition="transform 0.4s ease-in-out, background-color 0.4s ease-in-out, border-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out, filter 0.4s ease-in-out"
-            onClick={() => onSegmentFocus(index)}
+            onClick={() => onSegmentFocus(tu.guid)}
             cursor="pointer"
             minWidth={0}
             maxW="100%"
