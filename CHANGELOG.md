@@ -1,3 +1,10 @@
+## [2.3.3](https://github.com/l10nmonster/lqa-boss/compare/v2.3.2...v2.3.3) (2025-12-07)
+
+
+### Bug Fixes
+
+* Show segments in job order ([1d37aa7](https://github.com/l10nmonster/lqa-boss/commit/1d37aa76c18e9fb378ce8879798885ccb85dce4a))
+
 ## [2.3.2](https://github.com/l10nmonster/lqa-boss/compare/v2.3.1...v2.3.2) (2025-12-07)
 
 
