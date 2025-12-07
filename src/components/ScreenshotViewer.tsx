@@ -76,12 +76,27 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   const calculateHighlightPosition = (segment: any) => {
     if (!imageLoaded) return null
 
-    // Segments coordinates are in logical pixels, matching our display size
-    return {
-      left: segment.x,
-      top: segment.y,
-      width: segment.width,
-      height: segment.height,
+    // Detect coordinate format: normalized (0-1) vs legacy pixels
+    // If any coordinate > 1, assume legacy pixel format
+    const isNormalized = segment.x <= 1 && segment.y <= 1 &&
+                         segment.width <= 1 && segment.height <= 1
+
+    if (isNormalized) {
+      // New format: multiply by display dimensions
+      return {
+        left: segment.x * displayDimensions.width,
+        top: segment.y * displayDimensions.height,
+        width: segment.width * displayDimensions.width,
+        height: segment.height * displayDimensions.height,
+      }
+    } else {
+      // Legacy format: use coordinates directly
+      return {
+        left: segment.x,
+        top: segment.y,
+        width: segment.width,
+        height: segment.height,
+      }
     }
   }
 
