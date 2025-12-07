@@ -1,3 +1,10 @@
+## [2.3.2](https://github.com/l10nmonster/lqa-boss/compare/v2.3.1...v2.3.2) (2025-12-07)
+
+
+### Bug Fixes
+
+* Support normalized coordinates ([353f44a](https://github.com/l10nmonster/lqa-boss/commit/353f44aa8e45d769b20ff5524e866ee6132c6e1e))
+
 ## [2.3.1](https://github.com/l10nmonster/lqa-boss/compare/v2.3.0...v2.3.1) (2025-12-06)
 
 
