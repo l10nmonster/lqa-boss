@@ -212,6 +212,9 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
             const position = calculateHighlightPosition(segment)
             if (!position) return null
 
+            // Skip invisible segments (width or height is 0)
+            if (position.width === 0 || position.height === 0) return null
+
             const isActive = segment.g === activeSegmentGuid
             const segmentColor = getSegmentColor(segment.g)
 
