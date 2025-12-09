@@ -362,8 +362,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
           </GlassBox>
 
           {/* Editor Section */}
-          <GlassBox p={6} height="100%" overflow="hidden" minWidth={0} maxW="100%">
-            <HStack justify="space-between" align="center" mb={4}>
+          <GlassBox p={6} height="100%" overflow="hidden" minWidth={0} maxW="100%" display="flex" flexDirection="column">
+            <HStack justify="space-between" align="center" mb={4} flexShrink={0}>
               <Heading size="md" color="gray.700">
                 Editable Text Segments
               </Heading>
@@ -377,18 +377,20 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
                 onFilterFocus={() => handleSetActiveSegmentGuid(null)}
               />
             </HStack>
-            <TextSegmentEditor
-              page={currentPage || null}
-              jobData={filteredJobData || jobData}
-              originalJobData={originalJobData}
-              savedJobData={savedJobData}
-              onTranslationUnitChange={onTranslationUnitChange}
-              onCandidateSelect={onCandidateSelect}
-              activeSegmentGuid={activeSegmentGuid}
-              onSegmentFocus={handleSetActiveSegmentGuid}
-              qualityModel={qualityModel}
-              onReviewToggle={onReviewToggle}
-            />
+            <Box flex="1" minHeight={0}>
+              <TextSegmentEditor
+                page={currentPage || null}
+                jobData={filteredJobData || jobData}
+                originalJobData={originalJobData}
+                savedJobData={savedJobData}
+                onTranslationUnitChange={onTranslationUnitChange}
+                onCandidateSelect={onCandidateSelect}
+                activeSegmentGuid={activeSegmentGuid}
+                onSegmentFocus={handleSetActiveSegmentGuid}
+                qualityModel={qualityModel}
+                onReviewToggle={onReviewToggle}
+              />
+            </Box>
           </GlassBox>
         </ResizablePane>
       ) : (
