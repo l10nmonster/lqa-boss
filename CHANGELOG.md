@@ -1,3 +1,12 @@
+## [2.3.5](https://github.com/l10nmonster/lqa-boss/compare/v2.3.4...v2.3.5) (2025-12-09)
+
+
+### Bug Fixes
+
+* Allow to enter folder id in gdrive picker ([2802d34](https://github.com/l10nmonster/lqa-boss/commit/2802d349313ff857547a738fe7742cdddecb88b8))
+* Auth screen blocking UI ([41a44fa](https://github.com/l10nmonster/lqa-boss/commit/41a44fa6005cc09cc3a486f473547622d4f39d72))
+* Improve usability of screenshot viewer ([7684ae4](https://github.com/l10nmonster/lqa-boss/commit/7684ae4949d2f981523cc5ea28583f051f161bc7))
+
 ## [2.3.4](https://github.com/l10nmonster/lqa-boss/compare/v2.3.3...v2.3.4) (2025-12-09)
 
 
