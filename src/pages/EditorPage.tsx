@@ -60,6 +60,13 @@ export const EditorPage: React.FC = () => {
         qualityModelHook.setQualityModel(model)
         console.log('Quality model loaded:', model.name)
       }
+    },
+    onFileLoaded: () => {
+      // Reset auth state when a file is successfully loaded
+      // This ensures we exit auth screens when loading via a different plugin
+      auth.setShowAuthPrompt(false)
+      auth.setCurrentPlugin(null)
+      auth.setPendingFileId(null)
     }
   })
 

@@ -10,6 +10,7 @@ import { PickerFile, LocationInfo } from '../components/FilePicker'
 export interface UseFileOperationsOptions {
   onAuthRequired?: (plugin: IPersistencePlugin, fileId: FileIdentifier) => Promise<boolean>
   onQualityModelLoaded?: (model: QualityModel | null) => void
+  onFileLoaded?: () => void
 }
 
 export function useFileOperations(options?: UseFileOperationsOptions) {
@@ -176,6 +177,9 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
         type: 'success',
         duration: 4000,
       })
+
+      // Notify that file was successfully loaded (used to reset auth state)
+      options?.onFileLoaded?.()
 
       return { fileId, result }
     } catch (error: any) {
