@@ -1,3 +1,15 @@
+## [2.3.4](https://github.com/l10nmonster/lqa-boss/compare/v2.3.3...v2.3.4) (2025-12-09)
+
+
+### Bug Fixes
+
+* Add scroll-into-view for active segments in the screenshot viewer ([bd22dbf](https://github.com/l10nmonster/lqa-boss/commit/bd22dbf4095a77bb294910c07ff1d38f05f83899))
+* Don't highlight invisible segments ([b3d4622](https://github.com/l10nmonster/lqa-boss/commit/b3d46228387c2dbe100ba4de365a1fb7780a822f))
+* Improve layout of collapsed tus ([daf6e90](https://github.com/l10nmonster/lqa-boss/commit/daf6e909ab2859b4e8004c524eb4d39b773bcea7))
+* Improve paginator visibility ([3ffaf59](https://github.com/l10nmonster/lqa-boss/commit/3ffaf59b64d52dd934ab4316a347716e581b2d50))
+* Optimize panel split to screenshot width ([dfaa942](https://github.com/l10nmonster/lqa-boss/commit/dfaa942eb48677bd7a776df7848540d83aeedb51))
+* Save .lqaboss to file system if it was loaded from another plugin ([8d2dc0b](https://github.com/l10nmonster/lqa-boss/commit/8d2dc0bbe4c22dbbbe58ac34ba29d7afccbde35b))
+
 ## [2.3.3](https://github.com/l10nmonster/lqa-boss/compare/v2.3.2...v2.3.3) (2025-12-07)
 
 
