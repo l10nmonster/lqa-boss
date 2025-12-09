@@ -214,6 +214,7 @@ export function useFileOperations(options?: UseFileOperationsOptions) {
         fileName: fileLoader.fileName,
         originalJobData: translationData.originalJobData,
         zipFile: fileLoader.zipFile, // Include original ZIP for plugins that can save both .lqaboss and .json
+        sourcePluginId: sourcePlugin?.metadata.id, // Track where file was originally loaded from
       }
 
       await plugin.saveFile(saveFileId, translationData.jobData)

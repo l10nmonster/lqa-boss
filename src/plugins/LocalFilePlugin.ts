@@ -135,10 +135,11 @@ export class LocalFilePlugin implements IPersistencePlugin {
   /**
    * Save file to local device (download)
    * Downloads changed translations as .json
-   * The .lqaboss file is immutable - only download if it doesn't exist locally
+   * If loaded from local file system, only saves .json
+   * If loaded from another plugin, saves both .lqaboss and .json
    */
   async saveFile(identifier: FileIdentifier, data: JobData): Promise<void> {
-    const { fileName, originalJobData, zipFile } = identifier
+    const { fileName, originalJobData, zipFile, sourcePluginId } = identifier
 
     if (!fileName || !originalJobData) {
       throw new Error('fileName and originalJobData are required for local save')
@@ -147,12 +148,12 @@ export class LocalFilePlugin implements IPersistencePlugin {
     // Save the .json file with changed translations
     saveChangedTus(data, originalJobData, fileName)
 
-    // The .lqaboss file is immutable - if user loaded from a .lqaboss file,
-    // they already have it locally, so don't download again
-    const lqabossExists = fileName.endsWith('.lqaboss')
+    // Only save .lqaboss if file was loaded from a different plugin
+    // (user already has the .lqaboss file if they loaded from local file system)
+    const wasLoadedFromLocalFile = sourcePluginId === 'local'
 
-    if (zipFile && !lqabossExists) {
-      const baseFilename = fileName.replace('.json', '')
+    if (zipFile && !wasLoadedFromLocalFile) {
+      const baseFilename = fileName.replace(/\.(lqaboss|json)$/, '')
       const lqabossFilename = `${baseFilename}.lqaboss`
 
       // Convert JSZip to blob
