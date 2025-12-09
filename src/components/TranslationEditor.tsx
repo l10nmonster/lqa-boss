@@ -10,6 +10,7 @@ import ResizablePane from './ResizablePane'
 import InfoModal from './InfoModal'
 import { TranslationFilterControls } from './TranslationFilterControls'
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation'
+import { useOptimalPaneSplit } from '../hooks/useOptimalPaneSplit'
 import { normalizedToString } from '../utils/normalizedText'
 import { normalizedArraysEqual } from '../utils/normalizedComparison'
 import { calculateTER, calculateSegmentWordCounts } from '../utils/metrics'
@@ -73,6 +74,9 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     sid: true,
     guid: true,
   })
+
+  // Calculate optimal pane split based on screenshot dimensions from flow metadata
+  const { optimalLeftWidth } = useOptimalPaneSplit(flowData)
   
   // Wrapper for setActiveSegmentGuid that tracks user deselection
   const handleSetActiveSegmentGuid = (guid: string | null) => {
@@ -326,7 +330,10 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     <>
       {flowData ? (
         // Two-pane layout when flowData exists
-        <ResizablePane>
+        <ResizablePane
+          key={flowData.pages[0]?.imageFile || 'default'}
+          controlledLeftWidth={optimalLeftWidth}
+        >
           {/* Screenshot Section */}
           <GlassBox 
             p={0} 

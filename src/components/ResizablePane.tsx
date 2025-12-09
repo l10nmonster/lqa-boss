@@ -6,6 +6,8 @@ interface ResizablePaneProps {
   defaultLeftWidth?: number // percentage
   minLeftWidth?: number // percentage
   maxLeftWidth?: number // percentage
+  /** External control of left width - updates state when changed */
+  controlledLeftWidth?: number
 }
 
 const ResizablePane: React.FC<ResizablePaneProps> = ({
@@ -13,8 +15,17 @@ const ResizablePane: React.FC<ResizablePaneProps> = ({
   defaultLeftWidth = 50,
   minLeftWidth = 20,
   maxLeftWidth = 80,
+  controlledLeftWidth,
 }) => {
   const [leftWidth, setLeftWidth] = useState(defaultLeftWidth)
+  const [hasUserResized, setHasUserResized] = useState(false)
+
+  // Update width when controlledLeftWidth changes, but only if user hasn't manually resized
+  useEffect(() => {
+    if (controlledLeftWidth !== undefined && !hasUserResized) {
+      setLeftWidth(controlledLeftWidth)
+    }
+  }, [controlledLeftWidth, hasUserResized])
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -29,6 +40,7 @@ const ResizablePane: React.FC<ResizablePaneProps> = ({
 
       const clampedPercentage = Math.max(minLeftWidth, Math.min(maxLeftWidth, percentage))
       setLeftWidth(clampedPercentage)
+      setHasUserResized(true)
     }
 
     const handleMouseUp = () => {

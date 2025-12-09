@@ -7,10 +7,25 @@ export interface Segment {
   [key: string]: any
 }
 
+export interface CaptureInfo {
+  viewportWidth: number
+  viewportHeight: number
+  documentWidth: number
+  documentHeight: number
+  screenshotScale: number
+  isMobileEmulation: boolean
+  hasHorizontalOverflow: boolean
+  screenshotPixelWidth: number
+  screenshotPixelHeight: number
+}
+
 export interface Page {
   pageId: string
   originalUrl?: string
+  title?: string
+  timestamp?: string
   imageFile: string
+  captureInfo?: CaptureInfo
   segments: Segment[]
 }
 
