@@ -362,8 +362,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
           </GlassBox>
 
           {/* Editor Section */}
-          <GlassBox p={6} height="100%" overflow="hidden" minWidth={0} maxW="100%" display="flex" flexDirection="column">
-            <HStack justify="space-between" align="center" mb={4} flexShrink={0}>
+          <GlassBox p={4} pt={2} height="100%" overflow="hidden" minWidth={0} maxW="100%" display="flex" flexDirection="column">
+            <HStack justify="space-between" align="center" mb={2} flexShrink={0}>
               <Heading size="md" color="gray.700">
                 Editable Text Segments
               </Heading>

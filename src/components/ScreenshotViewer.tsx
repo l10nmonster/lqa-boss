@@ -103,26 +103,27 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   }
 
   return (
-    <Box position="relative" height="100%" display="flex" flexDirection="column" p={6}>
+    <Box position="relative" height="100%" display="flex" flexDirection="column" p={4} pt={2}>
       {/* Navigation Controls */}
       <Stack
         direction="row"
-        position="absolute"
-        top={10}
-        left="50%"
-        transform="translateX(-50%)"
-        zIndex={10}
-        bg="rgba(255, 255, 255, 0.3)"
-        borderRadius="full"
-        px={3}
-        py={1}
-        gap={2}
-        align="center"
-        border="1px solid"
-        borderColor="rgba(255, 255, 255, 0.4)"
-        backdropFilter="blur(20px)"
-        boxShadow="0 4px 16px 0 rgba(59, 130, 246, 0.1)"
+        justifyContent="center"
+        flexShrink={0}
+        mb={2}
       >
+        <Stack
+          direction="row"
+          bg="rgba(255, 255, 255, 0.3)"
+          borderRadius="full"
+          px={3}
+          py={1}
+          gap={2}
+          align="center"
+          border="1px solid"
+          borderColor="rgba(255, 255, 255, 0.4)"
+          backdropFilter="blur(20px)"
+          boxShadow="0 4px 16px 0 rgba(59, 130, 246, 0.1)"
+        >
         <IconButton
           aria-label="Previous page"
           onClick={() => onNavigatePage(-1)}
@@ -170,6 +171,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
             </Tooltip.Positioner>
           </Portal>
         </Tooltip.Root>
+        </Stack>
       </Stack>
 
       {/* Image Container */}
