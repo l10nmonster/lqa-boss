@@ -240,6 +240,54 @@ Ensure your Google account has:
 - `storage.objects.create` (save files)
 - `storage.objects.list` (browse files)
 
+## Google Drive Setup for External Users
+
+If you're accessing LQA Boss files shared by another organization and cannot use their OAuth Client ID, you can create your own.
+
+### Step 1: Create a Google Cloud Project
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Click the project dropdown (top left) → **New Project**
+3. Name it (e.g., "LQA Boss") → **Create**
+
+### Step 2: Enable Google Drive API
+1. Go to **APIs & Services** → **Library**
+2. Search for **"Google Drive API"**
+3. Click it → **Enable**
+
+### Step 3: Configure OAuth Consent Screen
+1. Go to **APIs & Services** → **OAuth consent screen**
+2. Select **External** → **Create**
+3. Fill in required fields:
+   - App name: "LQA Boss"
+   - User support email: your email
+   - Developer contact email: your email
+4. Click **Save and Continue**
+5. On **Scopes** page, click **Add or Remove Scopes**
+   - Add: `https://www.googleapis.com/auth/drive`
+   - Click **Update** → **Save and Continue**
+6. On **Test users** page, add your email → **Save and Continue**
+7. Click **Back to Dashboard**
+
+### Step 4: Create OAuth Client ID
+1. Go to **APIs & Services** → **Credentials**
+2. Click **+ Create Credentials** → **OAuth client ID**
+3. Application type: **Web application**
+4. Name: "LQA Boss Web"
+5. Under **Authorized JavaScript origins**, add:
+   - `https://lqaboss.l10n.monster` (production)
+   - `http://localhost:3000` (local development)
+6. Click **Create**
+7. Copy the **Client ID** (format: `123456789-xxx.apps.googleusercontent.com`)
+
+### Step 5: Use in LQA Boss
+1. Open LQA Boss
+2. Go to **Settings** (gear icon)
+3. Find **Google Drive** section
+4. Paste your Client ID
+5. Authenticate when prompted
+
+> **Note**: With an "External" app in testing mode, only emails listed as test users can authenticate. You don't need Google verification for personal use.
+
 ## License
 
 [Original License]
