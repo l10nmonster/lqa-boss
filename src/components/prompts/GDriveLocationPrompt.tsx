@@ -27,6 +27,7 @@ export const GDriveLocationPrompt: React.FC<GDriveLocationPromptProps> = ({
   const [filename, setFilename] = useState(currentFilename)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [folderIdInput, setFolderIdInput] = useState('')
 
   const gdriveOps = React.useMemo(() => new GDriveOperations(), [])
 
@@ -34,6 +35,9 @@ export const GDriveLocationPrompt: React.FC<GDriveLocationPromptProps> = ({
     setLoading(true)
     setError(null)
     try {
+      // First verify we have access to this folder
+      await gdriveOps.verifyFolderAccess(id, accessToken)
+
       const [foldersList, filesList, path] = await Promise.all([
         gdriveOps.listFolders(id, accessToken),
         gdriveOps.listFiles(id, accessToken),
@@ -102,6 +106,26 @@ export const GDriveLocationPrompt: React.FC<GDriveLocationPromptProps> = ({
 
   const navigateToPathFolder = (folder: GDriveFolder) => {
     setFolderId(folder.id)
+  }
+
+  const handleFolderIdSubmit = () => {
+    const trimmedId = folderIdInput.trim()
+    if (trimmedId) {
+      // Extract folder ID from a Google Drive URL if pasted
+      let extractedId = trimmedId
+      // Handle URLs like https://drive.google.com/drive/folders/FOLDER_ID
+      const folderMatch = trimmedId.match(/\/folders\/([a-zA-Z0-9_-]+)/)
+      if (folderMatch) {
+        extractedId = folderMatch[1]
+      }
+      // Handle URLs like https://drive.google.com/drive/u/0/folders/FOLDER_ID
+      const folderMatch2 = trimmedId.match(/folders\/([a-zA-Z0-9_-]+)/)
+      if (folderMatch2) {
+        extractedId = folderMatch2[1]
+      }
+      setFolderId(extractedId)
+      setFolderIdInput('')
+    }
   }
 
   const isValid = operation === 'load' || filename.trim()
@@ -221,6 +245,46 @@ export const GDriveLocationPrompt: React.FC<GDriveLocationPromptProps> = ({
                   </React.Fragment>
                 ))}
               </HStack>
+              <HStack mt={2} gap={2}>
+                <input
+                  type="text"
+                  value={folderIdInput}
+                  onChange={(e) => setFolderIdInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleFolderIdSubmit()
+                    }
+                  }}
+                  placeholder="Paste folder ID or Google Drive URL"
+                  style={{
+                    ...inputStyle,
+                    flex: 1,
+                    height: '32px',
+                    fontSize: '14px',
+                  }}
+                  onFocus={(e) => {
+                    Object.assign(e.target.style, inputFocusStyle)
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#E2E8F0'
+                    e.target.style.boxShadow = 'none'
+                  }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                />
+                <Button
+                  size="sm"
+                  colorScheme="blue"
+                  onClick={handleFolderIdSubmit}
+                  disabled={!folderIdInput.trim()}
+                  type="button"
+                >
+                  Go
+                </Button>
+              </HStack>
             </Box>
 
             {/* File/Folder List */}
@@ -232,13 +296,6 @@ export const GDriveLocationPrompt: React.FC<GDriveLocationPromptProps> = ({
               ) : error ? (
                 <Box textAlign="center" py={8}>
                   <Text color="red.500">{error}</Text>
-                  <Button
-                    mt={4}
-                    size="sm"
-                    onClick={() => loadFolderContents(folderId)}
-                  >
-                    Retry
-                  </Button>
                 </Box>
               ) : (
                 <VStack gap={1} align="stretch">

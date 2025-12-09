@@ -352,6 +352,46 @@ export class GDriveOperations {
   }
 
   /**
+   * Verify access to a folder by getting its metadata
+   * Returns the folder info if accessible, throws error if not
+   */
+  async verifyFolderAccess(folderId: string, token: string): Promise<GDriveFolder> {
+    // Root is always accessible
+    if (folderId === 'root') {
+      return { id: 'root', name: 'My Drive' }
+    }
+
+    const response = await fetch(
+      `${DRIVE_API_BASE}/files/${folderId}?fields=id,name,mimeType&supportsAllDrives=true`,
+      {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }
+    )
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Authentication expired. Please sign in again.')
+      }
+      if (response.status === 404) {
+        throw new Error('Folder not found. Check that the folder ID is correct.')
+      }
+      if (response.status === 403) {
+        throw new Error('Access denied. You don\'t have permission to access this folder.')
+      }
+      throw new Error(`Cannot access folder: ${response.status} ${response.statusText}`)
+    }
+
+    const folder = await response.json()
+
+    // Verify it's actually a folder
+    if (folder.mimeType !== 'application/vnd.google-apps.folder') {
+      throw new Error('The ID provided is not a folder.')
+    }
+
+    return { id: folder.id, name: folder.name }
+  }
+
+  /**
    * List folders in a folder (for navigation)
    */
   async listFolders(folderId: string, token: string): Promise<GDriveFolder[]> {
