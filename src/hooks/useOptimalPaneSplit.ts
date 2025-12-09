@@ -14,14 +14,13 @@ export function useOptimalPaneSplit(
       return 50 // Default 50% split
     }
 
-    const dpr = window.devicePixelRatio || 1
-
     // Find maximum display width across all pages
     let maxDisplayWidth = 0
     for (const page of flowData.pages) {
       if (page.captureInfo?.screenshotPixelWidth) {
-        // Display width is natural size / dpr (same as ScreenshotViewer)
-        const displayWidth = page.captureInfo.screenshotPixelWidth / dpr
+        // Use the capture's screenshotScale, not the viewer's DPR
+        const captureScale = page.captureInfo.screenshotScale || 1
+        const displayWidth = page.captureInfo.screenshotPixelWidth / captureScale
         maxDisplayWidth = Math.max(maxDisplayWidth, displayWidth)
       }
     }

@@ -17,16 +17,6 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({ header, children }) 
         <Box flex="1" overflow="hidden" minWidth={0} maxW="100%">
           {children}
         </Box>
-        <Box
-          as="footer"
-          textAlign="center"
-          py={2}
-          mt="auto"
-          color="gray.500"
-          fontSize="sm"
-        >
-          v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
-        </Box>
       </Stack>
       <Toaster />
     </Box>

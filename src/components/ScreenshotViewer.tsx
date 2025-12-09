@@ -56,22 +56,22 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
     if (imageRef.current) {
       const naturalWidth = imageRef.current.naturalWidth
       const naturalHeight = imageRef.current.naturalHeight
-      
-      // Assume images might be captured at device pixel ratio
-      // If on a retina display, the image is likely 2x the logical size
-      const dpr = window.devicePixelRatio || 1
-      
-      // Display at logical pixel size (natural size / dpr)
+
+      // Use the capture's screenshotScale (DPR at capture time), not the viewer's DPR
+      // This ensures images display at their logical size regardless of viewer's display
+      const captureScale = page.captureInfo?.screenshotScale || 1
+
+      // Display at logical pixel size (natural size / capture scale)
       setDisplayDimensions({
-        width: naturalWidth / dpr,
-        height: naturalHeight / dpr
+        width: naturalWidth / captureScale,
+        height: naturalHeight / captureScale
       })
       setImageLoaded(true)
-      
+
       console.log('Image loaded:', {
         natural: { width: naturalWidth, height: naturalHeight },
-        dpr,
-        display: { width: naturalWidth / dpr, height: naturalHeight / dpr }
+        captureScale,
+        display: { width: naturalWidth / captureScale, height: naturalHeight / captureScale }
       })
     }
   }
@@ -138,78 +138,8 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
 
   return (
     <Box position="relative" height="100%" display="flex" flexDirection="column" p={4} pt={2}>
-      {/* Navigation Controls */}
-      <Stack
-        direction="row"
-        justifyContent="center"
-        flexShrink={0}
-        mb={2}
-      >
-        <Stack
-          direction="row"
-          bg="rgba(255, 255, 255, 0.3)"
-          borderRadius="full"
-          px={3}
-          py={1}
-          gap={2}
-          align="center"
-          border="1px solid"
-          borderColor="rgba(255, 255, 255, 0.4)"
-          backdropFilter="blur(20px)"
-          boxShadow="0 4px 16px 0 rgba(59, 130, 246, 0.1)"
-        >
-        <IconButton
-          aria-label="Previous page"
-          onClick={() => onNavigatePage(-1)}
-          disabled={currentPageIndex === 0}
-          variant="ghost"
-          size="sm"
-          color="gray.700"
-          _hover={{ bg: 'gray.100' }}
-        >
-          <FiChevronLeft />
-        </IconButton>
-        <Text color="gray.700" fontSize="sm" fontWeight="semibold" minW="80px" textAlign="center">
-          Page {currentPageIndex + 1} of {totalPages}
-        </Text>
-        <IconButton
-          aria-label="Next page"
-          onClick={() => onNavigatePage(1)}
-          disabled={currentPageIndex === totalPages - 1}
-          variant="ghost"
-          size="sm"
-          color="gray.700"
-          _hover={{ bg: 'gray.100' }}
-        >
-          <FiChevronRight />
-        </IconButton>
-        <Tooltip.Root openDelay={300} closeDelay={0}>
-          <Tooltip.Trigger asChild>
-            <IconButton
-              aria-label="Mark all visible segments as reviewed"
-              size="sm"
-              variant="solid"
-              onClick={onMarkAllVisibleAsReviewed}
-              colorScheme="blue"
-              ml={2}
-              borderRadius="full"
-            >
-              <FiCheckCircle />
-            </IconButton>
-          </Tooltip.Trigger>
-          <Portal>
-            <Tooltip.Positioner>
-              <Tooltip.Content>
-                <Text fontSize="xs">Mark all as reviewed</Text>
-              </Tooltip.Content>
-            </Tooltip.Positioner>
-          </Portal>
-        </Tooltip.Root>
-        </Stack>
-      </Stack>
-
       {/* Image Container */}
-      <Box 
+      <Box
         ref={containerRef}
         width="100%"
         flex="1"
@@ -269,7 +199,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
                 borderColor={segmentColor}
                 borderRadius="md"
                 cursor="pointer"
-                transition="all 0.4s ease-in-out"
+                transition="transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out"
                 _hover={{
                   transform: 'scale(1.02)',
                   boxShadow: `0 0 8px ${segmentColor}`,
@@ -282,6 +212,81 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
           })}
         </Box>
       </Box>
+
+      {/* Navigation Controls - Hovering at bottom */}
+      <Stack
+        direction="row"
+        justifyContent="center"
+        position="absolute"
+        bottom={6}
+        left={0}
+        right={0}
+        zIndex={10}
+        pointerEvents="none"
+      >
+        <Stack
+          direction="row"
+          bg="rgba(255, 255, 255, 0.85)"
+          borderRadius="full"
+          px={3}
+          py={1}
+          gap={2}
+          align="center"
+          border="1px solid"
+          borderColor="rgba(255, 255, 255, 0.4)"
+          backdropFilter="blur(20px)"
+          boxShadow="0 4px 16px 0 rgba(59, 130, 246, 0.15)"
+          pointerEvents="auto"
+        >
+          <IconButton
+            aria-label="Previous page"
+            onClick={() => onNavigatePage(-1)}
+            disabled={currentPageIndex === 0}
+            variant="ghost"
+            size="sm"
+            color="gray.700"
+            _hover={{ bg: 'gray.100' }}
+          >
+            <FiChevronLeft />
+          </IconButton>
+          <Text color="gray.700" fontSize="sm" fontWeight="semibold" minW="80px" textAlign="center">
+            Page {currentPageIndex + 1} of {totalPages}
+          </Text>
+          <IconButton
+            aria-label="Next page"
+            onClick={() => onNavigatePage(1)}
+            disabled={currentPageIndex === totalPages - 1}
+            variant="ghost"
+            size="sm"
+            color="gray.700"
+            _hover={{ bg: 'gray.100' }}
+          >
+            <FiChevronRight />
+          </IconButton>
+          <Tooltip.Root openDelay={300} closeDelay={0}>
+            <Tooltip.Trigger asChild>
+              <IconButton
+                aria-label="Mark all visible segments as reviewed"
+                size="sm"
+                variant="solid"
+                onClick={onMarkAllVisibleAsReviewed}
+                colorScheme="blue"
+                ml={2}
+                borderRadius="full"
+              >
+                <FiCheckCircle />
+              </IconButton>
+            </Tooltip.Trigger>
+            <Portal>
+              <Tooltip.Positioner>
+                <Tooltip.Content>
+                  <Text fontSize="xs">Mark all as reviewed</Text>
+                </Tooltip.Content>
+              </Tooltip.Positioner>
+            </Portal>
+          </Tooltip.Root>
+        </Stack>
+      </Stack>
     </Box>
   )
 }

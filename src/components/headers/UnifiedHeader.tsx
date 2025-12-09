@@ -102,9 +102,14 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           width="40px"
           borderRadius="full"
         />
-        <Text fontSize="md" fontWeight="bold" color="gray.700">
-          LQA Boss
-        </Text>
+        <Flex direction="column" align="flex-end" gap={0}>
+          <Text fontSize="md" fontWeight="bold" color="gray.700" lineHeight="1.2">
+            LQA Boss
+          </Text>
+          <Text fontSize="xs" color="gray.500" lineHeight="1">
+            v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
+          </Text>
+        </Flex>
 
         <Separator orientation="vertical" height="40px" />
 
