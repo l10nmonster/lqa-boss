@@ -32,6 +32,7 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   const [displayDimensions, setDisplayDimensions] = useState({ width: 0, height: 0 })
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const segmentRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
   useEffect(() => {
     const loadImage = async () => {
@@ -74,6 +75,39 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
       })
     }
   }
+
+  // Scroll to active segment when it changes
+  useEffect(() => {
+    if (!activeSegmentGuid || !imageLoaded) return
+
+    const segmentEl = segmentRefs.current[activeSegmentGuid]
+    const container = containerRef.current
+
+    if (segmentEl && container) {
+      // Calculate if segment is visible in the container
+      const containerRect = container.getBoundingClientRect()
+      const segmentRect = segmentEl.getBoundingClientRect()
+
+      const segmentTopRelative = segmentRect.top - containerRect.top
+      const segmentBottomRelative = segmentRect.bottom - containerRect.top
+
+      const padding = 20
+      const isAboveView = segmentTopRelative < padding
+      const isBelowView = segmentBottomRelative > containerRect.height - padding
+
+      if (isAboveView || isBelowView) {
+        // Scroll to center the segment in the container
+        const segmentCenterY = segmentEl.offsetTop + segmentEl.offsetHeight / 2
+        const containerCenterY = container.clientHeight / 2
+        const scrollTop = segmentCenterY - containerCenterY
+
+        container.scrollTo({
+          top: Math.max(0, scrollTop),
+          behavior: 'smooth'
+        })
+      }
+    }
+  }, [activeSegmentGuid, imageLoaded])
 
   const calculateHighlightPosition = (segment: any) => {
     if (!imageLoaded) return null
@@ -223,6 +257,9 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
             return (
               <Box
                 key={index}
+                ref={(el: HTMLDivElement | null) => {
+                  segmentRefs.current[segment.g] = el
+                }}
                 position="absolute"
                 left={`${position.left}px`}
                 top={`${position.top}px`}
