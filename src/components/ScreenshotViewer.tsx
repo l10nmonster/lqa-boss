@@ -30,9 +30,35 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [displayDimensions, setDisplayDimensions] = useState({ width: 0, height: 0 })
+  const [containerWidth, setContainerWidth] = useState(0)
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const segmentRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  // Track container width for responsive scaling
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width)
+      }
+    })
+
+    observer.observe(container)
+    setContainerWidth(container.clientWidth)
+
+    return () => observer.disconnect()
+  }, [])
+
+  // Calculate scale factor: if container is smaller than logical image width, scale down
+  const scaleFactor = displayDimensions.width > 0 && containerWidth > 0
+    ? Math.min(1, containerWidth / displayDimensions.width)
+    : 1
+
+  const scaledWidth = displayDimensions.width * scaleFactor
+  const scaledHeight = displayDimensions.height * scaleFactor
 
   useEffect(() => {
     const loadImage = async () => {
@@ -118,20 +144,20 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
                          segment.width <= 1 && segment.height <= 1
 
     if (isNormalized) {
-      // New format: multiply by display dimensions
+      // New format: multiply by scaled dimensions
       return {
-        left: segment.x * displayDimensions.width,
-        top: segment.y * displayDimensions.height,
-        width: segment.width * displayDimensions.width,
-        height: segment.height * displayDimensions.height,
+        left: segment.x * scaledWidth,
+        top: segment.y * scaledHeight,
+        width: segment.width * scaledWidth,
+        height: segment.height * scaledHeight,
       }
     } else {
-      // Legacy format: use coordinates directly
+      // Legacy format: apply scale factor to pixel coordinates
       return {
-        left: segment.x,
-        top: segment.y,
-        width: segment.width,
-        height: segment.height,
+        left: segment.x * scaleFactor,
+        top: segment.y * scaleFactor,
+        width: segment.width * scaleFactor,
+        height: segment.height * scaleFactor,
       }
     }
   }
@@ -148,10 +174,10 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
         minHeight={0}
         p={0}
       >
-        <Box 
-          position="relative" 
-          width={displayDimensions.width ? `${displayDimensions.width}px` : 'auto'}
-          height={displayDimensions.height ? `${displayDimensions.height}px` : 'auto'}
+        <Box
+          position="relative"
+          width={scaledWidth ? `${scaledWidth}px` : 'auto'}
+          height={scaledHeight ? `${scaledHeight}px` : 'auto'}
           m={0}
           p={0}
           boxShadow="0 0 0 1px rgba(203, 213, 225, 0.5)"
@@ -166,9 +192,9 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
               m={0}
               p={0}
               borderRadius="lg"
-              // Display at logical size
-              width={displayDimensions.width ? `${displayDimensions.width}px` : 'auto'}
-              height={displayDimensions.height ? `${displayDimensions.height}px` : 'auto'}
+              // Display at scaled size (fits container width)
+              width={scaledWidth ? `${scaledWidth}px` : 'auto'}
+              height={scaledHeight ? `${scaledHeight}px` : 'auto'}
               maxW="none"
               maxH="none"
             />
