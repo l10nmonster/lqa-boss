@@ -2,6 +2,7 @@ import { IPersistencePlugin, FileIdentifier, PluginMetadata, PluginCapabilities,
 import { JobData } from '../types'
 import JSZip from 'jszip'
 import { generateJobGuid } from '../utils/idGenerator'
+import { toaster } from '../components/ui/toaster'
 
 // Import version from package.json
 // @ts-ignore - vite handles this import
@@ -40,6 +41,36 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
   constructor() {
     // Load extension ID from localStorage
     this.extensionId = localStorage.getItem('plugin-extension-extensionId') || ''
+  }
+
+  /**
+   * Send a message to the extension and return a promise
+   * @param message The message to send
+   * @param timeoutMs Timeout in milliseconds (default: 30s, use longer for large operations)
+   */
+  private sendMessage(message: any, timeoutMs: number = 30000): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const timeoutSec = Math.round(timeoutMs / 1000)
+      const timeout = setTimeout(() => {
+        reject(new Error(`Timeout waiting for extension response (${timeoutSec}s). Extension ID: ${this.extensionId}`))
+      }, timeoutMs)
+
+      chrome.runtime.sendMessage(this.extensionId, message, (response: any) => {
+        clearTimeout(timeout)
+
+        if (chrome.runtime.lastError) {
+          reject(new Error(`Extension communication failed: ${chrome.runtime.lastError.message}`))
+          return
+        }
+
+        if (!response) {
+          reject(new Error('No response from extension'))
+          return
+        }
+
+        resolve(response)
+      })
+    })
   }
 
   /**
@@ -97,6 +128,7 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
   /**
    * Load a file from the extension
    * Requests flow data from extension via chrome.runtime messaging
+   * Supports chunked transfer for large flows (> 50MB)
    */
   async loadFile(_identifier: FileIdentifier): Promise<File> {
     // Check if chrome.runtime is available (only in Chrome/Edge browsers)
@@ -109,80 +141,131 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
       throw new Error('Extension ID not configured. Please set the Extension ID in Settings.')
     }
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error(`Timeout waiting for extension response (30s). Extension ID: ${this.extensionId}. Check chrome://extensions for the correct ID.`))
-      }, 30000)
-
-      // Request flow from extension
-      chrome.runtime.sendMessage(
-        this.extensionId,
-        { action: 'requestFlow' },
-        async (response: any) => {
-          clearTimeout(timeout)
-
-          // Check for Chrome runtime errors
-          if (chrome.runtime.lastError) {
-            reject(new Error(`Extension communication failed: ${chrome.runtime.lastError.message}. Current extension ID: ${this.extensionId}. Check chrome://extensions for the correct ID.`))
-            return
-          }
-
-          if (!response) {
-            reject(new Error('No response from extension. Is the LQA Boss Capture extension installed?'))
-            return
-          }
-
-          if (!response.success) {
-            reject(new Error(response.error || 'Failed to get flow from extension'))
-            return
-          }
-
-          try {
-            // Convert array back to Uint8Array
-            const uint8Array = new Uint8Array(response.data.zipData)
-
-            // Load the ZIP to modify job.json
-            const zip = await JSZip.loadAsync(uint8Array)
-
-            // Read and parse job.json
-            const jobFile = zip.file('job.json')
-            if (!jobFile) {
-              reject(new Error('Invalid .lqaboss file: "job.json" not found in extension data'))
-              return
-            }
-
-            const jobContent = await jobFile.async('string')
-            const originalJobData: JobData = JSON.parse(jobContent)
-
-            // Generate new jobGuid
-            const jobGuid = generateJobGuid()
-
-            // Create updated job data, preserving all existing fields
-            const jobData: JobData = {
-              ...originalJobData, // Preserve all existing fields (including instructions)
-              jobGuid,
-              status: 'created',
-              translationProvider: `lqaboss-v${packageJson.version}`,
-            }
-
-            // Update job.json in the ZIP
-            zip.file('job.json', JSON.stringify(jobData, null, 2))
-
-            // Generate updated ZIP
-            const updatedZipData = await zip.generateAsync({ type: 'arraybuffer' })
-            const blob = new Blob([updatedZipData], { type: 'application/zip' })
-
-            // Use filename from extension if provided, otherwise fallback to jobGuid
-            const fileName = response.data.fileName || `${jobGuid}.lqaboss`
-            const file = new File([blob], fileName)
-
-            resolve(file)
-          } catch (error: any) {
-            reject(new Error(`Failed to create file from extension data: ${error.message}`))
-          }
-        }
-      )
+    // Show loading toast
+    const loadingToast = toaster.create({
+      title: 'Loading from extension',
+      description: 'Requesting flow data...',
+      type: 'loading',
+      duration: 120000, // Will be dismissed manually
     })
+
+    try {
+      // Request flow from extension (2 minute timeout - may need to create ZIP for large flows)
+      const response = await this.sendMessage({ action: 'requestFlow' }, 120000)
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to get flow from extension')
+      }
+
+      let uint8Array: Uint8Array
+
+      // Check if chunked transfer is needed (for large flows)
+      if (response.data.chunked) {
+        const { flowId, totalChunks, totalSize } = response.data
+        const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1)
+        console.log(`Receiving large flow via chunked transfer: ${totalSizeMB}MB in ${totalChunks} chunks`)
+
+        // Update toast for chunked transfer
+        toaster.update(loadingToast, {
+          title: 'Receiving large flow',
+          description: `0% of ${totalSizeMB}MB...`,
+        })
+
+        const chunks: Uint8Array[] = []
+
+        for (let i = 0; i < totalChunks; i++) {
+          const progress = Math.round((i / totalChunks) * 100)
+          console.log(`Fetching chunk ${i + 1}/${totalChunks}...`)
+
+          // Update progress before fetching (use setTimeout to avoid flushSync warning)
+          setTimeout(() => {
+            toaster.update(loadingToast, {
+              title: 'Receiving large flow',
+              description: `${progress}% of ${totalSizeMB}MB (chunk ${i + 1}/${totalChunks})...`,
+            })
+          }, 0)
+
+          // 120 second timeout per chunk (each chunk is up to 10MB)
+          const chunkResponse = await this.sendMessage({
+            action: 'requestFlowChunk',
+            flowId,
+            chunkIndex: i
+          }, 120000)
+
+          if (!chunkResponse.success) {
+            throw new Error(chunkResponse.error || `Failed to get chunk ${i}`)
+          }
+
+          chunks.push(Uint8Array.fromBase64(chunkResponse.data.chunkBase64))
+        }
+
+        // Reassemble chunks
+        toaster.update(loadingToast, {
+          title: 'Processing flow',
+          description: 'Reassembling data...',
+        })
+
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+        uint8Array = new Uint8Array(totalLength)
+        let offset = 0
+        for (const chunk of chunks) {
+          uint8Array.set(chunk, offset)
+          offset += chunk.length
+        }
+
+        console.log(`Chunked transfer complete: ${(totalLength / 1024 / 1024).toFixed(1)}MB received`)
+      } else {
+        // Small flow - direct data (existing behavior)
+        toaster.update(loadingToast, {
+          title: 'Processing flow',
+          description: 'Unpacking data...',
+        })
+        uint8Array = Uint8Array.fromBase64(response.data.zipBase64)
+      }
+
+      // Load the ZIP to modify job.json
+      const zip = await JSZip.loadAsync(uint8Array)
+
+      // Read and parse job.json
+      const jobFile = zip.file('job.json')
+      if (!jobFile) {
+        throw new Error('Invalid .lqaboss file: "job.json" not found in extension data')
+      }
+
+      const jobContent = await jobFile.async('string')
+      const originalJobData: JobData = JSON.parse(jobContent)
+
+      // Generate new jobGuid
+      const jobGuid = generateJobGuid()
+
+      // Create updated job data, preserving all existing fields
+      const jobData: JobData = {
+        ...originalJobData, // Preserve all existing fields (including instructions)
+        jobGuid,
+        status: 'created',
+        translationProvider: `lqaboss-v${packageJson.version}`,
+      }
+
+      // Update job.json in the ZIP
+      zip.file('job.json', JSON.stringify(jobData, null, 2))
+
+      // Generate updated ZIP
+      const updatedZipData = await zip.generateAsync({ type: 'arraybuffer' })
+      const blob = new Blob([updatedZipData], { type: 'application/zip' })
+
+      // Use filename from extension if provided, otherwise fallback to jobGuid
+      const fileName = response.data.fileName || `${jobGuid}.lqaboss`
+      const file = new File([blob], fileName)
+
+      // Dismiss loading toast before returning
+      toaster.dismiss(loadingToast)
+
+      return file
+    } catch (error) {
+      // Dismiss loading toast on error
+      toaster.dismiss(loadingToast)
+      throw error
+    }
   }
 
   /**

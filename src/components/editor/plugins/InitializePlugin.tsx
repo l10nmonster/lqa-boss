@@ -68,51 +68,54 @@ export function InitializePlugin({ normalizedContent }: InitializePluginProps): 
     // 1. This is the first initialization, OR
     // 2. The new content is different from what we last set externally AND different from current editor content
 
+    // Read current content first (synchronously, outside of update)
+    let currentContent: NormalizedItem[] = []
     editor.getEditorState().read(() => {
-      const currentContent = getCurrentContent()
-
-      // Check if this is genuinely new external content
-      const isNewExternalContent = !normalizedArraysEqual(normalizedContent, lastExternalContentRef.current)
-      const isDifferentFromCurrent = !normalizedArraysEqual(normalizedContent, currentContent)
-
-      if (!isInitializedRef.current || (isNewExternalContent && isDifferentFromCurrent)) {
-        editor.update(() => {
-          const root = $getRoot()
-          root.clear()
-
-          let paragraph = $createParagraphNode()
-
-          // Track placeholder index (1-based)
-          let placeholderIndex = 1
-
-          normalizedContent.forEach((item) => {
-            if (typeof item === 'string') {
-              // Split by newlines and create separate paragraphs
-              const parts = item.split('\n')
-              parts.forEach((part, partIdx) => {
-                if (partIdx > 0) {
-                  // Start a new paragraph for each newline
-                  root.append(paragraph)
-                  paragraph = $createParagraphNode()
-                }
-                if (part) {
-                  paragraph.append($createTextNode(part))
-                }
-              })
-            } else {
-              paragraph.append($createPlaceholderNode(item, placeholderIndex))
-              placeholderIndex++
-            }
-          })
-
-          // Append the last paragraph
-          root.append(paragraph)
-
-          lastExternalContentRef.current = [...normalizedContent]
-          isInitializedRef.current = true
-        }, { tag: 'content-update' })
-      }
+      currentContent = getCurrentContent()
     })
+
+    // Check if this is genuinely new external content
+    const isNewExternalContent = !normalizedArraysEqual(normalizedContent, lastExternalContentRef.current)
+    const isDifferentFromCurrent = !normalizedArraysEqual(normalizedContent, currentContent)
+
+    if (!isInitializedRef.current || (isNewExternalContent && isDifferentFromCurrent)) {
+      // Schedule update outside of read() to avoid flushSync warning
+      editor.update(() => {
+        const root = $getRoot()
+        root.clear()
+
+        let paragraph = $createParagraphNode()
+
+        // Track placeholder index (1-based)
+        let placeholderIndex = 1
+
+        normalizedContent.forEach((item) => {
+          if (typeof item === 'string') {
+            // Split by newlines and create separate paragraphs
+            const parts = item.split('\n')
+            parts.forEach((part, partIdx) => {
+              if (partIdx > 0) {
+                // Start a new paragraph for each newline
+                root.append(paragraph)
+                paragraph = $createParagraphNode()
+              }
+              if (part) {
+                paragraph.append($createTextNode(part))
+              }
+            })
+          } else {
+            paragraph.append($createPlaceholderNode(item, placeholderIndex))
+            placeholderIndex++
+          }
+        })
+
+        // Append the last paragraph
+        root.append(paragraph)
+
+        lastExternalContentRef.current = [...normalizedContent]
+        isInitializedRef.current = true
+      }, { tag: 'content-update' })
+    }
   }, [editor, normalizedContent])
 
   return null
