@@ -61,6 +61,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   const [showOnlyNonReviewed, setShowOnlyNonReviewed] = useState(false)
   const [filterText, setFilterText] = useState('')
   const userDeselected = useRef(false)
+  // Track where the last segment selection came from
+  const segmentClickSource = useRef<'screenshot' | 'editor' | null>(null)
 
   // Expose openInstructions method via ref (keeping method name for backward compatibility)
   useImperativeHandle(ref, () => ({
@@ -79,13 +81,24 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   const { optimalLeftWidth } = useOptimalPaneSplit(flowData)
   
   // Wrapper for setActiveSegmentGuid that tracks user deselection
-  const handleSetActiveSegmentGuid = (guid: string | null) => {
+  const handleSetActiveSegmentGuid = (guid: string | null, source: 'screenshot' | 'editor' | null = null) => {
     if (guid === null && activeSegmentGuid !== null) {
       userDeselected.current = true
     } else if (guid !== null) {
       userDeselected.current = false
     }
+    segmentClickSource.current = source
     setActiveSegmentGuid(guid)
+  }
+
+  // Handler for screenshot segment clicks - only scrolls editor, not screenshot
+  const handleScreenshotSegmentClick = (guid: string) => {
+    handleSetActiveSegmentGuid(guid, 'screenshot')
+  }
+
+  // Handler for editor segment clicks - scrolls screenshot to first occurrence
+  const handleEditorSegmentFocus = (guid: string | null) => {
+    handleSetActiveSegmentGuid(guid, 'editor')
   }
   
   // Show instructions modal only when a new file is loaded with language info
@@ -345,9 +358,11 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
             {currentPage && zipFile ? (
               <ScreenshotViewer
                 page={currentPage}
+                pages={flowData.pages}
                 zipFile={zipFile}
                 activeSegmentGuid={activeSegmentGuid}
-                onSegmentClick={handleSetActiveSegmentGuid}
+                onSegmentClick={handleScreenshotSegmentClick}
+                shouldScrollToSegment={segmentClickSource.current === 'editor'}
                 currentPageIndex={currentPageIndex}
                 totalPages={flowData.pages.length}
                 onNavigatePage={navigatePage}
@@ -386,7 +401,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
                 onTranslationUnitChange={onTranslationUnitChange}
                 onCandidateSelect={onCandidateSelect}
                 activeSegmentGuid={activeSegmentGuid}
-                onSegmentFocus={handleSetActiveSegmentGuid}
+                onSegmentFocus={handleEditorSegmentFocus}
                 qualityModel={qualityModel}
                 onReviewToggle={onReviewToggle}
               />
@@ -419,7 +434,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               onTranslationUnitChange={onTranslationUnitChange}
               onCandidateSelect={onCandidateSelect}
               activeSegmentGuid={activeSegmentGuid}
-              onSegmentFocus={handleSetActiveSegmentGuid}
+              onSegmentFocus={handleEditorSegmentFocus}
               qualityModel={qualityModel}
               onReviewToggle={onReviewToggle}
             />

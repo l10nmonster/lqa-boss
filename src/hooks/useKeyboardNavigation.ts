@@ -6,7 +6,7 @@ interface UseKeyboardNavigationProps {
   activeSegmentGuid: string | null
   segmentGuids: string[]  // Ordered list of guids for navigation
   navigatePage: (direction: number) => void
-  setActiveSegmentGuid: (guid: string | null) => void
+  setActiveSegmentGuid: (guid: string | null, source?: 'screenshot' | 'editor' | null) => void
   onBeforeNavigate?: () => void
 }
 
@@ -43,7 +43,7 @@ export const useKeyboardNavigation = ({
           }
         } else {
           const nextIndex = currentIndex === -1 ? 0 : currentIndex + 1
-          setActiveSegmentGuid(segmentGuids[nextIndex])
+          setActiveSegmentGuid(segmentGuids[nextIndex], 'editor')
         }
       }
 
