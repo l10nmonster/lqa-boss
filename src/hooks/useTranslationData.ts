@@ -122,7 +122,9 @@ export const useTranslationData = () => {
         }
         return { ...tu, ntgt: savedTu.ntgt, qa: savedTu.qa, ts: savedTu.ts }
       }
-      return tu
+      // Strip ts from segments not in saved data - it's request metadata, not review status
+      const { ts: _ts, ...tuWithoutTs } = tu
+      return tuWithoutTs as typeof tu
     })
 
     const resultJobData = {
