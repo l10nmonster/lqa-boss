@@ -9,13 +9,21 @@ export interface LoadResult {
   jobData: JobData
   zipFile: JSZip
   qualityModel: QualityModel | null
+  pageImages: Map<string, string> | null  // Pre-extracted blob URLs for images
+}
+
+export interface LoadProgress {
+  current: number
+  total: number
 }
 
 export const useFileLoader = () => {
   const [flowData, setFlowData] = useState<FlowData | null>(null)
   const [zipFile, setZipFile] = useState<JSZip | null>(null)
   const [fileName, setFileName] = useState<string>('')
-  
+  const [pageImages, setPageImages] = useState<Map<string, string> | null>(null)
+  const [loadingProgress, setLoadingProgress] = useState<LoadProgress | null>(null)
+
   const loadLqaBossFile = async (file: File): Promise<LoadResult> => {
     const arrayBuffer = await file.arrayBuffer()
     const zip = await JSZip.loadAsync(arrayBuffer)
@@ -116,29 +124,68 @@ export const useFileLoader = () => {
       }
     }
 
+    // Extract all page images upfront (if flow data exists)
+    let extractedPageImages: Map<string, string> | null = null
+
+    if (parsedFlowData?.pages && parsedFlowData.pages.length > 0) {
+      extractedPageImages = new Map()
+      const totalPages = parsedFlowData.pages.length
+
+      // Set initial progress
+      setLoadingProgress({ current: 0, total: totalPages })
+
+      for (let i = 0; i < totalPages; i++) {
+        const page = parsedFlowData.pages[i]
+        const imageFile = zip.file(page.imageFile)
+
+        if (imageFile) {
+          const blob = await imageFile.async('blob')
+          const blobUrl = URL.createObjectURL(blob)
+          extractedPageImages.set(page.imageFile, blobUrl)
+        }
+
+        // Update progress state
+        setLoadingProgress({ current: i + 1, total: totalPages })
+      }
+
+      // Clear progress when done
+      setLoadingProgress(null)
+    }
+
     // Update state
     setZipFile(zip)
     setFlowData(parsedFlowData)
     setFileName(file.name)
+    setPageImages(extractedPageImages)
 
     return {
       flowData: parsedFlowData,
       jobData: parsedJobData,
       zipFile: zip,
-      qualityModel: parsedQualityModel
+      qualityModel: parsedQualityModel,
+      pageImages: extractedPageImages
     }
   }
   
   const reset = () => {
+    // Revoke old blob URLs to free memory
+    if (pageImages) {
+      for (const url of pageImages.values()) {
+        URL.revokeObjectURL(url)
+      }
+    }
     setFlowData(null)
     setZipFile(null)
     setFileName('')
+    setPageImages(null)
   }
-  
+
   return {
     flowData,
     zipFile,
     fileName,
+    pageImages,
+    loadingProgress,
     loadLqaBossFile,
     reset,
   }

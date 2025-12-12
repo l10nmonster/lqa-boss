@@ -1,6 +1,5 @@
 import { useState, useEffect, useImperativeHandle, forwardRef, useMemo, useRef, useCallback } from 'react'
 import { Box, Heading, Text, HStack } from '@chakra-ui/react'
-import JSZip from 'jszip'
 import { FlowData, JobData, TranslationUnit } from '../types'
 import { QualityModel } from '../types/qualityModel'
 import ScreenshotViewer from './ScreenshotViewer'
@@ -22,12 +21,18 @@ interface SourceDisplayInfo {
   filename?: string
 }
 
+interface LoadingProgress {
+  current: number
+  total: number
+}
+
 interface TranslationEditorProps {
   flowData: FlowData | null
   jobData: JobData | null
   originalJobData: JobData | null
   savedJobData: JobData | null
-  zipFile: JSZip | null
+  pageImages: Map<string, string> | null
+  loadingProgress: LoadingProgress | null
   onTranslationUnitChange: (tu: TranslationUnit) => void
   onCandidateSelect: (guid: string, candidateIndex: number) => void
   onInstructionsOpen?: () => void
@@ -46,7 +51,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   jobData,
   originalJobData,
   savedJobData,
-  zipFile,
+  pageImages,
+  loadingProgress,
   onTranslationUnitChange,
   onCandidateSelect,
   onInstructionsOpen,
@@ -355,20 +361,31 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
             display="flex"
             flexDirection="column"
           >
-            {currentPage && zipFile ? (
-              <ScreenshotViewer
-                page={currentPage}
-                pages={flowData.pages}
-                zipFile={zipFile}
-                activeSegmentGuid={activeSegmentGuid}
-                onSegmentClick={handleScreenshotSegmentClick}
-                shouldScrollToSegment={segmentClickSource.current === 'editor'}
-                currentPageIndex={currentPageIndex}
-                totalPages={flowData.pages.length}
-                onNavigatePage={navigatePage}
-                onMarkAllVisibleAsReviewed={handleMarkAllVisibleAsReviewed}
-                getSegmentColor={getSegmentColor}
-              />
+            {pageImages ? (
+              // Render ALL pages upfront, show/hide with CSS for instant navigation
+              <Box position="relative" height="100%" width="100%">
+                {flowData.pages.map((page, idx) => (
+                  <Box
+                    key={page.imageFile}
+                    display={idx === currentPageIndex ? 'block' : 'none'}
+                    height="100%"
+                    width="100%"
+                  >
+                    <ScreenshotViewer
+                      page={page}
+                      imageUrl={pageImages.get(page.imageFile)}
+                      activeSegmentGuid={idx === currentPageIndex ? activeSegmentGuid : null}
+                      onSegmentClick={handleScreenshotSegmentClick}
+                      shouldScrollToSegment={idx === currentPageIndex && segmentClickSource.current === 'editor'}
+                      currentPageIndex={currentPageIndex}
+                      totalPages={flowData.pages.length}
+                      onNavigatePage={navigatePage}
+                      onMarkAllVisibleAsReviewed={handleMarkAllVisibleAsReviewed}
+                      getSegmentColor={getSegmentColor}
+                    />
+                  </Box>
+                ))}
+              </Box>
             ) : (
               <Text color="gray.600" textAlign="center" py={20}>
                 No screenshot available for this page
@@ -459,6 +476,7 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
           segmentWordCounts={segmentWordCounts}
           qualityModelName={qualityModel?.name}
           qualityModelVersion={qualityModel?.version}
+          loadingProgress={loadingProgress}
         />
       )}
     </>

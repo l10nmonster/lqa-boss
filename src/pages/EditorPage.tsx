@@ -429,7 +429,8 @@ export const EditorPage: React.FC = () => {
           jobData={fileOps.translationData.jobData}
           originalJobData={fileOps.translationData.originalJobData}
           savedJobData={fileOps.translationData.savedJobData}
-          zipFile={fileOps.fileLoader.zipFile}
+          pageImages={fileOps.fileLoader.pageImages}
+          loadingProgress={fileOps.fileLoader.loadingProgress}
           onTranslationUnitChange={fileOps.translationData.updateTranslationUnit}
           onCandidateSelect={fileOps.translationData.selectCandidate}
           onInstructionsOpen={() => {}}

@@ -61,6 +61,11 @@ interface SourceDisplayInfo {
   filename?: string
 }
 
+interface LoadingProgress {
+  current: number
+  total: number
+}
+
 interface InfoModalProps {
   isOpen: boolean
   onClose: () => void
@@ -81,6 +86,7 @@ interface InfoModalProps {
   }
   qualityModelName?: string
   qualityModelVersion?: string
+  loadingProgress?: LoadingProgress | null
 }
 
 const InfoModal: React.FC<InfoModalProps> = ({
@@ -98,8 +104,12 @@ const InfoModal: React.FC<InfoModalProps> = ({
   segmentWordCounts,
   qualityModelName,
   qualityModelVersion,
+  loadingProgress,
 }) => {
   if (!isOpen) return null
+
+  const isLoading = loadingProgress !== null && loadingProgress !== undefined
+  const canClose = !isLoading
 
   return (
     <Portal>
@@ -113,7 +123,8 @@ const InfoModal: React.FC<InfoModalProps> = ({
         bg="blackAlpha.600"
         backdropFilter="blur(10px)"
         zIndex="overlay"
-        onClick={onClose}
+        onClick={canClose ? onClose : undefined}
+        cursor={canClose ? 'pointer' : 'default'}
       />
       
       {/* Modal Content */}
@@ -158,6 +169,8 @@ const InfoModal: React.FC<InfoModalProps> = ({
             color="gray.500"
             _hover={{ color: "gray.700" }}
             aria-label="close modal"
+            disabled={!canClose}
+            opacity={canClose ? 1 : 0.3}
           >
             <FiX size={20} />
           </Button>
@@ -165,6 +178,38 @@ const InfoModal: React.FC<InfoModalProps> = ({
         
         {/* Body */}
         <Box p={6} overflow="auto" maxH="60vh">
+          {/* Loading Progress */}
+          {isLoading && loadingProgress && (
+            <Box mb={4}>
+              <Text
+                fontSize="lg"
+                fontWeight="semibold"
+                color="gray.700"
+                mb={3}
+              >
+                ⏳ Loading Images...
+              </Text>
+              <Box
+                bg="gray.100"
+                borderRadius="full"
+                overflow="hidden"
+                h="8px"
+                mb={2}
+              >
+                <Box
+                  bg="blue.500"
+                  h="100%"
+                  borderRadius="full"
+                  transition="width 0.2s ease-out"
+                  style={{ width: `${(loadingProgress.current / loadingProgress.total) * 100}%` }}
+                />
+              </Box>
+              <Text fontSize="sm" color="gray.600" textAlign="center">
+                Page {loadingProgress.current} of {loadingProgress.total}
+              </Text>
+            </Box>
+          )}
+
           {/* Language Information */}
           {(sourceLang || targetLang) && (
             <Box mb={4}>
