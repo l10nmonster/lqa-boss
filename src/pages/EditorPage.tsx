@@ -230,6 +230,21 @@ export const EditorPage: React.FC = () => {
     }
   }, [fileOps.currentPlugin, fileOps.currentFileId, navigate])
 
+  // Warn user about unsaved changes when closing tab or navigating away
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (fileOps.translationData.fileStatus === 'CHANGED') {
+        e.preventDefault()
+        // Modern browsers ignore custom messages but still show a generic prompt
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [fileOps.translationData.fileStatus])
+
   const handleShowInstructions = () => {
     translationEditorRef.current?.openInstructions()
   }
