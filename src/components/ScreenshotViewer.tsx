@@ -1,7 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Box, Image, IconButton, Text, Stack, Tooltip, Portal } from '@chakra-ui/react'
+import { keyframes } from '@emotion/react'
 import { FiChevronLeft, FiChevronRight, FiCheckCircle } from 'react-icons/fi'
 import { Page } from '../types'
+
+// Glowing pulse animation for newly focused segments (yellow glow)
+const glowPulse = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 5px 2px #FACC15;
+  }
+  50% {
+    box-shadow: 0 0 25px 10px #FACC15;
+  }
+`
 
 interface ScreenshotViewerProps {
   page: Page
@@ -30,9 +41,16 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [displayDimensions, setDisplayDimensions] = useState({ width: 0, height: 0 })
+  const [animatingSegmentGuid, setAnimatingSegmentGuid] = useState<string | null>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const segmentRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  // Store all refs for each GUID (multiple segments can share the same GUID)
+  const segmentRefs = useRef<{ [key: string]: HTMLDivElement[] }>({})
+
+  // Clear segment refs when page changes to avoid stale refs
+  useEffect(() => {
+    segmentRefs.current = {}
+  }, [page])
 
   const handleImageLoad = () => {
     if (imageRef.current) {
@@ -49,14 +67,59 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
     }
   }
 
+  // Find the closest segment element to the viewport center (Euclidean distance)
+  const findClosestSegmentElement = (guid: string, container: HTMLDivElement): HTMLDivElement | null => {
+    const elements = segmentRefs.current[guid]
+    if (!elements || elements.length === 0) return null
+    if (elements.length === 1) return elements[0]
+
+    const containerRect = container.getBoundingClientRect()
+    // Use viewport center as reference point
+    const viewportCenterX = containerRect.width / 2
+    const viewportCenterY = container.scrollTop + containerRect.height / 2
+
+    let closestElement: HTMLDivElement | null = null
+    let minDistance = Infinity
+
+    for (const el of elements) {
+      // Calculate element center in container coordinates
+      const elCenterX = el.offsetLeft + el.offsetWidth / 2
+      const elCenterY = el.offsetTop + el.offsetHeight / 2
+
+      // Euclidean distance from viewport center
+      const distance = Math.sqrt(
+        Math.pow(elCenterX - viewportCenterX, 2) +
+        Math.pow(elCenterY - viewportCenterY, 2)
+      )
+
+      if (distance < minDistance) {
+        minDistance = distance
+        closestElement = el
+      }
+    }
+
+    return closestElement
+  }
+
   // Scroll to active segment only when click came from editor (not from screenshot)
+  // Returns true if scrolling was needed, false otherwise
   useEffect(() => {
-    if (!activeSegmentGuid || !imageLoaded || !shouldScrollToSegment) return
+    if (!activeSegmentGuid || !imageLoaded || !shouldScrollToSegment) {
+      setAnimatingSegmentGuid(null)
+      return
+    }
 
-    const segmentEl = segmentRefs.current[activeSegmentGuid]
     const container = containerRef.current
+    if (!container) {
+      // No scrolling needed, start animation immediately
+      setAnimatingSegmentGuid(activeSegmentGuid)
+      const timer = setTimeout(() => setAnimatingSegmentGuid(null), 1000)
+      return () => clearTimeout(timer)
+    }
 
-    if (segmentEl && container) {
+    const segmentEl = findClosestSegmentElement(activeSegmentGuid, container)
+
+    if (segmentEl) {
       // Calculate if segment is visible in the container
       const containerRect = container.getBoundingClientRect()
       const segmentRect = segmentEl.getBoundingClientRect()
@@ -78,8 +141,25 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
           top: Math.max(0, scrollTop),
           behavior: 'smooth'
         })
+
+        // Wait for scroll to complete before starting animation
+        // Estimate scroll duration based on distance (smooth scroll is ~400-500ms typically)
+        const scrollDistance = Math.abs(container.scrollTop - scrollTop)
+        const scrollDuration = Math.min(500, Math.max(300, scrollDistance * 0.5))
+
+        const scrollTimer = setTimeout(() => {
+          setAnimatingSegmentGuid(activeSegmentGuid)
+          setTimeout(() => setAnimatingSegmentGuid(null), 1000)
+        }, scrollDuration)
+
+        return () => clearTimeout(scrollTimer)
       }
     }
+
+    // No scrolling needed, start animation immediately
+    setAnimatingSegmentGuid(activeSegmentGuid)
+    const timer = setTimeout(() => setAnimatingSegmentGuid(null), 1000)
+    return () => clearTimeout(timer)
   }, [activeSegmentGuid, imageLoaded, shouldScrollToSegment])
 
   const calculateHighlightPosition = (segment: any) => {
@@ -156,30 +236,40 @@ const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({
             if (position.width === 0 || position.height === 0) return null
 
             const isActive = segment.g === activeSegmentGuid
+            const isAnimating = segment.g === animatingSegmentGuid
             const segmentColor = getSegmentColor(segment.g)
 
             return (
               <Box
                 key={index}
                 ref={(el: HTMLDivElement | null) => {
-                  segmentRefs.current[segment.g] = el
+                  if (el) {
+                    if (!segmentRefs.current[segment.g]) {
+                      segmentRefs.current[segment.g] = []
+                    }
+                    // Avoid duplicates (refs can be called multiple times)
+                    if (!segmentRefs.current[segment.g].includes(el)) {
+                      segmentRefs.current[segment.g].push(el)
+                    }
+                  }
                 }}
                 position="absolute"
-                left={`${position.left}px`}
-                top={`${position.top}px`}
-                width={`${position.width}px`}
-                height={`${position.height}px`}
+                left={`${position.left - 4}px`}
+                top={`${position.top - 4}px`}
+                width={`${position.width + 8}px`}
+                height={`${position.height + 8}px`}
                 border="3px solid"
                 borderColor={segmentColor}
                 borderRadius="md"
                 cursor="pointer"
-                transition="transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out"
+                transition="transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out"
+                css={isAnimating ? { animation: `${glowPulse} 1s ease-in-out 1` } : undefined}
                 _hover={{
                   transform: 'scale(1.02)',
                   boxShadow: `0 0 8px ${segmentColor}`,
                 }}
                 bg={isActive ? `${segmentColor}` : 'transparent'}
-                opacity={isActive ? 0.3 : 0.7}
+                opacity={isActive ? 0.5 : 0.7}
                 onClick={() => onSegmentClick(segment.g)}
               />
             )
