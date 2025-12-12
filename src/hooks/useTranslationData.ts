@@ -37,19 +37,27 @@ export const useTranslationData = () => {
 
         // Determine the correct status based on current state
         if (fileStatus === 'LOADED' && savedJobData) {
-          // In LOADED state, compare against saved data
+          // In LOADED state, compare against saved data (including review status)
           const hasChangesFromSaved = newTus.some(newTu => {
             const savedTu = savedJobData.tus.find(t => t.guid === newTu.guid)
-            return savedTu && (!isEqual(newTu.ntgt, savedTu.ntgt) || !isEqual(newTu.qa, savedTu.qa))
+            return savedTu && (
+              !isEqual(newTu.ntgt, savedTu.ntgt) ||
+              !isEqual(newTu.qa, savedTu.qa) ||
+              newTu.ts !== savedTu.ts
+            )
           })
           setFileStatus(hasChangesFromSaved ? 'CHANGED' : 'LOADED')
         } else {
-          // In NEW state, compare against original data
-          const hasChangesFromOriginal = newTus.some(newTu => {
+          // In NEW state, compare content against original, review status against saved
+          const hasContentChanges = newTus.some(newTu => {
             const origTu = originalJobData.tus.find(t => t.guid === newTu.guid)
             return origTu && (!isEqual(newTu.ntgt, origTu.ntgt) || !isEqual(newTu.qa, origTu.qa))
           })
-          setFileStatus(hasChangesFromOriginal ? 'CHANGED' : 'NEW')
+          const hasReviewChanges = savedJobData && newTus.some(newTu => {
+            const savedTu = savedJobData.tus.find(t => t.guid === newTu.guid)
+            return savedTu && newTu.ts !== savedTu.ts
+          })
+          setFileStatus(hasContentChanges || hasReviewChanges ? 'CHANGED' : 'NEW')
         }
 
         return { ...prevJobData, tus: newTus }
