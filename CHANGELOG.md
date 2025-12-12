@@ -1,3 +1,16 @@
+# [2.5.0](https://github.com/l10nmonster/lqa-boss/compare/v2.4.0...v2.5.0) (2025-12-12)
+
+
+### Bug Fixes
+
+* Job should be considered changed even if only confirmations happened ([b820c11](https://github.com/l10nmonster/lqa-boss/commit/b820c11e8c74467619ec6ead1ddadbcb50895334))
+* Loaded partial job shows as fully reviewed ([e51afc8](https://github.com/l10nmonster/lqa-boss/commit/e51afc8d4e7b22f505851b70733666cebb57ede1))
+
+
+### Features
+
+* Issue a warning when navigating away from unsaved changes ([725e158](https://github.com/l10nmonster/lqa-boss/commit/725e158eaea507cbfe5545ed8eb2ca61729b43a4))
+
 # [2.4.0](https://github.com/l10nmonster/lqa-boss/compare/v2.3.5...v2.4.0) (2025-12-12)
 
 
