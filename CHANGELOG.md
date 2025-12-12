@@ -1,3 +1,20 @@
+# [2.4.0](https://github.com/l10nmonster/lqa-boss/compare/v2.3.5...v2.4.0) (2025-12-12)
+
+
+### Bug Fixes
+
+* Downgrade fromBase64 function ([09f6d90](https://github.com/l10nmonster/lqa-boss/commit/09f6d9023325de175f0a66e15cdfbafa8c87f930))
+* Improve focusing of segments ([88394e2](https://github.com/l10nmonster/lqa-boss/commit/88394e299c30a25b46152c134a7ed4062d621e62))
+* Improve usability of segment highlights ([4f7d847](https://github.com/l10nmonster/lqa-boss/commit/4f7d8471f11941134185272e6285fc0098d39fee))
+* Performance optimizations in screenshot viewer ([5ffd607](https://github.com/l10nmonster/lqa-boss/commit/5ffd60778fdb8fed09bd4e2e13f310d65adc4a57))
+* Scale screenshots that don't fit ([900117c](https://github.com/l10nmonster/lqa-boss/commit/900117c08218d4b4e0ca94cfd41790e134743d40))
+* Simplify image loading and pre-fetching ([1d6adf7](https://github.com/l10nmonster/lqa-boss/commit/1d6adf7e19131d196e8d1f286cfc5395d71a1f87))
+
+
+### Features
+
+* Support chunked transfers from chrome extension ([2e97ef5](https://github.com/l10nmonster/lqa-boss/commit/2e97ef5b30ad611a2f6cbe6b32de90e8df87a1b7))
+
 ## [2.3.5](https://github.com/l10nmonster/lqa-boss/compare/v2.3.4...v2.3.5) (2025-12-09)
 
 
