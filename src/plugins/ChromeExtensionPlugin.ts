@@ -4,6 +4,19 @@ import JSZip from 'jszip'
 import { generateJobGuid } from '../utils/idGenerator'
 import { toaster } from '../components/ui/toaster'
 
+/**
+ * Decode base64 string to Uint8Array
+ * Uses atob for browser compatibility
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = atob(base64)
+  const bytes = new Uint8Array(binaryString.length)
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i)
+  }
+  return bytes
+}
+
 // Import version from package.json
 // @ts-ignore - vite handles this import
 import packageJson from '../../package.json'
@@ -196,7 +209,7 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
             throw new Error(chunkResponse.error || `Failed to get chunk ${i}`)
           }
 
-          chunks.push(Uint8Array.fromBase64(chunkResponse.data.chunkBase64))
+          chunks.push(base64ToUint8Array(chunkResponse.data.chunkBase64))
         }
 
         // Reassemble chunks
@@ -220,7 +233,7 @@ export class ChromeExtensionPlugin implements IPersistencePlugin {
           title: 'Processing flow',
           description: 'Unpacking data...',
         })
-        uint8Array = Uint8Array.fromBase64(response.data.zipBase64)
+        uint8Array = base64ToUint8Array(response.data.zipBase64)
       }
 
       // Load the ZIP to modify job.json
