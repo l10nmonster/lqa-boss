@@ -26,8 +26,8 @@ export const useTranslationData = () => {
       const currentTu = prevJobData.tus.find(t => t.guid === tu.guid)
       if (!currentTu) return prevJobData
 
-      // Only update if the content, QA, or review status actually changed
-      if (!isEqual(currentTu.ntgt, tu.ntgt) || !isEqual(currentTu.qa, tu.qa) || currentTu.ts !== tu.ts) {
+      // Only update if the content, QA, review status, or timing data actually changed
+      if (!isEqual(currentTu.ntgt, tu.ntgt) || !isEqual(currentTu.qa, tu.qa) || currentTu.ts !== tu.ts || currentTu.sttr !== tu.sttr || currentTu.attr !== tu.attr) {
         // If ntgt changed, clear candidateSelected flag (user is now manually editing)
         const updatedTu = !isEqual(currentTu.ntgt, tu.ntgt)
           ? { ...tu, candidateSelected: undefined }
@@ -37,25 +37,31 @@ export const useTranslationData = () => {
 
         // Determine the correct status based on current state
         if (fileStatus === 'LOADED' && savedJobData) {
-          // In LOADED state, compare against saved data (including review status)
+          // In LOADED state, compare against saved data (including review status and timing)
           const hasChangesFromSaved = newTus.some(newTu => {
             const savedTu = savedJobData.tus.find(t => t.guid === newTu.guid)
             return savedTu && (
               !isEqual(newTu.ntgt, savedTu.ntgt) ||
               !isEqual(newTu.qa, savedTu.qa) ||
-              newTu.ts !== savedTu.ts
+              newTu.ts !== savedTu.ts ||
+              newTu.sttr !== savedTu.sttr ||
+              newTu.attr !== savedTu.attr
             )
           })
           setFileStatus(hasChangesFromSaved ? 'CHANGED' : 'LOADED')
         } else {
-          // In NEW state, compare content against original, review status against saved
+          // In NEW state, compare content against original, review status/timing against saved
           const hasContentChanges = newTus.some(newTu => {
             const origTu = originalJobData.tus.find(t => t.guid === newTu.guid)
             return origTu && (!isEqual(newTu.ntgt, origTu.ntgt) || !isEqual(newTu.qa, origTu.qa))
           })
           const hasReviewChanges = savedJobData && newTus.some(newTu => {
             const savedTu = savedJobData.tus.find(t => t.guid === newTu.guid)
-            return savedTu && newTu.ts !== savedTu.ts
+            return savedTu && (
+              newTu.ts !== savedTu.ts ||
+              newTu.sttr !== savedTu.sttr ||
+              newTu.attr !== savedTu.attr
+            )
           })
           setFileStatus(hasContentChanges || hasReviewChanges ? 'CHANGED' : 'NEW')
         }
@@ -120,7 +126,7 @@ export const useTranslationData = () => {
         if (!isEqual(savedTu.ntgt, tu.ntgt)) {
           editedCount++
         }
-        return { ...tu, ntgt: savedTu.ntgt, qa: savedTu.qa, ts: savedTu.ts }
+        return { ...tu, ntgt: savedTu.ntgt, qa: savedTu.qa, ts: savedTu.ts, sttr: savedTu.sttr, attr: savedTu.attr }
       }
       // Strip ts from segments not in saved data - it's request metadata, not review status
       const { ts: _ts, ...tuWithoutTs } = tu

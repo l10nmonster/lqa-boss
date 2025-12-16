@@ -92,6 +92,8 @@ export interface TranslationUnit {
   qa?: QualityAssessment // quality assessment data
   candidates?: NormalizedItem[][] // alternative translation candidates (for duplicate GUIDs)
   candidateSelected?: boolean // true if a candidate was selected (not manually edited) - doesn't require QA
+  sttr?: number  // Segment Time To Review (milliseconds) - individual review timing
+  attr?: number  // Average Time To Review (milliseconds) - batch review timing
 }
 
 export interface ProviderData {

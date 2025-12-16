@@ -125,7 +125,10 @@ interface TextSegmentEditorProps {
   activeSegmentGuid: string | null
   onSegmentFocus: (guid: string | null) => void
   qualityModel: QualityModel | null
-  onReviewToggle: (guid: string, reviewed: boolean) => void
+  onReviewToggle: (guid: string, reviewed: boolean, sttr?: number) => void
+  onSegmentFocusStart?: (guid: string) => void
+  onSegmentFocusEnd?: (guid: string, wasApproved: boolean) => number | null
+  onSegmentEdited?: (guid: string) => void
 }
 
 const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
@@ -139,6 +142,9 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
   onSegmentFocus,
   qualityModel,
   onReviewToggle,
+  onSegmentFocusStart,
+  onSegmentFocusEnd,
+  onSegmentEdited,
 }) => {
   const editorRefs = useRef<{ [key: number]: HTMLDivElement }>({})
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -189,6 +195,9 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     // Mark previous segment as reviewed when focus changes
     const prevGuid = prevActiveSegmentGuidRef.current
     if (prevGuid && prevGuid !== activeSegmentGuid) {
+      // Stop the segment timer (not approved via Cmd+Enter, just focus lost)
+      const sttr = onSegmentFocusEnd?.(prevGuid, false)
+
       const prevTu = tusByGuid.get(prevGuid)
       const originalTu = originalTusByGuid.get(prevGuid)
       if (prevTu && originalTu) {
@@ -197,7 +206,8 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         if (!isOriginal && !prevTu.ts) {
           const updatedTu = {
             ...prevTu,
-            ts: Date.now()
+            ts: Date.now(),
+            sttr: sttr ?? undefined  // Include STTR if timer was valid
           }
           onTranslationUnitChange(updatedTu)
         }
@@ -207,6 +217,11 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
     // Focus and scroll the new active segment
     const guidChanged = prevActiveSegmentGuidRef.current !== activeSegmentGuid
     prevActiveSegmentGuidRef.current = activeSegmentGuid
+
+    // Start timer for the new active segment
+    if (guidChanged && activeSegmentGuid) {
+      onSegmentFocusStart?.(activeSegmentGuid)
+    }
 
     if (guidChanged && activeSegmentGuid && activeSegmentIndex >= 0) {
       const container = scrollContainerRef.current
@@ -248,13 +263,16 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
         }, 50)
       }
     }
-  }, [activeSegmentGuid, activeSegmentIndex, tusByGuid, originalTusByGuid, onTranslationUnitChange])
+  }, [activeSegmentGuid, activeSegmentIndex, tusByGuid, originalTusByGuid, onTranslationUnitChange, onSegmentFocusStart, onSegmentFocusEnd])
 
   const handleNormalizedChange = useCallback((guid: string, newNtgt: NormalizedItem[]) => {
     const tu = tusByGuid.get(guid)
     const originalTu = originalTusByGuid.get(guid)
 
     if (tu && originalTu) {
+      // Notify timer that segment was edited
+      onSegmentEdited?.(guid)
+
       // Check if content differs from original (in both old and new states)
       const wasOriginal = normalizedArraysEqual(tu.ntgt || [], originalTu.ntgt || [])
       const isOriginal = normalizedArraysEqual(newNtgt, originalTu.ntgt || [])
@@ -285,7 +303,7 @@ const TextSegmentEditor: React.FC<TextSegmentEditorProps> = ({
 
       onTranslationUnitChange(updatedTu)
     }
-  }, [tusByGuid, originalTusByGuid, onTranslationUnitChange])
+  }, [tusByGuid, originalTusByGuid, onTranslationUnitChange, onSegmentEdited])
 
   const handleUndo = useCallback((guid: string) => {
     const savedTu = savedTusByGuid.get(guid)

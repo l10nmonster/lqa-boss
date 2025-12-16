@@ -15,6 +15,7 @@ import { useQualityModel } from '../hooks/useQualityModel'
 import { useFileOperations } from '../hooks/useFileOperations'
 import { usePluginSettings } from '../hooks/usePluginSettings'
 import { usePluginPreferences } from '../hooks/usePluginPreferences'
+import { useReviewTimers } from '../hooks/useReviewTimers'
 import { pluginRegistry } from '../plugins/PluginRegistry'
 import { IPersistencePlugin, FileIdentifier } from '../plugins/types'
 import { useNavigate } from 'react-router-dom'
@@ -46,6 +47,9 @@ export const EditorPage: React.FC = () => {
 
   // Initialize quality model hook
   const qualityModelHook = useQualityModel()
+
+  // Initialize review timers hook for STTR/ATTR tracking
+  const reviewTimers = useReviewTimers()
 
   // Initialize file operations hook with callbacks
   const fileOps = useFileOperations({
@@ -258,7 +262,7 @@ export const EditorPage: React.FC = () => {
     setRefreshExtensionAvailability(prev => prev + 1)
   }
 
-  const handleReviewToggle = (guid: string, reviewed: boolean) => {
+  const handleReviewToggle = (guid: string, reviewed: boolean, sttr?: number, attr?: number) => {
     if (!fileOps.translationData.jobData) return
 
     const tu = fileOps.translationData.jobData.tus.find(t => t.guid === guid)
@@ -266,7 +270,9 @@ export const EditorPage: React.FC = () => {
 
     const updatedTu = {
       ...tu,
-      ts: reviewed ? Date.now() : undefined
+      ts: reviewed ? Date.now() : undefined,
+      sttr: sttr ?? tu.sttr,  // Set new or preserve existing
+      attr: attr ?? tu.attr   // Set new or preserve existing
     }
 
     fileOps.translationData.updateTranslationUnit(updatedTu)
@@ -453,6 +459,11 @@ export const EditorPage: React.FC = () => {
           qualityModel={qualityModelHook.qualityModel}
           ept={ept}
           onReviewToggle={handleReviewToggle}
+          onSegmentFocusStart={reviewTimers.startSegmentTimer}
+          onSegmentFocusEnd={reviewTimers.stopSegmentTimer}
+          onSegmentEdited={reviewTimers.markSegmentEdited}
+          onPageTimerStart={reviewTimers.startPageTimer}
+          onPageTimerStop={reviewTimers.stopPageTimer}
         />
       </EditorLayout>
     </>

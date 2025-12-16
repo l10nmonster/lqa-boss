@@ -39,7 +39,12 @@ interface TranslationEditorProps {
   sourceInfo?: SourceDisplayInfo
   qualityModel: QualityModel | null
   ept: number | null
-  onReviewToggle: (guid: string, reviewed: boolean) => void
+  onReviewToggle: (guid: string, reviewed: boolean, sttr?: number, attr?: number) => void
+  onSegmentFocusStart?: (guid: string) => void
+  onSegmentFocusEnd?: (guid: string, wasApproved: boolean) => number | null
+  onSegmentEdited?: (guid: string) => void
+  onPageTimerStart?: (pageIndex: number) => void
+  onPageTimerStop?: () => { pageIndex: number; elapsed: number } | null
 }
 
 export interface TranslationEditorRef {
@@ -60,6 +65,11 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   qualityModel,
   ept,
   onReviewToggle,
+  onSegmentFocusStart,
+  onSegmentFocusEnd,
+  onSegmentEdited,
+  onPageTimerStart,
+  onPageTimerStop,
 }, ref) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [activeSegmentGuid, setActiveSegmentGuid] = useState<string | null>(null)
@@ -146,6 +156,13 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
     return calculateTER(jobData, originalJobData)
   }, [jobData, originalJobData])
 
+  // Start page timer when page changes (for ATTR calculation)
+  useEffect(() => {
+    if (flowData && currentPageIndex >= 0) {
+      onPageTimerStart?.(currentPageIndex)
+    }
+  }, [currentPageIndex, flowData, onPageTimerStart])
+
   // Calculate segment and word counts
   const segmentWordCounts = useMemo(() => {
     return calculateSegmentWordCounts(jobData)
@@ -227,23 +244,38 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   const handleBeforeNavigate = () => {
     if (!jobData || !activeSegmentGuid) return
 
-    // Mark the current segment as reviewed
-    onReviewToggle(activeSegmentGuid, true)
+    // Stop the segment timer (approved via Cmd+Enter)
+    const sttr = onSegmentFocusEnd?.(activeSegmentGuid, true)
+
+    // Mark the current segment as reviewed with STTR
+    onReviewToggle(activeSegmentGuid, true, sttr ?? undefined)
   }
 
   // Mark all visible segments on current page as reviewed
   const handleMarkAllVisibleAsReviewed = () => {
     if (!currentPage || !currentPage.segments) return
 
+    // Stop page timer and get elapsed time
+    const timerResult = onPageTimerStop?.()
+
     // Filter for visible segments (width > 0 and height > 0)
     const visibleSegments = currentPage.segments.filter(
       segment => segment.width > 0 && segment.height > 0
     )
 
-    // Mark all visible segments as reviewed
+    const segmentCount = visibleSegments.length
+    if (segmentCount === 0) return
+
+    // Calculate ATTR (average time per segment)
+    const attr = timerResult ? Math.round(timerResult.elapsed / segmentCount) : undefined
+
+    // Mark all visible segments as reviewed with ATTR
     visibleSegments.forEach(segment => {
-      onReviewToggle(segment.g, true)
+      onReviewToggle(segment.g, true, undefined, attr)
     })
+
+    // Restart page timer for potential next batch on same page
+    onPageTimerStart?.(currentPageIndex)
   }
 
   // Compute the ordered list of guids for navigation (matches TextSegmentEditor logic)
@@ -421,6 +453,9 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
                 onSegmentFocus={handleEditorSegmentFocus}
                 qualityModel={qualityModel}
                 onReviewToggle={onReviewToggle}
+                onSegmentFocusStart={onSegmentFocusStart}
+                onSegmentFocusEnd={onSegmentFocusEnd}
+                onSegmentEdited={onSegmentEdited}
               />
             </Box>
           </GlassBox>
@@ -454,6 +489,9 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
               onSegmentFocus={handleEditorSegmentFocus}
               qualityModel={qualityModel}
               onReviewToggle={onReviewToggle}
+              onSegmentFocusStart={onSegmentFocusStart}
+              onSegmentFocusEnd={onSegmentFocusEnd}
+              onSegmentEdited={onSegmentEdited}
             />
           </Box>
         </GlassBox>
