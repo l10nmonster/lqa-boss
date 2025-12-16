@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/l10nmonster/lqa-boss/compare/v2.5.0...v2.6.0) (2025-12-16)
+
+
+### Features
+
+* Add review metrics ([d675bf4](https://github.com/l10nmonster/lqa-boss/commit/d675bf45daa05ca8467166ee64b1d9c11e461b28))
+
 # [2.5.0](https://github.com/l10nmonster/lqa-boss/compare/v2.4.0...v2.5.0) (2025-12-12)
 
 
