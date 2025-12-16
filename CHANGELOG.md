@@ -1,3 +1,10 @@
+## [2.6.1](https://github.com/l10nmonster/lqa-boss/compare/v2.6.0...v2.6.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* Scroll screenshot into view for first segment when changing page ([4842631](https://github.com/l10nmonster/lqa-boss/commit/48426318881b563bc84ca7f70797e914fb0f1560))
+
 # [2.6.0](https://github.com/l10nmonster/lqa-boss/compare/v2.5.0...v2.6.0) (2025-12-16)
 
 
