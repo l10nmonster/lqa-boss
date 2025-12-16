@@ -349,7 +349,8 @@ export const TranslationEditor = forwardRef<TranslationEditorRef, TranslationEdi
   useEffect(() => {
     const hasSegments = segmentGuids.length > 0
     if (hasSegments && activeSegmentGuid === null && !userDeselected.current) {
-      setActiveSegmentGuid(segmentGuids[0])
+      // Use 'editor' source to trigger scroll in screenshot viewer
+      handleSetActiveSegmentGuid(segmentGuids[0], 'editor')
     }
   }, [currentPageIndex, flowData, segmentGuids, activeSegmentGuid])
 
